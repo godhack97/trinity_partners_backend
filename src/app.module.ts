@@ -1,0 +1,75 @@
+import { MailerModule } from '@nestjs-modules/mailer';
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { AuthModule } from './api/auth/auth.module';
+import { ConfiguratorModule } from './api/configurator/configurator.module';
+import { RegistrationModule } from './api/registration/registration.module';
+import { RoleModule } from './api/role/role.module';
+import { UserModule } from './api/user/user.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthGuard } from './guards/auth.guard';
+import { OrmModule } from './orm/orm.module';
+import { AdminModule } from "./api/admin/admin.module";
+
+const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
+const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: envFilePath,
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'mysql',
+        host: configService.get('DATABASE_HOST'),
+        port: configService.get('DATABASE_PORT'),
+        username: configService.get('DATABASE_USERNAME'),
+        password: configService.get('DATABASE_PASSWORD'),
+        database: configService.get('DATABASE_NAME'),
+        entities: ['dist/**/*.entity{.ts,.js}'],
+        synchronize: false,
+        driver: require('mysql2') ,
+        logging: is_development ? ["query", "error"] : [],
+      }),
+      inject: [ConfigService],
+    }),
+    MailerModule.forRootAsync({
+      useFactory: async(configService: ConfigService) => ({
+        transport: {
+          host: configService.get('EMAIL_HOST'),
+          port: 25,
+          auth: {
+            user: configService.get('EMAIL_USERNAME'),
+            pass: configService.get('EMAIL_PASSWORD'),
+          },
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    UserModule,
+    AuthModule,
+    RoleModule,
+    RegistrationModule,
+    OrmModule,
+    ConfiguratorModule,
+    AdminModule
+  ],
+  controllers: [AppController],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
+  ],
+})
+export class AppModule {
+  constructor(private dataSource: DataSource) {}
+}
