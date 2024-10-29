@@ -18,12 +18,14 @@ export class DealService {
 
   }
   async create(request: Request, createDealDto: CreateDealDto):  Promise<DealEntity> {
+    
     const token = this.extractToken(request);
     const role = await this.getUserRole(token);
 
     if(role.userId !== createDealDto.partner_id) {
       throw new HttpException('Вы не можете создавать сделки за других пользователей', HttpStatus.FORBIDDEN);
     }
+    
     const user = await this.userRepository.findById(createDealDto.partner_id);
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.findById(createDealDto.customer_id);
