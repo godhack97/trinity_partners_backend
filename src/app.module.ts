@@ -14,6 +14,9 @@ import { AppService } from './app.service';
 import { AuthGuard } from './guards/auth.guard';
 import { OrmModule } from './orm/orm.module';
 import { AdminModule } from "./api/admin/admin.module";
+import { DealModule } from './api/deal/deal.module';
+import { CustomerModule } from './api/customer/customer.module';
+import { DistributorModule } from './api/distributor/distributor.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -59,7 +62,10 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     RegistrationModule,
     OrmModule,
     ConfiguratorModule,
-    AdminModule
+    AdminModule,
+    DealModule,
+    CustomerModule,
+    DistributorModule
   ],
   controllers: [AppController],
   providers: [
