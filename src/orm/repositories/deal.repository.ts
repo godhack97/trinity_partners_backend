@@ -2,7 +2,7 @@ import { SearchDealDto } from "@api/deal/dto/request/search-deal.dto";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DealEntity } from "@orm/entities";
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
+import { Between, LessThanOrEqual, Like, MoreThanOrEqual, Repository } from "typeorm";
 
 @Injectable()
 export class DealRepository extends Repository<DealEntity> {
@@ -35,11 +35,23 @@ export class DealRepository extends Repository<DealEntity> {
     let whereCondition = {};
     
     if (entry.startDate && entry.endDate) {
-      whereCondition = { purchase_date: Between(new Date(entry.startDate), new Date(entry.endDate)) };
+      whereCondition = { purchase_date: Between(new Date(entry.startDate), new Date(entry.endDate)) };   
     } else if (entry.startDate) {
       whereCondition = { purchase_date: MoreThanOrEqual(new Date(entry.startDate)) };
     } else if (entry.endDate) {
       whereCondition = { purchase_date: LessThanOrEqual(new Date(entry.endDate)) };
+    }
+
+    if (entry.status) {
+      whereCondition = { ...whereCondition, status: entry.status };
+    }
+
+    if(entry.search) {
+      whereCondition = [
+        { ...whereCondition, deal_num: Like(`%${entry.search}%`) },
+        { ...whereCondition, deal_sum: Like(`%${entry.search}%`) },
+        { ...whereCondition, title: Like(`%${entry.search}%`) }
+      ];
     }
     
     return await this.find({
