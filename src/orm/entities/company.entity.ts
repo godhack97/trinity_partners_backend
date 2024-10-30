@@ -34,7 +34,7 @@ export class CompanyEntity extends BasisEntity {
         referencedColumnName: 'id',
       },
   })
-  employee: UserEntity
+  employee: UserEntity[]
 
   @Column()
   company_business_line: string;
