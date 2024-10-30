@@ -5,4 +5,6 @@ export * from './reset-token.repository';
 export * from './role.repository';
 export * from './user-info.repository';
 export * from './user.repository';
-
+export * from './deal.repository';
+export * from './customer.repository';
+export * from './distributor.repository';
