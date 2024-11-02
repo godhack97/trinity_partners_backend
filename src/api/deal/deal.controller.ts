@@ -21,8 +21,15 @@ export class DealController {
 
   @Get()
   @UseInterceptors(new TransformResponse(DealResponseDto))
-  @ApiResponse({ type: DealResponseDto })
+  @ApiResponse({ type: DealResponseDto, isArray: true })
   findAll(@Req() request: Request, @Query() entry?: SearchDealDto) {
+    return this.dealService.findAll(request, entry);
+  }
+
+  @Get('statistic')
+  @UseInterceptors(new TransformResponse(DealStatisticsResponseDto))
+  @ApiResponse({ type: DealResponseDto })
+  getDealStatistic(@Req() request: Request, @Query() entry?: SearchDealDto) {
     return this.dealService.findAll(request, entry );
   }
 
