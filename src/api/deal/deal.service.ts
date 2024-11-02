@@ -3,8 +3,9 @@ import { CreateDealDto } from './dto/request/create-deal.dto';
 import { UpdateDealDto } from './dto/request/update-deal.dto';
 import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository, UserRepository } from '@orm/repositories';
 import { RoleTypes } from '@app/types/RoleTypes';
-import { DealEntity } from '@orm/entities';
+import { DealEntity, DealStatus } from '@orm/entities';
 import { SearchDealDto } from './dto/request/search-deal.dto';
+import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
 
 @Injectable()
 export class DealService {
@@ -63,7 +64,7 @@ export class DealService {
 
     switch (role.role) {
       case RoleTypes.SuperAdmin:
-      deals = await this.dealRepository.findDealsByDateRange(entry);
+      deals = await this.dealRepository.findDealsWithFilters(entry);
       break;
 
       // Проверить это после реализации добавления сотрудников к компании
@@ -71,14 +72,14 @@ export class DealService {
       case RoleTypes.Partner:
       const companyWithEmployees = await this.companyRepository.findByOwnerId(role.userId);
       const employeeIds = companyWithEmployees.employee.map(el => el.id);
-      deals = await this.dealRepository.findDealsByDateRange(entry);
+      deals = await this.dealRepository.findDealsWithFilters(entry);
       deals = deals.filter(deal => 
         deal.partner_id === companyWithEmployees.owner_id || employeeIds.includes(deal.partner_id)
       );
       break;
 
       case RoleTypes.Employee:
-      deals = await this.dealRepository.findDealsByDateRange(entry);
+      deals = await this.dealRepository.findDealsWithFilters(entry);
       deals = deals.filter(deal => deal.partner_id === role.userId);
       break;
 
@@ -128,6 +129,18 @@ export class DealService {
         throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
     }
       
+  }
+
+  async getDealStatistic(request: Request) {
+    const dealsData = await this.findAll(request);
+    const statistic: DealStatisticsResponseDto = {
+      allCount: dealsData.length,
+      canceled: dealsData.filter(el => el.status === DealStatus.Canceled).length,
+      registered: dealsData.filter(el => el.status === DealStatus.Registered).length,
+      moderation: dealsData.filter(el => el.status === DealStatus.Moderation).length,
+    };
+
+    return statistic;
   }
 
   update(id: number, updateDealDto: UpdateDealDto) {
