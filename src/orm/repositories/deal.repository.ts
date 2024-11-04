@@ -59,7 +59,11 @@ export class DealRepository extends Repository<DealEntity> {
     // });
 
     // Чтобы искало без учета регистра, плюс в дальнейшем проще будет добавялть условия поиска
-    const queryBuilder = this.createQueryBuilder("deal");
+    const queryBuilder = this.createQueryBuilder("deal")
+     .leftJoinAndSelect("deal.distributor", "distributor")
+     .leftJoinAndSelect("deal.customer", "customer")
+     .leftJoinAndSelect("deal.partner", "partner")
+     .leftJoinAndSelect("partner.role", "role");
 
     if (entry?.startDate && entry?.endDate) {
       queryBuilder.andWhere("deal.purchase_date BETWEEN :startDate AND :endDate", {
