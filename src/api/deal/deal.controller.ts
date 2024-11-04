@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from '@interceptors/transform-response.interceptor';
 import { DealResponseDto } from './dto/response/deal-response.dto';
 import { SearchDealDto } from './dto/request/search-deal.dto';
+import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
 
 @ApiTags('deal')
 @ApiBearerAuth()
@@ -21,12 +22,21 @@ export class DealController {
 
   @Get()
   @UseInterceptors(new TransformResponse(DealResponseDto))
-  @ApiResponse({ type: DealResponseDto })
+  @ApiResponse({ type: DealResponseDto, isArray: true })
   findAll(@Req() request: Request, @Query() entry?: SearchDealDto) {
-    return this.dealService.findAll(request, entry );
+    return this.dealService.findAll(request, entry);
+  }
+
+  @Get('statistic')
+  @UseInterceptors(new TransformResponse(DealStatisticsResponseDto))
+  @ApiResponse({ type: DealResponseDto })
+  getDealStatistic(@Req() request: Request): Promise<DealStatisticsResponseDto> {
+    return this.dealService.getDealStatistic(request);
   }
 
   @Get(':id')
+  @UseInterceptors(new TransformResponse(DealResponseDto))
+  @ApiResponse({ type: DealResponseDto })
   findOne(@Param('id') id: string, @Req() request: Request) {
     return this.dealService.findOne(+id, request);
   }
