@@ -29,15 +29,19 @@ export class CompanyEntity extends BasisEntity {
   @JoinTable({
       name: 'company_employees',
       joinColumn: {
-        name: 'employee_id',
-        referencedColumnName: 'id',
-      },
-      inverseJoinColumn: {
+        // name: 'employee_id',
+        // referencedColumnName: 'id',
         name: 'company_id',
         referencedColumnName: 'id',
       },
+      inverseJoinColumn: {
+        // name: 'company_id',
+        // referencedColumnName: 'id',
+        name: 'employee_id',
+        referencedColumnName: 'id',
+      },
   })
-  employee: UserEntity[]
+  employee: UserEntity[];
 
   @Column()
   company_business_line: string;

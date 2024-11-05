@@ -5,8 +5,6 @@ import { Type } from "class-transformer";
 
 export class CreateDealDto {
   
-  deal_num?: string;
-
   @ApiProperty()
   @IsNotEmptyRu()
   @IsNumberRu()
@@ -16,11 +14,6 @@ export class CreateDealDto {
   @IsNotEmptyRu()
   @IsNumberRu()
   customer_id: number;
-
-  @ApiProperty()
-  @IsNotEmptyRu()
-  @IsNumberRu()
-  partner_id: number;
 
   @ApiProperty()
   title?: string;
