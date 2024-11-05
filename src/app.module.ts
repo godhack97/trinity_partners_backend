@@ -17,6 +17,8 @@ import { AdminModule } from "./api/admin/admin.module";
 import { DealModule } from './api/deal/deal.module';
 import { CustomerModule } from './api/customer/customer.module';
 import { DistributorModule } from './api/distributor/distributor.module';
+import { CompanyModule } from './api/company/company.module';
+import { AuthTokenModule } from './services/auth-token/auth-token.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -65,7 +67,9 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     AdminModule,
     DealModule,
     CustomerModule,
-    DistributorModule
+    DistributorModule,
+    CompanyModule,
+    AuthTokenModule
   ],
   controllers: [AppController],
   providers: [

@@ -11,4 +11,8 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
   ) {
     super(repo.target, repo.manager, repo.queryRunner);
   }
+
+  public async findCompanyEmployeeByEmployeeId(employee_id: number) {
+    return await this.findOneBy({ employee_id })
+  }
 }

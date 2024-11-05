@@ -31,4 +31,18 @@ export class UserRepository extends Repository<UserEntity> {
   public async findByPassword(password: string): Promise<UserEntity> {
     return await this.findOneBy({ password });
   }
+
+  public async findByEmailWithCompanyEmployees(email: string) {
+    return await this.findOne({
+      where: { email },
+      relations: ['company_employee', 'user_info']
+    });
+  }
+
+  public async findByTokenWithCompanyEmployees(token: string) {
+    return await this.findOne({
+      where: { token },
+      relations: ['company_employee']
+    });
+  }
 }
