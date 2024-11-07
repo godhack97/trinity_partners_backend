@@ -45,4 +45,11 @@ export class UserRepository extends Repository<UserEntity> {
       relations: ['company_employee']
     });
   }
+
+  public async findByIdWithCompanyEmployees(id: number) {
+    return await this.findOne({
+      where: { id },
+      relations: ['company_employee', 'user_info']
+    });
+  }
 }
