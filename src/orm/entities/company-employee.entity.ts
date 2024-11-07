@@ -6,8 +6,7 @@ import { CompanyEntity } from "./company.entity";
 export enum CompanyEmployeeStatus {
   Pending = 'pending',
   Accept = 'accept',
-  Reject = 'reject',
-  Deleted = 'deleted'
+  Reject = 'reject'
 }
 @Entity({
   name: 'company_employees',

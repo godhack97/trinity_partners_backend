@@ -3,10 +3,8 @@ import { CreateDealDto } from './dto/request/create-deal.dto';
 import { UpdateDealDto } from './dto/request/update-deal.dto';
 import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository, UserRepository } from '@orm/repositories';
 import { RoleTypes } from '@app/types/RoleTypes';
-import { CompanyEmployeeStatus, DealEntity, DealStatus } from '@orm/entities';
+import { DealEntity } from '@orm/entities';
 import { SearchDealDto } from './dto/request/search-deal.dto';
-import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
-import { AuthTokenService } from '@app/services/auth-token/auth-token.service';
 
 @Injectable()
 export class DealService {
@@ -15,24 +13,26 @@ export class DealService {
     private readonly customerRepository: CustomerRepository,
     private readonly userRepository: UserRepository,
     private readonly dealRepository: DealRepository,
-    private readonly companyRepository: CompanyRepository,
-    private readonly authTokenService: AuthTokenService,
+    private readonly companyRepository: CompanyRepository
   ) {
 
   }
   async create(request: Request, createDealDto: CreateDealDto):  Promise<DealEntity> {
-    
-    const token = this.authTokenService.extractToken(request);
-    const role =  await this.authTokenService.getUserRole(token);
-    
+    const token = this.extractToken(request);
+    const role = await this.getUserRole(token);
+
+    if(role.userId !== createDealDto.partner_id) {
+      throw new HttpException('Вы не можете создавать сделки за других пользователей', HttpStatus.FORBIDDEN);
+    }
+    const user = await this.userRepository.findById(createDealDto.partner_id);
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.findById(createDealDto.customer_id);
 
-    if(role.role === RoleTypes.Employee && (!role.status || role.status !== CompanyEmployeeStatus.Accept)) {
-      throw new HttpException('Вы не прошли проверку владельцем компании и не можете создавать сделку', HttpStatus.FORBIDDEN);
+    if(!user) {
+      throw new HttpException('Данного пользователя не существует', HttpStatus.FORBIDDEN);
     }
 
-    if(!distributor) {
+    if(!distributor ) {
       throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
     }
 
@@ -43,31 +43,25 @@ export class DealService {
     const countDealsInDay = await this.dealRepository.countDealsForToday();
     const date = new Date();
 
-    const deal_num = `${role.userId}-${date.getFullYear()}/${(date.getMonth() + 1).toString()
-      .padStart(2, '0')}/${date.getDate()
-      .toString().padStart(2, '0')}-${countDealsInDay+1}`;
+    createDealDto.deal_num = `${user.id}-${date.getFullYear()}/${(date.getMonth() + 1).toString()
+    .padStart(2, '0')}/${date.getDate()
+    .toString().padStart(2, '0')}-${countDealsInDay+1}`;
 
-    createDealDto.purchase_date = new Date(createDealDto.purchase_date);
+    createDealDto.purchase_date = new Date(createDealDto.purchase_date)
 
-    const dealData = {
-      ...createDealDto,
-      partner_id: role.userId,
-      deal_num
-    }
-
-    return this.dealRepository.save(dealData);
+    return this.dealRepository.save(createDealDto);
   }
 
   async findAll(request: Request, entry?: SearchDealDto) {
     
-    const token = this.authTokenService.extractToken(request);
-    const role =  await this.authTokenService.getUserRole(token);
+    const token = this.extractToken(request);
+    const role = await this.getUserRole(token);
 
     let deals =[];
 
     switch (role.role) {
       case RoleTypes.SuperAdmin:
-      deals = await this.dealRepository.findDealsWithFilters(entry);
+      deals = await this.dealRepository.findDealsByDateRange(entry);
       break;
 
       // Проверить это после реализации добавления сотрудников к компании
@@ -75,14 +69,14 @@ export class DealService {
       case RoleTypes.Partner:
       const companyWithEmployees = await this.companyRepository.findByOwnerId(role.userId);
       const employeeIds = companyWithEmployees.employee.map(el => el.id);
-      deals = await this.dealRepository.findDealsWithFilters(entry);
+      deals = await this.dealRepository.findDealsByDateRange(entry);
       deals = deals.filter(deal => 
         deal.partner_id === companyWithEmployees.owner_id || employeeIds.includes(deal.partner_id)
       );
       break;
 
       case RoleTypes.Employee:
-      deals = await this.dealRepository.findDealsWithFilters(entry);
+      deals = await this.dealRepository.findDealsByDateRange(entry);
       deals = deals.filter(deal => deal.partner_id === role.userId);
       break;
 
@@ -95,8 +89,8 @@ export class DealService {
   }
 
   async findOne(id: number, request: Request) {
-    const token = this.authTokenService.extractToken(request);
-    const role =  await this.authTokenService.getUserRole(token);
+    const token = this.extractToken(request);
+    const role = await this.getUserRole(token);
 
     const deal = await this.dealRepository.findById(id);
 
@@ -134,23 +128,31 @@ export class DealService {
       
   }
 
-  async getDealStatistic(request: Request) {
-    const dealsData = await this.findAll(request);
-    const statistic: DealStatisticsResponseDto = {
-      allCount: dealsData.length,
-      canceled: dealsData.filter(el => el.status === DealStatus.Canceled).length,
-      registered: dealsData.filter(el => el.status === DealStatus.Registered).length,
-      moderation: dealsData.filter(el => el.status === DealStatus.Moderation).length,
-    };
-
-    return statistic;
-  }
-
   update(id: number, updateDealDto: UpdateDealDto) {
     return `This action updates a #${id} deal`;
   }
 
   remove(id: number) {
     return `This action removes a #${id} deal`;
+  }
+
+
+  //Вынести в отдельный сервис при необходимости
+  private extractToken(request: Request): string {
+
+    const headers = request.headers as { authorization?: string };
+    const _token: string = headers.authorization || '';
+    if (_token.length === 0) {
+      throw new HttpException('Пользователь не авторизован', HttpStatus.UNAUTHORIZED);
+    }
+      return _token.substring(7); 
+  }
+    
+  private async getUserRole(token: string) {
+    const user = await this.userRepository.findOneBy({ token });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.UNAUTHORIZED);
+    }
+      return { role: user.role.name, userId: user.id }
   }
 }

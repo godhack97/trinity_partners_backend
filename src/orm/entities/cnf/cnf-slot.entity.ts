@@ -1,21 +1,13 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Timestamp, UpdateDateColumn } from "typeorm";
+import { Column, Entity, } from "typeorm";
+import { BasisUUIDEntity } from "@orm/entities/basis.entity";
 
 @Entity({
   name: 'cnf_slots',
 })
-export class CnfSlotEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class CnfSlotEntity extends BasisUUIDEntity{
   @Column()
   name: string;
 
-  @Column()
-  type_id: number;
-
-  @CreateDateColumn()
-  created_at: Timestamp;
-
-  @UpdateDateColumn()
-  updated_at: Timestamp;
+  @Column({ nullable: true })
+  type_id: string;
 }

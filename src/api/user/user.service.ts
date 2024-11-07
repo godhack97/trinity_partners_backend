@@ -7,8 +7,8 @@ import { createCredentials } from 'src/utils/password';
 import { DataSource } from 'typeorm';
 import { RegistrationEmployeeRequestDto } from '../registration/dto/request/registration-employee.request.dto';
 import { RegistrationCompanyRequestDto } from '../registration/dto/request/registration-company.request.dto';
-import { CompanyEmployeeRepository } from "../../orm/repositories";
-import { CompanyEmployeeStatus, CompanyStatus } from "../../orm/entities";
+import { CompanyEmployeeRepository } from "@orm/repositories";
+import { CompanyEmployeeStatus, CompanyStatus } from "@orm/entities";
 import { RegistrationSuperAdminDto } from "../registration/dto/request/registration-super-admin.request.dto";
 
 const USER_SECRET = 'Неправильно введен secret';
@@ -91,6 +91,7 @@ export class UserService {
     });
     const company = await this.companyRepository.save({
       inn: registrationCompanyDto.inn,
+      name: registrationCompanyDto.company_name,
       company_business_line: registrationCompanyDto.company_business_line,
       employees_count: registrationCompanyDto.employees_count,
       site_url: registrationCompanyDto.site_url,

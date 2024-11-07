@@ -6,11 +6,13 @@ import { RoleGuard } from "../../guards/role.guard";
 import { APP_GUARD } from "@nestjs/core";
 import { AdminPartnerModule } from "./partner/admin-partner.module";
 import { AdminConfiguratorModule } from "./configurator/admin-configurator.module";
+import { AdminImageModule } from "@api/admin/image/admin-image.module";
 @Module({
   imports:[
     AdminUserModule,
     AdminPartnerModule,
     AdminConfiguratorModule,
+    AdminImageModule,
   ],
   controllers: [AdminController],
   providers: [

@@ -3,6 +3,7 @@ import { Body, Controller, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Roles } from "../../../../decorators/Roles";
 import { RoleTypes } from "../../../../types/RoleTypes";
+import { CreateSlotRequestDto } from "@api/admin/configurator/slot/dto/request/create-slot.request.dto";
 
 @ApiTags('admin/configurator/slot')
 @ApiBearerAuth()
@@ -12,12 +13,12 @@ export class AdminConfiguratorSlotController {
   constructor(private readonly adminConfiguratorSlotService: AdminConfiguratorSlotService) {}
 
   @Post('add')
-  addSlots(@Body() data: {name:string}) {
-    return this.adminConfiguratorSlotService.addSlot(data)
+  create(@Body() data: CreateSlotRequestDto) {
+    return this.adminConfiguratorSlotService.create(data)
   }
 
   @Post(':id/update')
-  updateSlot(@Param('id') id: string, @Body() data: {name:string}) {
+  updateSlot(@Param('id') id: string, @Body() data: CreateSlotRequestDto) {
     return this.adminConfiguratorSlotService.updateSlot(id, data)
   }
 

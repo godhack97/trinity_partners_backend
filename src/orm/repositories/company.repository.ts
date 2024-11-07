@@ -18,8 +18,4 @@ export class CompanyRepository extends Repository<CompanyEntity> {
       relations: ['employee'], 
     });
   }
-
-  async findById(id: number): Promise<CompanyEntity> {
-    return await this.findOneBy({ id });
-  }
 }

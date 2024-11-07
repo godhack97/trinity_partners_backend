@@ -5,11 +5,11 @@ import { UserEntity } from './user.entity';
 @Entity({
   name: 'users_info',
 })
-export class UserInfo extends BasisEntity {
+export class UserInfoEntity extends BasisEntity {
   @Column()
   user_id: number;
 
-  @OneToOne(() => UserEntity, (user: UserEntity) => user.id, { eager: true })
+  @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 

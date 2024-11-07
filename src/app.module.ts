@@ -14,11 +14,8 @@ import { AppService } from './app.service';
 import { AuthGuard } from './guards/auth.guard';
 import { OrmModule } from './orm/orm.module';
 import { AdminModule } from "./api/admin/admin.module";
-import { DealModule } from './api/deal/deal.module';
-import { CustomerModule } from './api/customer/customer.module';
-import { DistributorModule } from './api/distributor/distributor.module';
-import { CompanyModule } from './api/company/company.module';
-import { AuthTokenModule } from './services/auth-token/auth-token.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -30,7 +27,12 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       envFilePath: envFilePath,
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
+      imports: [
+        ConfigModule,
+        ServeStaticModule.forRoot({
+          rootPath: join(__dirname, '../../', 'public'),
+        }),
+      ],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
         host: configService.get('DATABASE_HOST'),
@@ -64,12 +66,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     RegistrationModule,
     OrmModule,
     ConfiguratorModule,
-    AdminModule,
-    DealModule,
-    CustomerModule,
-    DistributorModule,
-    CompanyModule,
-    AuthTokenModule
+    AdminModule
   ],
   controllers: [AppController],
   providers: [

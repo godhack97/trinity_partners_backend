@@ -1,5 +1,5 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from '@nestjs/config';
 import { ResetTokenRepository } from 'src/orm/repositories/reset-token.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
@@ -10,6 +10,7 @@ import {
   verifyPassword,
 } from 'src/utils/password';
 import { AuthLoginRequestDto } from './dto/request/auth-login.request.dto';
+import { RoleTypes } from "@app/types/RoleTypes";
 
 @Injectable()
 export class AuthService {
@@ -34,6 +35,10 @@ export class AuthService {
     const token = await createToken(user.salt);
     await this.userRepository.update(user.id, { token });
     user = await this.userRepository.findByEmail(authLoginDto.email);
+
+    if(user.role.name === RoleTypes.Partner) {
+      user.owner_company = await user.lazy_owner_company;
+    }
     return {
       token,
       user,
@@ -49,6 +54,15 @@ export class AuthService {
     await this.userRepository.update(user.id, { token: null });
   }
 
+  async check(authorization: string) {
+    const token = authorization.substring(7);
+    const user = await this.userRepository.findByToken(token);
+
+    if (!user) throw new HttpException(`Пользователь не найден по токену: ${token}`, HttpStatus.NOT_FOUND);
+    console.warn('AuthService:check')
+
+    return user;
+  }
   async updatePassword(authorization, { password, newPassword }) {
     const token = authorization.substring(7);
     const user = await this.userRepository.findByToken(token);

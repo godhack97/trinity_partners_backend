@@ -1,10 +1,7 @@
-import { CustomerResponseDto } from "@api/customer/dto/response/customer.response.dto";
-import { DistributorResponseDto } from "@api/distributor/dto/response/distributor.response.dto";
-import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
 import { WithIdDto } from "@app/dto/with-id.dto";
 import { ApiProperty } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
-import { Expose, Type } from "class-transformer";
+import { Expose } from "class-transformer";
 
 export class DealResponseDto  extends WithIdDto{
   @ApiProperty()
@@ -62,19 +59,4 @@ export class DealResponseDto  extends WithIdDto{
   @ApiProperty()
   @Expose()
   status: DealStatus;
-
-  @ApiProperty()
-  @Expose()
-  @Type(() => UserResponseDto)
-  partner: UserResponseDto;
-
-  @ApiProperty()
-  @Expose()
-  @Type(() => CustomerResponseDto)
-  customer: CustomerResponseDto;
-
-  @ApiProperty()
-  @Expose()
-  @Type(() => DistributorResponseDto)
-  distributor: DistributorResponseDto;
 }
