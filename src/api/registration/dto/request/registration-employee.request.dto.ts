@@ -26,6 +26,7 @@ export class RegistrationEmployeeRequestDto {
   password: string;
 
   @ApiProperty()
+  @IsNotEmptyRu()
   phone: string;
 }
 

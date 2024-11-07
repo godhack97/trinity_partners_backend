@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, Req
 import { DealService } from './deal.service';
 import { CreateDealDto } from './dto/request/create-deal.dto';
 import { UpdateDealDto } from './dto/request/update-deal.dto';
-import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from '@interceptors/transform-response.interceptor';
 import { DealResponseDto } from './dto/response/deal-response.dto';
 import { SearchDealDto } from './dto/request/search-deal.dto';
@@ -23,6 +23,7 @@ export class DealController {
   @Get()
   @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto, isArray: true })
+ // @ApiExtraModels(SearchDealDto)
   findAll(@Req() request: Request, @Query() entry?: SearchDealDto) {
     return this.dealService.findAll(request, entry);
   }

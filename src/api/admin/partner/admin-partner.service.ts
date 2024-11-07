@@ -51,6 +51,10 @@ export default class AdminPartnerService {
       status: CompanyStatus.Accept,
     })
 
+    await this.userRepository.update(companyEntity.owner_id, {
+      is_activated: true,
+    })
+
     const companyEmployee = await this.companyEmployeeRepository.findOneBy({employee_id: companyEntity.owner_id});
 
     if (!companyEmployee) throw new HttpException('Сотрудник не найдена', HttpStatus.FORBIDDEN);

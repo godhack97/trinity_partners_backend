@@ -44,6 +44,7 @@ export class Init1721922641587 implements MigrationInterface {
         (
             id                    INT unsigned                     NOT NULL AUTO_INCREMENT,
             owner_id              INT unsigned                     NOT NULL,
+            name                  VARCHAR(255) COLLATE utf8mb4_bin NOT NULL COMMENT 'Имя компании',
             inn                   VARCHAR(255) COLLATE utf8mb4_bin NOT NULL COMMENT 'ИНН компании',
             company_business_line TEXT COLLATE utf8mb4_bin COMMENT 'Направление деятельности',
             employees_count       INT(11) COMMENT 'Количество сотрудников',
@@ -470,7 +471,7 @@ export class Init1721922641587 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE cnf_servers
         ADD FOREIGN KEY (serverbox_height_id) REFERENCES cnf_serverbox_height (id);`);
     await queryRunner.query(`ALTER TABLE cnf_server_slots
-        ADD FOREIGN KEY (server_id) REFERENCES cnf_servers (id);`);
+        ADD FOREIGN KEY (server_id) REFERENCES cnf_servers (id) ON DELETE CASCADE;`);
     await queryRunner.query(`ALTER TABLE cnf_server_slots
         ADD FOREIGN KEY (slot_id) REFERENCES cnf_slots (id);`);
     await queryRunner.query(`ALTER TABLE cnf_slots

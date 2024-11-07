@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmailRu, IsNotEmptyRu, IsPhoneNumberRu, IsUrlRu, MinLengthRu } from "../../../../decorators/validate";
+import { IsEmailRu, IsNotEmptyRu, IsUrlRu, MinLengthRu } from "@decorators/validate";
 
 export class RegistrationCompanyRequestDto {
   @ApiProperty()
@@ -39,7 +39,7 @@ export class RegistrationCompanyRequestDto {
   password: string;
 
   @ApiProperty()
-  @IsPhoneNumberRu('RU')
+  @IsNotEmptyRu()
   phone: string;
 
   @ApiProperty()

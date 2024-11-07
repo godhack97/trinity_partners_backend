@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Post,
   UseInterceptors,
@@ -27,6 +28,12 @@ export class AuthController {
   @ApiBody({ type: () => AuthLoginRequestDto })
   login(@Body() createAuthDto: AuthLoginRequestDto) {
     return this.authService.login(createAuthDto);
+  }
+
+  @Public()
+  @Get('check')
+  check(@Headers('authorization') authorization: string) {
+    return this.authService.check(authorization);
   }
 
   @Post('logout')

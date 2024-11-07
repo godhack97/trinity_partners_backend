@@ -14,6 +14,8 @@ import { AppService } from './app.service';
 import { AuthGuard } from './guards/auth.guard';
 import { OrmModule } from './orm/orm.module';
 import { AdminModule } from "./api/admin/admin.module";
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { DealModule } from './api/deal/deal.module';
 import { CustomerModule } from './api/customer/customer.module';
 import { DistributorModule } from './api/distributor/distributor.module';
@@ -30,7 +32,12 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       envFilePath: envFilePath,
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
+      imports: [
+        ConfigModule,
+        ServeStaticModule.forRoot({
+          rootPath: join(__dirname, '../../', 'public'),
+        }),
+      ],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
         host: configService.get('DATABASE_HOST'),

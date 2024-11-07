@@ -18,6 +18,9 @@ export class CompanyEntity extends BasisEntity {
   @Column()
   owner_id: number;
 
+  @Column()
+  name: string;
+
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: 'owner_id' })
   owner: UserEntity;
