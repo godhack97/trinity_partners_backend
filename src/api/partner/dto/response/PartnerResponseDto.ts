@@ -13,6 +13,10 @@ export class PartnerResponseDto extends WithIdDto {
 
   @ApiProperty()
   @Expose()
+  name: string;
+
+  @ApiProperty()
+  @Expose()
   company_business_line: string;
 
   @ApiProperty()

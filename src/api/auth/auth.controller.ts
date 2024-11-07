@@ -15,6 +15,7 @@ import { ChangeForgotPasswordDto } from './dto/request/change-forgot-password.re
 import { ForgotPasswordRequestDto } from './dto/request/forgot-password.request.dto';
 import { UpdatePasswordRequestDto } from './dto/request/update-password.request.dto';
 import { AuthLoginResponseDto } from './dto/response/auth-login.response.dto';
+import { AuthCheckResponseDto } from './dto/response/auth-check.response.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -32,6 +33,8 @@ export class AuthController {
 
   @Public()
   @Get('check')
+  @UseInterceptors(new TransformResponse(AuthCheckResponseDto))
+  @ApiResponse({ type: AuthCheckResponseDto })
   check(@Headers('authorization') authorization: string) {
     return this.authService.check(authorization);
   }

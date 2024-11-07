@@ -52,4 +52,11 @@ export class UserRepository extends Repository<UserEntity> {
       relations: ['company_employee', 'user_info']
     });
   }
+
+  public async findByTokenWithCompany(token: string): Promise<UserEntity> {
+    return await this.findOne({ 
+      where: {token},
+      relations: ['company_employee.company', 'user_info']
+    });
+  }
 }

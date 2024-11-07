@@ -4,7 +4,6 @@ import { AuthTokenService } from '@app/services/auth-token/auth-token.service';
 import { CompanyEmployeeRepository, CompanyRepository, RoleRepository, UserInfoRepository, UserRepository } from '@orm/repositories';
 import { RoleTypes } from '@app/types/RoleTypes';
 import { CompanyEmployeeStatus } from '@orm/entities';
-import { message } from '@decorators/validate/translate-ru';
 import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
 
 @Injectable()
@@ -40,14 +39,11 @@ export class CompanyService {
     
     const companyId =  (await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(role.userId)).company_id;
 
-    // Актуализировать имя компании у сотрудника.  В настоящее время у компании в бд нет поля company_name. Венутся после исправления
+    const companyName = (await this.companyRepository.findById(companyId)).name;
 
-    // const companyName = await this.companyRepository.findById(companyId).company_name;
-
-    // await this.userInfoRepository.update(user.user_info.id, {
-    //   company_name: companyName,
-    // })
-    // console.log('companyName', companyName);
+    await this.userInfoRepository.update(user.user_info.id, {
+      company_name: companyName,
+    })
     
     // В текущей реализации перезаписываем company_id если оно было другое. Так как при создании пользователя это никак не проверятется
     await this.companyEmployeeRepository.update(user.company_employee.id, {

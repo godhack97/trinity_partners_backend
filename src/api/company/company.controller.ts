@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
 import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
 import { TransformResponse } from '@interceptors/transform-response.interceptor';
-import { CompanyEmployeesResponseDto } from './dto/response/company-employees-response.dto';
+import { CompanyEmployeesWithEmpoloyeeResponseDto } from './dto/response/company-employees-response.dto';
 
 @ApiTags('company')
 @ApiBearerAuth()
@@ -18,8 +18,8 @@ export class CompanyController {
   }
 
   @Get('get-employees')
-  @UseInterceptors(new TransformResponse(CompanyEmployeesResponseDto, true))
-  @ApiResponse({ type: [CompanyEmployeesResponseDto] })
+  @UseInterceptors(new TransformResponse(CompanyEmployeesWithEmpoloyeeResponseDto, true))
+  @ApiResponse({ type: [CompanyEmployeesWithEmpoloyeeResponseDto] })
   getCompanyEmployees(@Req() request: Request,) {
     return this.companyService.getCompanyEmployees(request);
   }

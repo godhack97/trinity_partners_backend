@@ -56,7 +56,7 @@ export class AuthService {
 
   async check(authorization: string) {
     const token = authorization.substring(7);
-    const user = await this.userRepository.findByToken(token);
+    const user = await this.userRepository.findByTokenWithCompany(token);
 
     if (!user) throw new HttpException(`Пользователь не найден по токену: ${token}`, HttpStatus.NOT_FOUND);
     console.warn('AuthService:check')
