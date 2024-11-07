@@ -24,7 +24,7 @@ export class RoleRepository extends Repository<RoleEntity> {
     return await this.findByRole(RoleTypes.Employee);
   }
 
-  private async findByRole(role_name: RoleTypes) {
+  public async findByRole(role_name: RoleTypes) {
     return await this.findOne({
       where: { name: role_name },
     });

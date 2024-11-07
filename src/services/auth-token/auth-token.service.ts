@@ -20,7 +20,7 @@ export class AuthTokenService {f
     if (!user) {
       throw new HttpException('User not found', HttpStatus.UNAUTHORIZED);
     }
-    return { role: user.role.name, userId: user.id, status: user?.company_employee?.status };
+    return { role: user.role.name, userId: user.id, status: user?.company_employee?.status, companyId: user?.company_employee?.company_id};
   }
 
 }
