@@ -22,17 +22,20 @@ export class DealService {
   }
   async create(request: Request, createDealDto: CreateDealDto):  Promise<DealEntity> {
   
-    const token = this.extractToken(request);
-    const role = await this.getUserRole(token);
+    const token = this.authTokenService.extractToken(request);
+    const role = await this.authTokenService.getUserRole(token);
 
     if(role.userId !== createDealDto.partner_id) {
       throw new HttpException('Вы не можете создавать сделки за других пользователей', HttpStatus.FORBIDDEN);
     }
     
     const user = await this.userRepository.findById(createDealDto.partner_id);
-    
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.findById(createDealDto.customer_id);
+
+    if(!user) {
+      throw new HttpException('Данного пользователя не существует', HttpStatus.FORBIDDEN);
+    }
 
     if(role.role === RoleTypes.Employee && (!role.status || role.status !== CompanyEmployeeStatus.Accept)) {
       throw new HttpException('Вы не прошли проверку владельцем компании и не можете создавать сделку', HttpStatus.FORBIDDEN);
@@ -160,22 +163,4 @@ export class DealService {
     return `This action removes a #${id} deal`;
   }
 
-  //Вынести в отдельный сервис при необходимости
-  private extractToken(request: Request): string {
-
-    const headers = request.headers as { authorization?: string };
-    const _token: string = headers.authorization || '';
-    if (_token.length === 0) {
-      throw new HttpException('Пользователь не авторизован', HttpStatus.UNAUTHORIZED);
-    }
-      return _token.substring(7); 
-  }
-    
-  private async getUserRole(token: string) {
-    const user = await this.userRepository.findOneBy({ token });
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.UNAUTHORIZED);
-    }
-      return { role: user.role.name, userId: user.id }
-  }
 }
