@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseInterceptors } from '@nestjs/common';
 import { CompanyService } from './company.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
+import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
+import { TransformResponse } from '@interceptors/transform-response.interceptor';
+import { CompanyEmployeesResponseDto } from './dto/response/company-employees-response.dto';
 
 @ApiTags('company')
 @ApiBearerAuth()
@@ -14,23 +17,20 @@ export class CompanyController {
     return this.companyService.addEmplyee(request, addEmployeeDto);
   }
 
-  @Get()
-  findAll() {
-    return this.companyService.findAll();
+  @Get('get-employees')
+  @UseInterceptors(new TransformResponse(CompanyEmployeesResponseDto, true))
+  @ApiResponse({ type: [CompanyEmployeesResponseDto] })
+  getCompanyEmployees(@Req() request: Request,) {
+    return this.companyService.getCompanyEmployees(request);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.companyService.findOne(+id);
+  @Patch('change-admin-status/:id')
+  changeStatusEmployeeAdmin(@Req() request: Request, @Param('id') id: string, @Body() changeStatasEmployeeAdminDto: AddEmployeeAdminRequestDto) {
+    return this.companyService.changeStatusEmployeeAdmin(request, +id, changeStatasEmployeeAdminDto);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCompanyDto: AddEmployeeRequestDto) {
-    return this.companyService.update(+id, updateCompanyDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.companyService.remove(+id);
+  @Patch('remove-employee/:id')
+  removeEmployee(@Req() request: Request, @Param('id') id: string) {
+    return this.companyService.removeEmployee(request, +id, );
   }
 }
