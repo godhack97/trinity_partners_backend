@@ -18,7 +18,7 @@ export class CompanyEmployeeEntity extends BasisEntity {
 
   @OneToOne(() => CompanyEntity, (company: CompanyEntity) => company.id)
   @JoinColumn({ name: 'company_id' })
-  company: UserEntity;
+  company: CompanyEntity;
 
   @Column()
   employee_id: number;

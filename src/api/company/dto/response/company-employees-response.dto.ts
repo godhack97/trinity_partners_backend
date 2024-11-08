@@ -56,6 +56,9 @@ export class CompanyEmployeesResponseDto {
   @ApiProperty()
   @Expose()
   status: CompanyEmployeeStatus;
+}
+
+export class CompanyEmployeesWithEmpoloyeeResponseDto extends CompanyEmployeesResponseDto {
 
   @ApiProperty()
   @Expose()
