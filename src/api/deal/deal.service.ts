@@ -24,22 +24,9 @@ export class DealService {
   
     const token = this.authTokenService.extractToken(request);
     const role = await this.authTokenService.getUserRole(token);
-
-    if(role.userId !== createDealDto.partner_id) {
-      throw new HttpException('Вы не можете создавать сделки за других пользователей', HttpStatus.FORBIDDEN);
-    }
     
-    const user = await this.userRepository.findById(createDealDto.partner_id);
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.findById(createDealDto.customer_id);
-
-    if(!user) {
-      throw new HttpException('Данного пользователя не существует', HttpStatus.FORBIDDEN);
-    }
-
-    if(role.role === RoleTypes.Employee && (!role.status || role.status !== CompanyEmployeeStatus.Accept)) {
-      throw new HttpException('Вы не прошли проверку владельцем компании и не можете создавать сделку', HttpStatus.FORBIDDEN);
-    }
 
     if(!distributor) {
       throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
@@ -76,28 +63,27 @@ export class DealService {
 
     switch (role.role) {
       case RoleTypes.SuperAdmin:
-      deals = await this.dealRepository.findDealsWithFilters(entry);
-      break;
+        deals = await this.dealRepository.findDealsWithFilters(entry);
+        break;
 
-      // Проверить это после реализации добавления сотрудников к компании
-      // Также нужно реализовать кейс для RoleTypes.EmployeeAdmin
+      case RoleTypes.EmployeeAdmin:
       case RoleTypes.Partner:
-      const companyWithEmployees = await this.companyRepository.findByOwnerId(role.userId);
-      const employeeIds = companyWithEmployees.employee.map(el => el.id);
-      deals = await this.dealRepository.findDealsWithFilters(entry);
-      deals = deals.filter(deal => 
-        deal.partner_id === companyWithEmployees.owner_id || employeeIds.includes(deal.partner_id)
-      );
-      break;
+        const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(role.companyId);
+        const employeeIds = companyWithEmployees.employee.map(el => el.id);
+        deals = await this.dealRepository.findDealsWithFilters(entry);
+        deals = deals.filter(deal => 
+          deal.partner_id === companyWithEmployees.owner_id || employeeIds.includes(deal.partner_id)
+        );
+        break;
 
       case RoleTypes.Employee:
-      deals = await this.dealRepository.findDealsWithFilters(entry);
-      deals = deals.filter(deal => deal.partner_id === role.userId);
-      break;
+        deals = await this.dealRepository.findDealsWithFilters(entry);
+        deals = deals.filter(deal => deal.partner_id === role.userId);
+        break;
 
       default:
-      deals = [];
-      break;
+        deals = [];
+        break;
       }
 
     return deals;
@@ -110,32 +96,30 @@ export class DealService {
     const deal = await this.dealRepository.findById(id);
 
     if(!deal) {
-      throw new HttpException('Сделка не найдена', HttpStatus.FORBIDDEN);
+      throw new HttpException('Сделка не найдена', HttpStatus.NOT_FOUND);
     }
 
     switch (role.role) {
       case RoleTypes.SuperAdmin:
-      return deal;
-      
-      // Проверить это после реализации добавления сотрудников к компании
-      // Также нужно реализовать кейс для RoleTypes.EmployeeAdmin
-      
-      case RoleTypes.Partner:
-      const companyWithEmployees = await this.companyRepository.findByOwnerId(role.userId);
-      const isEmployeesDeal = companyWithEmployees.employee.some(el => deal.partner_id === el.id);
-      
-      if (deal.partner_id === companyWithEmployees.owner_id || isEmployeesDeal) {
         return deal;
-      } else {
-        throw new HttpException('У вашей компании недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
-      }
+      
+      case RoleTypes.EmployeeAdmin:
+      case RoleTypes.Partner:
+        const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(role.companyId);
+        const isEmployeesDeal = companyWithEmployees.employee.some(el => deal.partner_id === el.id);
+      
+        if (deal.partner_id === companyWithEmployees.owner_id || isEmployeesDeal) {
+          return deal;
+        } else {
+          throw new HttpException('У вашей компании недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
+        }
       
       case RoleTypes.Employee:
-      if (role.userId === deal.partner_id) {
-        return deal;
-      } else {
-        throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
-      }
+        if (role.userId === deal.partner_id) {
+          return deal;
+        } else {
+          throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
+        }
       
       default:
         throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
@@ -154,13 +138,4 @@ export class DealService {
 
     return statistic;
   }
-
-  update(id: number, updateDealDto: UpdateDealDto) {
-    return `This action updates a #${id} deal`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} deal`;
-  }
-
 }
