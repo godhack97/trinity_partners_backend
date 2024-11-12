@@ -23,15 +23,12 @@ export class RegistrationCompanyRequestDto {
   email: string;
 
   @ApiProperty()
-  @IsNotEmptyRu()
   job_title: string; //должность
 
   @ApiProperty()
-  @IsNotEmptyRu()
   company_business_line: string; //направления деятельности
 
   @ApiProperty()
-  @IsNotEmptyRu()
   employees_count: number;
 
   @ApiProperty()
@@ -43,19 +40,14 @@ export class RegistrationCompanyRequestDto {
   phone: string;
 
   @ApiProperty()
-  @IsNotEmptyRu()
-  @IsUrlRu()
   site_url: string;
 
   @ApiProperty()
-  @MinLengthRu(2)
   promoted_products: string;
 
   @ApiProperty()
-  @MinLengthRu(2)
   products_of_interest: string;
 
   @ApiProperty()
-  @MinLengthRu(2)
   main_customers: string;
 }

@@ -47,14 +47,13 @@ export class UserService {
     await this.userInfoRepository.save({
       first_name: registrationEmployeeDto.first_name,
       last_name: registrationEmployeeDto.last_name,
-      company_name: registrationEmployeeDto.company_name,
       job_title: registrationEmployeeDto.job_title,
       phone: registrationEmployeeDto.phone,
       user: newUser,
     });
 
     await this.companyEmployeeRepository.save({
-      company_id: registrationEmployeeDto.company_id,
+      company_id: null,
       employee_id: newUser.id,
       status: CompanyEmployeeStatus.Pending,
     })
