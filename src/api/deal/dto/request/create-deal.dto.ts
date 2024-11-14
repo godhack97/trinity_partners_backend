@@ -1,7 +1,9 @@
 
+import { CreateCustomerDto } from "@api/customer/dto/request/create-customer.dto";
 import { IsDateRu, IsNotEmptyRu, IsNumberRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
+import { ValidateNested } from "class-validator";
 
 export class CreateDealDto {
   
@@ -10,10 +12,10 @@ export class CreateDealDto {
   @IsNumberRu()
   distributor_id: number;
 
-  @ApiProperty()
-  @IsNotEmptyRu()
-  @IsNumberRu()
-  customer_id: number;
+  @ApiProperty({ type: () => CreateCustomerDto })
+  @ValidateNested()
+  @Type(() => CreateCustomerDto)
+  customer: CreateCustomerDto;
 
   @ApiProperty()
   title?: string;

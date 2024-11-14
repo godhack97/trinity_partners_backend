@@ -1,5 +1,7 @@
 import { FileTypeValidator, MaxFileSizeValidator, ParseFilePipe, PipeTransform } from "@nestjs/common";
 
+
+// Данная pipe - срабатывает поздно. Файл уже успевает записаться - нужно валидацию делать на уровне multer
 export class ParseFilesPipe implements PipeTransform<Express.Multer.File[]> {
   constructor(private readonly pipe: ParseFilePipe) {}
 
