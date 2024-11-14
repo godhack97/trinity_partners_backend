@@ -20,20 +20,22 @@ export class DealService {
   ) {
 
   }
-  async create(request: Request, createDealDto: CreateDealDto):  Promise<DealEntity> {
+  async create(request: Request, createDealDto: CreateDealDto)  /*Promise<DealEntity>*/ {
   
     const token = this.authTokenService.extractToken(request);
     const role = await this.authTokenService.getUserRole(token);
     
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
-    const customer = await this.customerRepository.findById(createDealDto.customer_id);
+    const customer = await this.customerRepository.save(createDealDto.customer);
+
+    //return customer;
 
     if(!distributor) {
       throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
     }
 
     if(!customer) {
-      throw new HttpException('Данного заказчика не существует', HttpStatus.FORBIDDEN);
+      throw new HttpException('Произошла ошибка при создании заказчика', HttpStatus.FORBIDDEN);
     }
 
     const countDealsInDay = await this.dealRepository.countDealsForToday();
@@ -47,6 +49,7 @@ export class DealService {
 
     const dealData = {
       ...createDealDto,
+      customer_id: customer.id,
       partner_id: role.userId,
       deal_num
     }

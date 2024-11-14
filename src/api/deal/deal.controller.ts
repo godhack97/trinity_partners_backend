@@ -1,12 +1,15 @@
-import { Controller, Get, Post, Body, Param, UseInterceptors, Req, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseInterceptors, Req, Query, UseGuards, UploadedFile, BadRequestException } from '@nestjs/common';
 import { DealService } from './deal.service';
 import { CreateDealDto } from './dto/request/create-deal.dto';
-import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from '@interceptors/transform-response.interceptor';
 import { DealResponseDto } from './dto/response/deal-response.dto';
 import { SearchDealDto } from './dto/request/search-deal.dto';
 import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
 import { CheckUserOrCompanyStatusGuard } from '@app/guards/check-user-or-company-status.guard';
+import { multerStorage } from '@config/multer_storage';
+import { FileInterceptor } from '@nestjs/platform-express';
+import * as path from 'path';
 
 @ApiTags('deal')
 @ApiBearerAuth()
@@ -21,6 +24,43 @@ export class DealController {
     return this.dealService.create(request, createDealDto);
   }
 
+  //@Public()
+  @UseInterceptors(FileInterceptor ('file', { 
+    storage: multerStorage.files,
+    limits: { fileSize: 10 * 1024 * 1024 }, 
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype !== 'application/pdf') {
+        return cb(new BadRequestException('Неверный тип файла'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  @Post('upload-file')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  uploadPdfFile(
+    @UploadedFile(
+    ) file : Express.Multer.File
+  ) {
+    const baseUrl = process.env.HOSTNAME + ":" +process.env.Port
+    const filePath = path.posix.join('public', 'files', file.filename);
+
+    const configuration_link = `${baseUrl}/${filePath}`;
+    return {
+      configuration_link
+    };
+  }
+
   @Get()
   @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto, isArray: true })
@@ -29,8 +69,8 @@ export class DealController {
   }
 
   @Get('statistic')
-  @UseInterceptors(new TransformResponse(DealStatisticsResponseDto))
-  @ApiResponse({ type: DealResponseDto })
+  //@UseInterceptors(new TransformResponse(DealStatisticsResponseDto))
+  @ApiResponse({ type: DealStatisticsResponseDto })
   getDealStatistic(@Req() request: Request): Promise<DealStatisticsResponseDto> {
     return this.dealService.getDealStatistic(request);
   }
