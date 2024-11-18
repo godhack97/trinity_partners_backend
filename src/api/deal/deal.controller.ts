@@ -52,7 +52,7 @@ export class DealController {
     @UploadedFile(
     ) file : Express.Multer.File
   ) {
-    const baseUrl = process.env.BACKEND_HOSTNAME + ":" +process.env.Port
+    const baseUrl = process.env.BACKEND_HOSTNAME;
     const filePath = path.posix.join('public', 'files', file.filename);
 
     const configuration_link = `${baseUrl}/${filePath}`;
