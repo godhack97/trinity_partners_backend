@@ -7,12 +7,14 @@ import { APP_GUARD } from "@nestjs/core";
 import { AdminPartnerModule } from "./partner/admin-partner.module";
 import { AdminConfiguratorModule } from "./configurator/admin-configurator.module";
 import { AdminImageModule } from "@api/admin/image/admin-image.module";
+import { DealsModule } from './deals/deals.module';
 @Module({
   imports:[
     AdminUserModule,
     AdminPartnerModule,
     AdminConfiguratorModule,
     AdminImageModule,
+    DealsModule,
   ],
   controllers: [AdminController],
   providers: [
