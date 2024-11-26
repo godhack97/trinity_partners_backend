@@ -8,4 +8,6 @@ export * from './cnf-slot.entity';
 export * from './cnf-multislot.entity';
 export * from './cnf-multislot-slot.entity';
 export * from './cnf-server-multislot.entity';
+export * from  './cnf-server-generation.entity';
+
 

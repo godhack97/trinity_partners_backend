@@ -11,6 +11,7 @@ import {
 import { CnfServerboxHeightEntity } from './cnf-serverbox-height.entity';
 import { CnfServerSlotEntity } from "./cnf-server-slot.entity";
 import { CnfServerMultislotEntity } from "./cnf-server-multislot.entity";
+import { CnfServerGeneration } from "./cnf-server-generation.entity";
 
 @Entity({
   name: 'cnf_servers',
@@ -31,6 +32,16 @@ export class CnfServerEntity {
 
   @Column()
   serverbox_height_id: string;
+
+  @OneToOne(
+    () => CnfServerGeneration,
+    (server_generation: CnfServerGeneration) => server_generation.id,
+  )
+  @JoinColumn({ name: 'server_generation_id' })
+  server_generation: CnfServerGeneration;
+
+  @Column()
+  server_generation_id: string;
 
   @Column()
   price: number;
