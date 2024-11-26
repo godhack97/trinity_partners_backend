@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { AdminConfiguratorServerGenerationService } from './admin-configurator-server-generation.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Roles } from '@decorators/Roles';
 import { RoleTypes } from '@app/types/RoleTypes';
 import { AddServerGenerationRequestDto } from './dto/request/add-server-generation.request.dto';
@@ -13,13 +13,14 @@ export class AdminConfiguratorServerGenerationController {
   constructor(private readonly adminConfiguratorServerGenerationService: AdminConfiguratorServerGenerationService) {}
 
   @Post()
+  @ApiBody({ type: () => AddServerGenerationRequestDto })
   addServerGeneration(@Body() addServerGenerationDto: AddServerGenerationRequestDto) {
     return this.adminConfiguratorServerGenerationService.addServerGeneration(addServerGenerationDto);
   }
 
   @Patch(':id')
+  @ApiBody({ type: () => AddServerGenerationRequestDto })
   updateServerGeneration(@Param('id') id: string, @Body() updateServerGenerationDto: AddServerGenerationRequestDto) {
-    console.log(id)
     return this.adminConfiguratorServerGenerationService.updateServerGeneration(id, updateServerGenerationDto);
   }
 
