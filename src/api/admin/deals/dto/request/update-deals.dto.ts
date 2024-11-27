@@ -1,4 +1,4 @@
-import { IsNotEmptyRu,  IsDateRu, IsEnumRu, IsNumberRu } from "@decorators/validate";
+import { IsNotEmptyRu,  IsDateRu, IsEnumRu, IsNumberRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
 import { Type } from "class-transformer";
@@ -19,8 +19,8 @@ export class UpdateDealDto  {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsNumberRu()
-  special_discount?: number;
+  @IsStringRu()
+  special_discount?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
