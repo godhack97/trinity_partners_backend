@@ -17,11 +17,15 @@ export class CnfComponentEntity extends BasisUUIDEntity {
   static $accepted_columns = [
     'id',
     'type_id',
+    'subtype',
     'price',
     'name',
   ];
   @Column("uuid")
   type_id: string;
+
+  @Column()
+  subtype: string;
 
   @Column()
   price: number;
