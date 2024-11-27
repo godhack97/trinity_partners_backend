@@ -13,6 +13,11 @@ export class AddServerRequestDto {
 
   @ApiProperty()
   @IsNotEmptyRu()
+  @MinLengthRu(1)
+  server_generation_id: string;
+
+  @ApiProperty()
+  @IsNotEmptyRu()
   @MinRu(1)
   price: number;
 

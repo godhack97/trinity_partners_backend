@@ -1,11 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { AddServerRequestDto } from "./dto/request/add-server.request.dto";
+import { CnfServerRepository, CnfServerSlotRepository, CnfServerMultislotRepository, CnfServerGenerationRepository } from "@orm/repositories";
 
-import {
-  CnfServerMultislotRepository,
-  CnfServerRepository,
-  CnfServerSlotRepository
-} from "../../../../orm/repositories";
+
 
 @Injectable()
 export class AdminConfiguratorServerService {
@@ -13,12 +10,20 @@ export class AdminConfiguratorServerService {
     private readonly cnfServerRepository: CnfServerRepository,
     private readonly cnfServerSlotRepository: CnfServerSlotRepository,
     private readonly cnfServerMultislotRepository: CnfServerMultislotRepository,
+    private readonly cnfServerGenerationRepository: CnfServerGenerationRepository
     ) {}
   async addServer(data: AddServerRequestDto) {
-    const { name, serverbox_height_id, price, slots, multislots } = data;
+    const { name, serverbox_height_id, server_generation_id, price, slots, multislots } = data;
+    const serverGeneration = await this.cnfServerGenerationRepository.findOneBy({id: server_generation_id});
+    
+    if(!serverGeneration) {
+      throw new HttpException('Данного поколения сервера не существует', HttpStatus.NOT_FOUND);
+    }
+
     const server = await this.cnfServerRepository.save({
       name,
       serverbox_height_id,
+      server_generation_id,
       price
     });
     if (slots?.length > 0) {
