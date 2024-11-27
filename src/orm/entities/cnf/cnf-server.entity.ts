@@ -33,15 +33,15 @@ export class CnfServerEntity {
   @Column()
   serverbox_height_id: string;
 
-  @OneToOne(
-    () => CnfServerGeneration,
-    (server_generation: CnfServerGeneration) => server_generation.id,
-  )
-  @JoinColumn({ name: 'server_generation_id' })
-  server_generation: CnfServerGeneration;
+  // @OneToOne(
+  //   () => CnfServerGeneration,
+  //   (server_generation: CnfServerGeneration) => server_generation.id,
+  // )
+  // @JoinColumn({ name: 'server_generation_id' })
+  // server_generation: CnfServerGeneration;
 
-  @Column()
-  server_generation_id: string;
+  // @Column()
+  // server_generation_id: string;
 
   @Column()
   price: number;
