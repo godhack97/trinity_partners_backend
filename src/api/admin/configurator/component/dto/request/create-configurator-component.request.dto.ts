@@ -15,6 +15,9 @@ export class CreateConfigurationComponentRequestDto {
   type_id: string;
 
   @ApiProperty()
+  subtype: string;
+
+  @ApiProperty()
   @IsArrayRu()
   slots: [{
     amount: number;
