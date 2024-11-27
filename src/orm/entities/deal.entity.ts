@@ -6,7 +6,9 @@ import { CustomerEntity, DistributorEntity, UserEntity } from ".";
 export enum DealStatus {
   Registered = 'registered',
   Canceled = 'canceled',
-  Moderation = 'moderation'
+  Moderation = 'moderation',
+  Win = 'win',
+  Lose = 'loose'
 }
 
 @Entity({
@@ -63,8 +65,8 @@ export class DealEntity extends BasisEntity {
   })
   status: DealStatus;
 
-  @Column({ nullable: true, type: "decimal", precision: 10, scale: 2 })
-  special_discount: number;
+  @Column({ nullable: true, type: "varchar"})
+  special_discount: string;
 
   @Column({ nullable: true, type: "decimal", precision: 10, scale: 2 })
   special_price: number;

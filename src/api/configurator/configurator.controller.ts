@@ -16,6 +16,11 @@ export class ConfiguratorController {
     return this.configuratorService.serverHeight()
   }
 
+  @Get('serverGeneration')
+  serverGeneration() {
+    return this.configuratorService.serverGeneration()
+  }
+
   @Get('slot')
   getSlot() {
     return this.configuratorService.getSlots()
