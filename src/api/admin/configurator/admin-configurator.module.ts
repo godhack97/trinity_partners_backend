@@ -6,6 +6,7 @@ import { AdminConfiguratorComponentModule } from "./component/admin-configurator
 import { AdminConfiguratorSlotModule } from "./slot/admin-configurator-slot.module";
 import { AdminConfiguratorServerHeightModule } from "./server-height/admin-configurator-server-height.module";
 import { AdminConfiguratorServerModule } from "./server/admin-configurator-server.module";
+import { AdminConfiguratorServerGenerationModule } from './server-generation/admin-configurator-server-generation/admin-configurator-server-generation.module';
 
 @Module({
   imports: [
@@ -13,7 +14,8 @@ import { AdminConfiguratorServerModule } from "./server/admin-configurator-serve
     AdminConfiguratorComponentModule,
     AdminConfiguratorSlotModule,
     AdminConfiguratorServerModule,
-    AdminConfiguratorServerHeightModule
+    AdminConfiguratorServerHeightModule,
+    AdminConfiguratorServerGenerationModule
   ],
   controllers: [AdminConfiguratorController],
   providers: [AdminConfiguratorService],
