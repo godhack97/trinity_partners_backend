@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CnfMultislotRepository } from '@orm/repositories';
+import { CnfMultislotRepository, CnfServerGenerationRepository } from '@orm/repositories';
 import { CnfComponentTypeRepository } from 'src/orm/repositories/cnf/cnf-component-type.repository';
 import { CnfComponentRepository } from 'src/orm/repositories/cnf/cnf-component.repository';
 import { CnfServerSlotRepository } from 'src/orm/repositories/cnf/cnf-server-slot.repository';
@@ -16,10 +16,15 @@ export class ConfiguratorService {
     private readonly cnfServerboxHeightRepository: CnfServerboxHeightRepository,
     private readonly cnfSlotRepository: CnfSlotRepository,
     private readonly cnfMultislotRepository: CnfMultislotRepository,
+    private readonly cnfServerGenerationRepository: CnfServerGenerationRepository
   ) {}
 
   async serverHeight() {
     return this.cnfServerboxHeightRepository.find()
+  }
+
+  async serverGeneration() {
+    return await this.cnfServerGenerationRepository.find();
   }
   async getSlots() {
     return await this.cnfSlotRepository.find();
