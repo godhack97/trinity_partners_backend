@@ -5,7 +5,7 @@ import { Roles } from '@decorators/Roles';
 import { RoleTypes } from '@app/types/RoleTypes';
 import { AddServerGenerationRequestDto } from './dto/request/add-server-generation.request.dto';
 
-@ApiTags("admin/configurator/serverGeneration")
+@ApiTags('admin/configurator/serverGeneration')
 @ApiBearerAuth()
 @Controller('admin/configurator/serverGeneration')
 @Roles([RoleTypes.SuperAdmin])

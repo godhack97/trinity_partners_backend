@@ -9,3 +9,4 @@ export * from './cnf-multislot.repository';
 export * from './cnf-multislot-slot.repository';
 export * from './cnf-server-multislot.repository';
 export * from  './cnf-server-generation.repository';
+export * from  './cnf-processor-generation.repository';
