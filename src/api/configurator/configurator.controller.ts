@@ -21,6 +21,12 @@ export class ConfiguratorController {
     return this.configuratorService.serverGeneration()
   }
 
+  @Get('processorGeneration')
+  processorGeneration() {
+    return this.configuratorService.processorGeneration()
+  }
+
+
   @Get('slot')
   getSlot() {
     return this.configuratorService.getSlots()
