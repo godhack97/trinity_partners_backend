@@ -20,7 +20,10 @@ export class CnfComponentEntity extends BasisUUIDEntity {
     'subtype',
     'price',
     'name',
+    'server_generation_id',
+    'processor_generation_id',
   ];
+
   @Column("uuid")
   type_id: string;
 
@@ -32,6 +35,12 @@ export class CnfComponentEntity extends BasisUUIDEntity {
 
   @Column()
   name: string;
+
+  @Column({ nullable: true })
+  server_generation_id: string;
+
+  @Column({ nullable: true })
+  processor_generation_id: string;
 
   @OneToMany(
     () => CnfComponentSlotEntity,

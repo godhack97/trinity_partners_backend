@@ -24,4 +24,11 @@ export class CreateConfigurationComponentRequestDto {
     increase: boolean;
     slot_id: string;
   }]
+
+  @ApiProperty()
+  server_generation_id?: string;
+
+  @ApiProperty()
+  processor_generation_id?: string;
+  
 }
