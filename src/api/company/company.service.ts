@@ -126,11 +126,11 @@ export class CompanyService {
       throw new HttpException('Только сотрудникам можно менять статус', HttpStatus.FORBIDDEN);
     }
     
-    if (!user.company_employee?.company_id 
-      || user.company_employee?.company_id !== role.companyId 
-      || user.company_employee?.status !== CompanyEmployeeStatus.Accept) {
-      throw new HttpException('Данный пользователь не является вашим сотрудником или его статус не подтвержден', HttpStatus.FORBIDDEN);
-    }
+    // if (!user.company_employee?.company_id 
+    //   || user.company_employee?.company_id !== role.companyId 
+    //   || user.company_employee?.status !== CompanyEmployeeStatus.Accept) {
+    //   throw new HttpException('Данный пользователь не является вашим сотрудником или его статус не подтвержден', HttpStatus.FORBIDDEN);
+    // }
     
     return { user, role };
   }
