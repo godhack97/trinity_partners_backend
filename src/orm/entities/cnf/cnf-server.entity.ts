@@ -47,7 +47,13 @@ export class CnfServerEntity {
   price: number;
 
   @Column({nullable: true})
-  image_id: number;
+  image: string;
+
+  @Column({nullable: true})
+  guide: string;
+
+  @Column({nullable: true})
+  cert: string;
 
   @CreateDateColumn()
   created_at: Timestamp;

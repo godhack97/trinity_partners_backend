@@ -13,7 +13,7 @@ export class AdminConfiguratorServerService {
     private readonly cnfServerGenerationRepository: CnfServerGenerationRepository
     ) {}
   async addServer(data: AddServerRequestDto) {
-    const { name, serverbox_height_id, server_generation_id, price, slots, multislots } = data;
+    const { name, serverbox_height_id, server_generation_id, price, slots, multislots, image, cert, guide } = data;
     const serverGeneration = await this.cnfServerGenerationRepository.findOneBy({id: server_generation_id});
     
     if(!serverGeneration) {
@@ -24,7 +24,10 @@ export class AdminConfiguratorServerService {
       name,
       serverbox_height_id,
       server_generation_id,
-      price
+      price,
+      image,
+      guide,
+      cert
     });
     if (slots?.length > 0) {
       await this.cnfServerSlotRepository.save(slots.map((el => {
