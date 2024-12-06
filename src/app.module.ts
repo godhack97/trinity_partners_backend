@@ -21,6 +21,7 @@ import { CustomerModule } from './api/customer/customer.module';
 import { DistributorModule } from './api/distributor/distributor.module';
 import { CompanyModule } from './api/company/company.module';
 import { AuthTokenModule } from './services/auth-token/auth-token.module';
+import { UploadFileModule } from './api/upload-file/upload-file.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -77,7 +78,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     CustomerModule,
     DistributorModule,
     CompanyModule,
-    AuthTokenModule
+    AuthTokenModule,
+    UploadFileModule
   ],
   controllers: [AppController],
   providers: [

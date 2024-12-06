@@ -1,5 +1,5 @@
+import { IsNotEmptyRu, MinLengthRu, MinRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmptyRu, MinLengthRu, MinRu } from "../../../../../../decorators/validate";
 import { IsArray, IsOptional } from "class-validator";
 
 export class AddServerRequestDto {
@@ -23,7 +23,18 @@ export class AddServerRequestDto {
 
   @ApiProperty()
   @IsOptional()
-  image_id: number;
+  @IsStringRu()
+  image: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsStringRu()
+  guide: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsStringRu()
+  cert: string;
 
   @ApiProperty()
   @IsOptional()
