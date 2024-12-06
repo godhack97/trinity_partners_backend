@@ -17,6 +17,11 @@ export class AdminConfiguratorServerController {
     return this.adminConfiguratorServerService.addServer(data)
   }
 
+  @Post(':id/update')
+  updateServer(@Param('id') id: string, @Body() data: AddServerRequestDto) {
+    return this.adminConfiguratorServerService.updateServer(id, data)
+  }
+
   @Post(':id/delete')
   deleteServer(@Param('id') id: string) {
     return this.adminConfiguratorServerService.deleteServer(id)
