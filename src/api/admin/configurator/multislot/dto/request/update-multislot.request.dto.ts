@@ -3,7 +3,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { ValidateNested } from "class-validator";
 
-class MultislotSlots {
+class MultislotSlotsDto {
   @ApiProperty()
   @IsStringRu()
   slot_id: string;
@@ -15,8 +15,8 @@ export class UpdateMultislotRequestDto {
   @IsStringRu()
   name: string;
 
-  @ApiProperty({ type: [MultislotSlots] })
+  @ApiProperty({ type: [MultislotSlotsDto] })
   @ValidateNested()
-  @Type(() => MultislotSlots)
-  multislot_slots: MultislotSlots[];
+  @Type(() => MultislotSlotsDto)
+  multislot_slots: MultislotSlotsDto[];
 }

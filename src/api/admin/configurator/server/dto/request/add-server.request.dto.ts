@@ -1,7 +1,31 @@
-import { IsNotEmptyRu, MinLengthRu, MinRu, IsStringRu } from "@decorators/validate";
+import { IsNotEmptyRu, MinLengthRu, MinRu, IsStringRu, IsBooleanRu, IsNumberRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsOptional } from "class-validator";
+import { Type } from "class-transformer";
+import { IsArray, IsOptional, ValidateNested } from "class-validator";
 
+class BaseServerSlotDto {
+    @ApiProperty()
+    @IsNotEmptyRu()
+    @IsNumberRu()
+    amount: number;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsBooleanRu()
+    on_back_panel: boolean;
+}
+
+export class ServerSlotDto extends BaseServerSlotDto {
+  @ApiProperty()
+  @IsStringRu()
+  slot_id: string;
+}
+
+export class ServerMultislotDto extends BaseServerSlotDto {
+  @ApiProperty()
+  @IsStringRu()
+  multislot_id: string;
+}
 export class AddServerRequestDto {
   @ApiProperty()
   name: string;
@@ -36,22 +60,17 @@ export class AddServerRequestDto {
   @IsStringRu()
   cert: string;
 
-  @ApiProperty()
+  @ApiProperty({type: [ServerSlotDto]})
   @IsOptional()
   @IsArray()
-  slots: [{
-    slot_id: string,
-    amount: number,
-    on_back_panel: boolean
-  }];
+  @ValidateNested()
+  @Type(() => ServerSlotDto)
+  slots: ServerSlotDto[];
 
-  @ApiProperty()
+  @ApiProperty({ type: [ServerMultislotDto]})
   @IsOptional()
   @IsArray()
-  multislots: [{
-    multislot_id: string,
-    amount: number,
-    on_back_panel: boolean
-  }];
-
+  @ValidateNested()
+  @Type(() => ServerMultislotDto)
+  multislots: ServerMultislotDto[];
 }
