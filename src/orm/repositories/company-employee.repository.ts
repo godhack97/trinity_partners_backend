@@ -1,7 +1,7 @@
-import { Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CompanyEmployeeEntity } from "../entities";
+import { CompanyEmployeeEntity, CompanyEmployeeStatus } from "../entities";
 
 @Injectable()
 export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity> {
@@ -24,7 +24,10 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
     
   public async findCompanyEmployeesByCompanyId(company_id: number) {
     return await this.repo.find({
-      where: { company_id },
+      where: { 
+        company_id,
+        status: Not(In([ CompanyEmployeeStatus.Deleted, CompanyEmployeeStatus.Reject ])),
+      },
       relations: ['employee', 'employee.user_info'],
     });
   }
