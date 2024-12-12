@@ -21,7 +21,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') || 3000;
+  const port = configService.get<number>('PORT') || 9131;
   console.log('port', port);
   const document = SwaggerModule.createDocument(app, config);
   const swaggerCustomOptions: SwaggerCustomOptions = {
