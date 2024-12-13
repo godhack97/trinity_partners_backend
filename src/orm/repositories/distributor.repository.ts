@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DistributorEntity } from "@orm/entities";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 
 @Injectable()
 export class DistributorRepository extends Repository<DistributorEntity> {
@@ -13,7 +13,11 @@ export class DistributorRepository extends Repository<DistributorEntity> {
   }
 
   public async findAll() {
-    return await this.find();
+    return await this.find({
+      where: {
+         deleted_at: IsNull(),
+      },
+    });
   }
 
   public async findById(id: number) {
