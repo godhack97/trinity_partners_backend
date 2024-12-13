@@ -8,6 +8,7 @@ import { AdminPartnerModule } from "./partner/admin-partner.module";
 import { AdminConfiguratorModule } from "./configurator/admin-configurator.module";
 import { AdminImageModule } from "@api/admin/image/admin-image.module";
 import { DealsModule } from './deals/deals.module';
+import { AdminDistributorModule } from './distributor/admin-distributor.module';
 @Module({
   imports:[
     AdminUserModule,
@@ -15,6 +16,7 @@ import { DealsModule } from './deals/deals.module';
     AdminConfiguratorModule,
     AdminImageModule,
     DealsModule,
+    AdminDistributorModule,
   ],
   controllers: [AdminController],
   providers: [
