@@ -14,19 +14,19 @@ export class AdminDistributorController {
   constructor(private readonly adminDistributorService: AdminDistributorService) {}
 
   @Post('add')
-  create(@Body() addDistributorDto: AddDistributorRequestDto) {
+  addDistributor(@Body() addDistributorDto: AddDistributorRequestDto) {
     return this.adminDistributorService.addDistributor(addDistributorDto);
   }
 
 
   
   @Post(':id/update')
-  updateServerHeight(@Param('id') id: string, @Body() data: AddDistributorRequestDto) {
+  updateDistributor(@Param('id') id: string, @Body() data: AddDistributorRequestDto) {
     return this.adminDistributorService.updateDistributor(id, data)
   }
 
   @Post(':id/delete')
-  deleteServerHeight(@Param('id') id: string) {
+  deleteDistributor(@Param('id') id: string) {
     return this.adminDistributorService.deleteDistributor(id)
   }
 }
