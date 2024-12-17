@@ -1,4 +1,5 @@
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
+import { UserOwnerGuard } from "@app/guards/user-owner.guard";
 import {
   Controller,
   Delete,
@@ -7,6 +8,9 @@ import {
   Param,
   Body,
   UseInterceptors,
+  HttpException,
+  HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from 'src/interceptors/transform-response.interceptor';
@@ -36,8 +40,16 @@ export class UserController {
   @Post(':id/update')
   @UseInterceptors(new TransformResponse(UpdateUserRequestDto))
   @ApiResponse({ type: UpdateUserRequestDto })
-  update(@Param('id') id: string, @Body() data: UpdateUserRequestDto) {
-    return this.userService.update(+id, data);
+  @UseGuards(UserOwnerGuard)
+  async update(@Param('id') id: string, @Body() data: UpdateUserRequestDto) {
+    try {
+      return await this.userService.update(+id, data);
+    } catch (error) {
+      throw new HttpException({
+        status: HttpStatus.FORBIDDEN,
+        error: error.message,
+      }, HttpStatus.FORBIDDEN);
+    }
   }
   @Delete(':id')
   remove(@Param('id') id: string) {
