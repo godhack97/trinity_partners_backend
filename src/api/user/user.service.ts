@@ -14,6 +14,7 @@ import { RegistrationSuperAdminDto } from "../registration/dto/request/registrat
 
 const USER_SECRET = 'Неправильно введен secret';
 const USER_EXISTS = 'Пользователь с таким email уже существует';
+const EMAIl_EXISTS = email => `Такой email: ${email} уже существует`;
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412'
 @Injectable()
@@ -139,6 +140,12 @@ export class UserService {
 
   async update(id, data: UpdateUserRequestDto) {
     const {email} = data
+    const user = await this.userRepository.findByEmail(email);
+
+    if(user) {
+      throw new HttpException(EMAIl_EXISTS(email), HttpStatus.FORBIDDEN);
+    }
+
     return await this.userRepository.update(id, {
       email,
     })
