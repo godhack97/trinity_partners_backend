@@ -1,4 +1,5 @@
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
+import { UserOwnerGuard } from "@app/guards/user-owner.guard";
 import {
   Controller,
   Delete,
@@ -9,6 +10,7 @@ import {
   UseInterceptors,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from 'src/interceptors/transform-response.interceptor';
@@ -38,6 +40,7 @@ export class UserController {
   @Post(':id/update')
   @UseInterceptors(new TransformResponse(UpdateUserRequestDto))
   @ApiResponse({ type: UpdateUserRequestDto })
+  @UseGuards(UserOwnerGuard)
   async update(@Param('id') id: string, @Body() data: UpdateUserRequestDto) {
     try {
       return await this.userService.update(+id, data);
