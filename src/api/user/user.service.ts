@@ -1,4 +1,5 @@
-import { Body, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CompanyRepository } from 'src/orm/repositories/company.repository';
 import { RoleRepository } from 'src/orm/repositories/role.repository';
 import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
@@ -121,7 +122,7 @@ export class UserService {
     const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
     console.log({roleSuperAdmin})
     const { salt, password } = await createCredentials(_password);
-    return  await this.userRepository.save({
+    return await this.userRepository.save({
       salt,
       email,
       password,
@@ -134,6 +135,13 @@ export class UserService {
 
   async findOne(id: number) {
     return await this.userRepository.findById(id);
+  }
+
+  async update(id, data: UpdateUserRequestDto) {
+    const {email} = data
+    return await this.userRepository.update(id, {
+      email,
+    })
   }
 
   remove(id: number) {
