@@ -1,5 +1,7 @@
+import { UpdatePasswordRequestDto } from "@api/user/dto/request/update-password.request.dto";
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
 import { UserOwnerGuard } from "@app/guards/user-owner.guard";
+import { AuthUser } from "@decorators/auth-user";
 import {
   Controller,
   Delete,
@@ -51,6 +53,22 @@ export class UserController {
       }, HttpStatus.FORBIDDEN);
     }
   }
+
+  @Post(':id/updatePassword')
+  @UseInterceptors(new TransformResponse(UpdatePasswordRequestDto))
+  @ApiResponse({ type: UpdatePasswordRequestDto })
+  @UseGuards(UserOwnerGuard)
+  async updatePassword(@Param('id') id: string, @Body() data: UpdatePasswordRequestDto, @AuthUser() auth_user: any) {
+    try {
+      return await this.userService.updatePassword(+id, data, auth_user);
+    } catch (error) {
+      throw new HttpException({
+        status: HttpStatus.FORBIDDEN,
+        error: error.message,
+      }, HttpStatus.FORBIDDEN);
+    }
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.userService.remove(+id);

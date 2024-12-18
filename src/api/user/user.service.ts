@@ -1,10 +1,19 @@
+import { UpdatePasswordRequestDto } from "@api/user/dto/request/update-password.request.dto";
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { CompanyRepository } from 'src/orm/repositories/company.repository';
 import { RoleRepository } from 'src/orm/repositories/role.repository';
 import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
-import { createCredentials } from 'src/utils/password';
+import {
+  createCredentials,
+  createPassword,
+  verifyPassword
+} from 'src/utils/password';
 import { DataSource } from 'typeorm';
 import { RegistrationEmployeeRequestDto } from '../registration/dto/request/registration-employee.request.dto';
 import { RegistrationCompanyRequestDto } from '../registration/dto/request/registration-company.request.dto';
@@ -14,6 +23,7 @@ import { RegistrationSuperAdminDto } from "../registration/dto/request/registrat
 
 const USER_SECRET = 'Неправильно введен secret';
 const USER_EXISTS = 'Пользователь с таким email уже существует';
+const USER_NOT_EXISTS = 'Пользователь не найден';
 const EMAIl_EXISTS = email => `Такой email: ${email} уже существует`;
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412'
@@ -153,5 +163,27 @@ export class UserService {
 
   remove(id: number) {
     return `This action removes a #${id} user`;
+  }
+
+  async updatePassword(id: number, data: UpdatePasswordRequestDto, auth_user: any) {
+    const user = await this.userRepository.findById(id);
+
+    if (!user) throw new HttpException(USER_NOT_EXISTS, HttpStatus.FORBIDDEN);
+
+    const isVerify = await verifyPassword({
+      user_password: user.password,
+      password: data.passwordPrev,
+      salt: user.salt,
+    });
+
+    if (!isVerify) throw new HttpException('Неверный старый пароль', HttpStatus.FORBIDDEN);
+
+    if (data.passwordPrev === data.passwordNew) throw new HttpException('Старый пароль не должен совпадать с новым', HttpStatus.FORBIDDEN);
+
+    if (!(data.passwordNew === data.passwordNew2)) throw new HttpException('Пароли не совпадают', HttpStatus.FORBIDDEN);
+
+    const passwordHashed = await createPassword({password: data.passwordNew, salt: user.salt})
+
+    await this.userRepository.update(id, { password: passwordHashed });
   }
 }
