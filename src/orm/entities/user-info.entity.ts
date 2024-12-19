@@ -27,4 +27,9 @@ export class UserInfoEntity extends BasisEntity {
 
   @Column()
   phone: string;
+
+  @Column({
+    nullable: true,
+  })
+  photo_url?: string;
 }

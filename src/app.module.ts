@@ -1,3 +1,5 @@
+import { ProfileModule } from "@api/profile/profile.module";
+import { RoleGuard } from "@app/guards/role.guard";
 import { MailerModule } from '@nestjs-modules/mailer';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -79,7 +81,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     DistributorModule,
     CompanyModule,
     AuthTokenModule,
-    UploadFileModule
+    UploadFileModule,
+    ProfileModule
   ],
   controllers: [AppController],
   providers: [
@@ -88,6 +91,10 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: RoleGuard,
+    }
   ],
 })
 export class AppModule {
