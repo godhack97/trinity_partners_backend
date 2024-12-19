@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class MakeCompanyIdNullableInCompanyEmployees1625200450398 implements MigrationInterface {
+export class MakeCompanyIdNullableInCompanyEmployees1731447502174 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.changeColumn(
             "company_employees",
