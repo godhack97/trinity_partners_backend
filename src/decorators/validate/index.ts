@@ -281,10 +281,18 @@ export const IsFQDNRu = (options?: ValidatorJS.IsFQDNOptions, validationOptions?
     message: message.IsFQDN
   });
 };
-export const IsEnumRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
-  return IsEnum({
+export const IsEnumRu = (entity: object, validationOptions?: ValidationOptions): PropertyDecorator => {
+  Object.defineProperty(entity, "toString", {
+    value () {
+      return Object.values(this).toString()
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+  return IsEnum(entity, {
     ...validationOptions,
-    message: message.IsEnum
+    message: `${message.IsEnum} ${entity.toString()}`
   });
 };
 export const IsDateStringRu = (options?: ValidatorJS.IsISO8601Options, validationOptions?: ValidationOptions): PropertyDecorator => {
