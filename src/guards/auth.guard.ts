@@ -34,7 +34,7 @@ export class AuthGuard implements CanActivate {
       is_activated: user.is_activated,
       role_id: user.role_id,
     };
-
+    console.log('auth_user set',  request['auth_user'] )
     return Promise.resolve(!!user);
   }
 }
