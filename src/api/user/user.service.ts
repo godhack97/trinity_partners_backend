@@ -1,5 +1,3 @@
-import { ProfileUpdatePasswordRequestDto } from "@api/profile/dto/request/profile-update-password.request.dto";
-import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 
 import {
@@ -14,20 +12,23 @@ import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import {
   createCredentials,
-  createPassword,
-  verifyPassword
 } from 'src/utils/password';
-import { DataSource } from 'typeorm';
 import { RegistrationEmployeeRequestDto } from '../registration/dto/request/registration-employee.request.dto';
 import { RegistrationCompanyRequestDto } from '../registration/dto/request/registration-company.request.dto';
 import { CompanyEmployeeRepository } from "@orm/repositories";
-import { CompanyEmployeeStatus, CompanyStatus } from "@orm/entities";
+import {
+  CompanyEmployeeStatus,
+  CompanyStatus,
+  UserNotificationType,
+  UserSettingType
+} from "@orm/entities";
 import { RegistrationSuperAdminDto } from "../registration/dto/request/registration-super-admin.request.dto";
 
 const USER_SECRET = 'Неправильно введен secret';
 const USER_EXISTS = 'Пользователь с таким email уже существует';
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412'
+
 @Injectable()
 export class UserService {
   constructor(
@@ -37,7 +38,6 @@ export class UserService {
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userSettingRepository: UserSettingRepository,
-    private dataSource: DataSource,
   ) {}
 
   async createEmployee(
@@ -59,9 +59,8 @@ export class UserService {
       role: roleEmployee,
     });
 
-    await this.userSettingRepository.save({
-      user_id: newUser.id
-    })
+    await this._createNotificationSettings(newUser.id)
+
     await this.userInfoRepository.save({
       first_name: registrationEmployeeDto.first_name,
       last_name: registrationEmployeeDto.last_name,
@@ -98,10 +97,9 @@ export class UserService {
       role: rolePartner,
       phone: registrationCompanyDto.phone,
     });
-    //TODO: TODO: Нужно ли дефолтные настройки?
-    //await this.userSettingRepository.save({
-    //  user_id: newUser.id
-    //})
+
+    await this._createNotificationSettings(newUser.id)
+
     await this.userInfoRepository.save({
       first_name: registrationCompanyDto.first_name,
       last_name: registrationCompanyDto.last_name,
@@ -141,7 +139,7 @@ export class UserService {
 
     const { email, password: _password } = data;
     const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
-    console.log({roleSuperAdmin})
+
     const { salt, password } = await createCredentials(_password);
     const user = await this.userRepository.save({
       salt,
@@ -149,11 +147,10 @@ export class UserService {
       password,
       role: roleSuperAdmin,
     });
-    //TODO: Нужно ли дефолтные настройки?
-    //await this.userSettingRepository.save({
-    //  user_id: user.id
-    //})
+
+    await this._createNotificationSettings(user.id)
   }
+
   async findAll() {
     return await this.userRepository.find();
   }
@@ -166,4 +163,18 @@ export class UserService {
     return `This action removes a #${id} user`;
   }
 
+  private async _createNotificationSettings(id: number) {
+    await this.userSettingRepository.save([
+      {
+        user_id: id,
+        type: UserSettingType.NOTIFICATIONS_WEB,
+        value: UserNotificationType.Yes,
+      },
+      {
+        user_id: id,
+        type: UserSettingType.NOTIFICATIONS_EMAIL,
+        value: UserNotificationType.Yes,
+      }
+    ])
+  }
 }
