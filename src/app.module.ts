@@ -1,3 +1,4 @@
+import { NotificationModule } from "@api/notification/notification.module";
 import { ProfileModule } from "@api/profile/profile.module";
 import { RoleGuard } from "@app/guards/role.guard";
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -82,7 +83,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     CompanyModule,
     AuthTokenModule,
     UploadFileModule,
-    ProfileModule
+    ProfileModule,
+    NotificationModule
   ],
   controllers: [AppController],
   providers: [
