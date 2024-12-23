@@ -3,6 +3,7 @@ export * from './company.repository';
 export * from './company-employee.repository';
 export * from './reset-token.repository';
 export * from './role.repository';
+export * from './user-setting.repository';
 export * from './user-info.repository';
 export * from './user.repository';
 export * from './deal.repository';

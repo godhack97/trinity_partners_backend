@@ -214,7 +214,8 @@ export class Init1721922641587 implements MigrationInterface {
             value      VARCHAR(255) COLLATE utf8mb4_bin NOT NULL COMMENT 'значение настройки',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
+            PRIMARY KEY (id),
+          UNIQUE KEY settings_idx (user_id, type)
         ) ENGINE = InnoDB
           DEFAULT CHARSET = utf8mb4
           COLLATE = utf8mb4_bin

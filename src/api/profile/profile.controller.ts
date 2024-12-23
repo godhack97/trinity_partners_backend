@@ -1,3 +1,4 @@
+import { ProfileUpdateSettingsRequestDto } from "@api/profile/dto/request/profile-update-settings.request.dto";
 import { ProfileUpdateRequestDto } from "@api/profile/dto/request/profile-update.request.dto";
 import { ProfileService } from "@api/profile/profile.service";
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
@@ -30,5 +31,14 @@ export class ProfileController {
     @Roles([RoleTypes.Partner, RoleTypes.Employee])
     update(@Body() data: ProfileUpdateRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
         return this.profileService.update(auth_user, data)
+    }
+
+    @Post('/settings')
+    @ApiBearerAuth()
+    @UseInterceptors(new TransformResponse(UpdateUserRequestDto))
+    @ApiResponse({ type: UpdateUserRequestDto })
+    @Roles([RoleTypes.Partner, RoleTypes.Employee])
+    updateNotifications(@Body() data: ProfileUpdateSettingsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
+        return this.profileService.updateSettings(auth_user, data)
     }
 }

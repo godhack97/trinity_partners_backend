@@ -1,10 +1,13 @@
 import { UpdatePasswordRequestDto } from "@api/user/dto/request/update-password.request.dto";
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
+import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
+
 import {
   HttpException,
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
+
 import { CompanyRepository } from 'src/orm/repositories/company.repository';
 import { RoleRepository } from 'src/orm/repositories/role.repository';
 import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
@@ -35,6 +38,7 @@ export class UserService {
     private readonly roleRepository: RoleRepository,
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
+    private readonly userSettingRepository: UserSettingRepository,
     private dataSource: DataSource,
   ) {}
 
@@ -56,6 +60,10 @@ export class UserService {
       password,
       role: roleEmployee,
     });
+
+    await this.userSettingRepository.save({
+      user_id: newUser.id
+    })
     await this.userInfoRepository.save({
       first_name: registrationEmployeeDto.first_name,
       last_name: registrationEmployeeDto.last_name,
@@ -92,6 +100,9 @@ export class UserService {
       role: rolePartner,
       phone: registrationCompanyDto.phone,
     });
+    await this.userSettingRepository.save({
+      user_id: newUser.id
+    })
     await this.userInfoRepository.save({
       first_name: registrationCompanyDto.first_name,
       last_name: registrationCompanyDto.last_name,
@@ -125,20 +136,23 @@ export class UserService {
     if(!(data.secret === SECRET_KEY)) {
       throw new HttpException(USER_SECRET, HttpStatus.FORBIDDEN);
     }
-    const user = await this.userRepository.findByEmail(data.email);
+    const userExist = await this.userRepository.findByEmail(data.email);
 
-    if (user) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    if (userExist) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
 
     const { email, password: _password } = data;
     const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
     console.log({roleSuperAdmin})
     const { salt, password } = await createCredentials(_password);
-    return await this.userRepository.save({
+    const user = await this.userRepository.save({
       salt,
       email,
       password,
       role: roleSuperAdmin,
     });
+    await this.userSettingRepository.save({
+      user_id: user.id
+    })
   }
   async findAll() {
     return await this.userRepository.find();
