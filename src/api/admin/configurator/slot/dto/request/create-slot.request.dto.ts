@@ -9,5 +9,5 @@ export class CreateSlotRequestDto {
 
   @ApiProperty()
   @IsOptional()
-  type_id?: string;
+  type_id?: string | null;
 }
