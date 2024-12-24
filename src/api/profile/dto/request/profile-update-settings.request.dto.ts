@@ -12,13 +12,13 @@ export class ProfileUpdateSettingsRequestDto {
     @Expose()
     @IsEnumRu(UserNotificationType)
     @IsOptional()
-    notifications_web?: string;
+    notifications_web?: "true" | "false";
 
     @ApiProperty()
     @Expose()
     @IsEnumRu(UserNotificationType)
     @IsOptional()
-    notifications_email?: string;
+    notifications_email?: "true" | "false";
 
     @ApiProperty()
     @Expose()
