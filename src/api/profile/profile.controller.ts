@@ -1,7 +1,10 @@
+import { ProfileUpdateEmailRequestDto } from "@api/profile/dto/request/profile-update-email.request.dto";
 import { ProfileUpdateSettingsRequestDto } from "@api/profile/dto/request/profile-update-settings.request.dto";
 import { ProfileUpdateRequestDto } from "@api/profile/dto/request/profile-update.request.dto";
 import { ProfileService } from "@api/profile/profile.service";
+import { ProfileUpdatePasswordRequestDto } from "@api/profile/dto/request/profile-update-password.request.dto";
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
+import { UserOwnerGuard } from "@app/guards/user-owner.guard";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AuthUser } from "@decorators/auth-user";
 import { Roles } from "@decorators/Roles";
@@ -9,7 +12,12 @@ import { TransformResponse } from "@interceptors/transform-response.interceptor"
 import {
     Body,
     Controller,
+    Get,
+    HttpException,
+    HttpStatus,
+    Param,
     Post,
+    UseGuards,
     UseInterceptors
 } from "@nestjs/common";
 import {
@@ -24,10 +32,16 @@ import { UserEntity } from "@orm/entities";
 export class ProfileController {
     constructor(private readonly profileService: ProfileService) {}
 
+    @Get()
+    @ApiBearerAuth()
+    get(@AuthUser() auth_user: Partial<UserEntity>) {
+        return this.profileService.getProfile(auth_user)
+    }
+
     @Post()
     @ApiBearerAuth()
-    @UseInterceptors(new TransformResponse(UpdateUserRequestDto))
-    @ApiResponse({ type: UpdateUserRequestDto })
+    @UseInterceptors(new TransformResponse(ProfileUpdateRequestDto))
+    @ApiResponse({ type: ProfileUpdateRequestDto })
     @Roles([RoleTypes.Partner, RoleTypes.Employee])
     update(@Body() data: ProfileUpdateRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
         return this.profileService.update(auth_user, data)
@@ -35,10 +49,38 @@ export class ProfileController {
 
     @Post('/settings')
     @ApiBearerAuth()
-    @UseInterceptors(new TransformResponse(UpdateUserRequestDto))
-    @ApiResponse({ type: UpdateUserRequestDto })
+    @UseInterceptors(new TransformResponse(ProfileUpdateSettingsRequestDto))
+    @ApiResponse({ type: ProfileUpdateSettingsRequestDto })
     @Roles([RoleTypes.Partner, RoleTypes.Employee])
     updateNotifications(@Body() data: ProfileUpdateSettingsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
         return this.profileService.updateSettings(auth_user, data)
+    }
+
+    @Post('/updateEmail')
+    @UseInterceptors(new TransformResponse(ProfileUpdateEmailRequestDto))
+    @ApiResponse({ type: ProfileUpdateEmailRequestDto })
+    async updateEmail(@AuthUser() auth_user: Partial<UserEntity>, @Body() data: ProfileUpdateEmailRequestDto) {
+        try {
+            return await this.profileService.updateEmail(auth_user.id, data);
+        } catch (error) {
+            throw new HttpException({
+                status: HttpStatus.FORBIDDEN,
+                error: error.message,
+            }, HttpStatus.FORBIDDEN);
+        }
+    }
+
+    @Post('/updatePassword')
+    @UseInterceptors(new TransformResponse(ProfileUpdatePasswordRequestDto))
+    @ApiResponse({ type: ProfileUpdatePasswordRequestDto })
+    async updatePassword(@AuthUser() auth_user: Partial<UserEntity>, @Body() data: ProfileUpdatePasswordRequestDto) {
+        try {
+            return await this.profileService.updatePassword(auth_user.id, data);
+        } catch (error) {
+            throw new HttpException({
+                status: HttpStatus.FORBIDDEN,
+                error: error.message,
+            }, HttpStatus.FORBIDDEN);
+        }
     }
 }

@@ -1,4 +1,4 @@
-import { UpdatePasswordRequestDto } from "@api/user/dto/request/update-password.request.dto";
+import { ProfileUpdatePasswordRequestDto } from "@api/profile/dto/request/profile-update-password.request.dto";
 import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 
@@ -26,8 +26,6 @@ import { RegistrationSuperAdminDto } from "../registration/dto/request/registrat
 
 const USER_SECRET = 'Неправильно введен secret';
 const USER_EXISTS = 'Пользователь с таким email уже существует';
-const USER_NOT_EXISTS = 'Пользователь не найден';
-const EMAIl_EXISTS = email => `Такой email: ${email} уже существует`;
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412'
 @Injectable()
@@ -100,9 +98,10 @@ export class UserService {
       role: rolePartner,
       phone: registrationCompanyDto.phone,
     });
-    await this.userSettingRepository.save({
-      user_id: newUser.id
-    })
+    //TODO: TODO: Нужно ли дефолтные настройки?
+    //await this.userSettingRepository.save({
+    //  user_id: newUser.id
+    //})
     await this.userInfoRepository.save({
       first_name: registrationCompanyDto.first_name,
       last_name: registrationCompanyDto.last_name,
@@ -150,9 +149,10 @@ export class UserService {
       password,
       role: roleSuperAdmin,
     });
-    await this.userSettingRepository.save({
-      user_id: user.id
-    })
+    //TODO: Нужно ли дефолтные настройки?
+    //await this.userSettingRepository.save({
+    //  user_id: user.id
+    //})
   }
   async findAll() {
     return await this.userRepository.find();
@@ -162,42 +162,8 @@ export class UserService {
     return await this.userRepository.findById(id);
   }
 
-  async update(id, data: UpdateUserRequestDto) {
-    const {email} = data
-    const user = await this.userRepository.findByEmail(email);
-
-    if(user) {
-      throw new HttpException(EMAIl_EXISTS(email), HttpStatus.FORBIDDEN);
-    }
-
-    return await this.userRepository.update(id, {
-      email,
-    })
-  }
-
   remove(id: number) {
     return `This action removes a #${id} user`;
   }
 
-  async updatePassword(id: number, data: UpdatePasswordRequestDto, auth_user: any) {
-    const user = await this.userRepository.findById(id);
-
-    if (!user) throw new HttpException(USER_NOT_EXISTS, HttpStatus.FORBIDDEN);
-
-    const isVerify = await verifyPassword({
-      user_password: user.password,
-      password: data.passwordPrev,
-      salt: user.salt,
-    });
-
-    if (!isVerify) throw new HttpException('Неверный старый пароль', HttpStatus.FORBIDDEN);
-
-    if (data.passwordPrev === data.passwordNew) throw new HttpException('Старый пароль не должен совпадать с новым', HttpStatus.FORBIDDEN);
-
-    if (!(data.passwordNew === data.passwordNew2)) throw new HttpException('Пароли не совпадают', HttpStatus.FORBIDDEN);
-
-    const passwordHashed = await createPassword({password: data.passwordNew, salt: user.salt})
-
-    await this.userRepository.update(id, { password: passwordHashed });
-  }
 }
