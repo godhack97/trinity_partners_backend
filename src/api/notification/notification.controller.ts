@@ -1,5 +1,7 @@
 import { NotificationService } from "@api/notification/notification.service";
-import { Controller } from "@nestjs/common";
+import {
+    Controller
+} from "@nestjs/common";
 import {
     ApiBearerAuth,
     ApiTags
