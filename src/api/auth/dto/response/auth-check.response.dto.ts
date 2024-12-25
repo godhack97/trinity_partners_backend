@@ -4,6 +4,24 @@ import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose, Type } from "class-transformer";
 
+export class UserSettingsDto {
+  @ApiProperty()
+  @Expose()
+  id: number;
+
+  @ApiProperty()
+  @Expose()
+  user_id: number;
+
+  @ApiProperty()
+  @Expose()
+  type: string;
+
+  @ApiProperty()
+  @Expose()
+  value: string;
+}
+
 export class CompanyEmployeesWithCompanyResponseDto extends CompanyEmployeesResponseDto {
   @ApiProperty()
   @Expose()
@@ -20,4 +38,9 @@ export class AuthCheckResponseDto extends UserResponseDto {
   @Expose()
   @Type(() => UserInfoDto)
   user_info: UserInfoDto;
+
+  @ApiProperty()
+  @Expose()
+  @Type(() => UserSettingsDto)
+  user_settings: UserSettingsDto;
 }

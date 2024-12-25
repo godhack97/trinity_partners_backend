@@ -1,10 +1,12 @@
+import { UserSettingEntity } from "@orm/entities/user-setting.entity";
 import {
   Entity,
   Column,
   ManyToOne,
   JoinColumn,
   DeleteDateColumn,
-  OneToOne
+  OneToOne,
+  OneToMany
 } from "typeorm";
 import { RoleEntity } from "./role.entity";
 import { BasisEntity } from "./basis.entity";
@@ -59,4 +61,7 @@ export class UserEntity extends BasisEntity {
   owner_company: CompanyEntity;
   @OneToOne(() => UserInfoEntity, (info) => info.user, { eager: true })
   info: UserInfoEntity
+
+  @OneToMany(() => UserSettingEntity, (settings: UserSettingEntity) => settings.user)
+  user_settings: UserSettingEntity[];
 }

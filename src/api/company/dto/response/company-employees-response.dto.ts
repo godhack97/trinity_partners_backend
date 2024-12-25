@@ -32,6 +32,10 @@ import { Expose, Type } from "class-transformer";
   @ApiProperty()
   @Expose()
   phone: string;
+
+  @ApiProperty()
+  @Expose()
+  photo_url: string;
 }
 
 export class EmployeeDto extends UserResponseDto {
