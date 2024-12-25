@@ -9,3 +9,4 @@ export * from './user.repository';
 export * from './deal.repository';
 export * from './customer.repository';
 export * from './distributor.repository';
+export * from './notification.repository';
