@@ -11,6 +11,13 @@ export enum DealStatus {
   Lose = 'loose'
 }
 
+export const DealStatusRu = {
+  registered: 'зарегистрирована',
+  canceled: 'отменена',
+  Moderation: "на модерации",
+  win: 'победила',
+  loose: 'проиграла'
+}
 @Entity({
   name: "deals"
 })
