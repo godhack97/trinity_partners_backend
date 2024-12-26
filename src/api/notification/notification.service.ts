@@ -15,7 +15,7 @@ import { In } from "typeorm";
 
 type NotificationSendDto = {
     type?: "default";
-    userId: number;
+    user_id: number;
     title: string;
     text: string;
 }
@@ -45,10 +45,13 @@ export class NotificationService {
     }
 
     async send(data: NotificationSendDto) {
-        const {userId, title, text} = data;
+        const {user_id, title, text} = data;
 
-        const user = await this.userRepository.findById(userId);
-        const userSettingEntities = await this.userSettingRepository.findBy({ type: In(NotificationSettingsTypes) });
+        const user = await this.userRepository.findById(user_id);
+        const userSettingEntities = await this.userSettingRepository.findBy({
+            user_id,
+            type: In(NotificationSettingsTypes)
+        });
 
         const filteredSettingTypes = userSettingEntities
             .filter((userSetting) => userSetting.value === UserNotificationType.Yes)
