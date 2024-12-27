@@ -95,7 +95,8 @@ export class AuthService {
       token: hashToken,
       user_id: user.id,
     });
-    await this.sendMail({ email: user.email, token: hashToken });
+
+    await this.sendMail({ email, token: hashToken });
   }
 
   async changeForgotPassword({ token, password, password2 }) {
@@ -113,10 +114,10 @@ export class AuthService {
   }
 
   private async sendMail({ email, token }) {
-    const hostname = this.configService.get('HOSTNAME');
+    const hostname = this.configService.get('EMAIL_USERNAME');
 
     return await this.mailService.sendMail({
-      from: `support@${hostname}`,
+      from: `${hostname}`,
       to: email,
       subject: 'Восстановление',
       html: `<b>Востановите пароль по<a href="${hostname}/restore?token=${token}">ссылке</a></b>`,

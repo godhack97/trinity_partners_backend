@@ -61,12 +61,16 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       useFactory: async(configService: ConfigService) => ({
         transport: {
           host: configService.get('EMAIL_HOST'),
-          port: 25,
+          port: 465,
+          secure: true,
           auth: {
             user: configService.get('EMAIL_USERNAME'),
             pass: configService.get('EMAIL_PASSWORD'),
           },
+          debug: true, // show debug output
+          logger: true
         },
+
       }),
       inject: [ConfigService],
     }),

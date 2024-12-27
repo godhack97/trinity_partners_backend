@@ -72,10 +72,10 @@ export class NotificationService {
 
     async sendEmail(data: ActionDataType & { email: string }) {
         const { email, title, text } = data,
-            hostname = this.configService.get('HOSTNAME');
+            hostname = this.configService.get('EMAIL_USERNAME');
 
         return await this.mailerService.sendMail({
-            from: `support@${hostname}`,
+            from: `${hostname}`,
             to: email,
             subject: title,
             html: `${text}`,
