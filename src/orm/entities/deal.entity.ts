@@ -13,9 +13,9 @@ export enum DealStatus {
 
 export const DealStatusRu = {
   registered: 'зарегистрирована',
-  canceled: 'отменена',
-  Moderation: "на модерации",
-  win: 'победила',
+  canceled: 'не зарегистрирована',
+  Moderation: "на рассмотрении",
+  win: 'выиграна',
   loose: 'проиграла'
 }
 @Entity({
