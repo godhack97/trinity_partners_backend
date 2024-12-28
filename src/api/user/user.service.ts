@@ -1,3 +1,4 @@
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 
 import {
@@ -38,6 +39,7 @@ export class UserService {
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userSettingRepository: UserSettingRepository,
+    private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
 
   async createEmployee(
@@ -73,6 +75,12 @@ export class UserService {
       company_id: null,
       employee_id: newUser.id,
       status: CompanyEmployeeStatus.Pending,
+    })
+
+    await this.emailConfirmerService.send({
+      user_id: newUser.id,
+      email: newUser.email,
+      method: 'registration'
     })
     return newUser;
   }
@@ -126,6 +134,11 @@ export class UserService {
       employee_id: newUser.id,
       status: CompanyEmployeeStatus.Accept,
     })
+    await this.emailConfirmerService.send({
+      user_id: newUser.id,
+      email: newUser.email,
+      method: 'registration'
+    })
     return newUser;
   }
 
@@ -149,6 +162,11 @@ export class UserService {
     });
 
     await this._createNotificationSettings(user.id)
+    await this.emailConfirmerService.send({
+      user_id: user.id,
+      email: user.email,
+      method: 'registration'
+    })
   }
 
   async findAll() {

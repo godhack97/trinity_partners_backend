@@ -1,10 +1,8 @@
-import { MailerService } from '@nestjs-modules/mailer';
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
-import { ConfigService } from '@nestjs/config';
 import { ResetTokenRepository } from 'src/orm/repositories/reset-token.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import {
-  createHash,
   createPassword,
   createToken,
   verifyPassword,
@@ -17,8 +15,7 @@ export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly resetTokenRepository: ResetTokenRepository,
-    private readonly mailService: MailerService,
-    private readonly configService: ConfigService,
+    private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
   async login(authLoginDto: AuthLoginRequestDto) {
     let user = await this.userRepository.findByEmail(authLoginDto.email);
@@ -89,14 +86,11 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(email);
     if (!user) throw new UnauthorizedException();
 
-    const hashToken = createHash();
-
-    await this.resetTokenRepository.save({
-      token: hashToken,
+    await this.emailConfirmerService.send({
       user_id: user.id,
-    });
-
-    await this.sendMail({ email, token: hashToken });
+      email,
+      method: 'restore'
+    })
   }
 
   async changeForgotPassword({ token, password, password2 }) {
@@ -111,16 +105,5 @@ export class AuthService {
     const passwordHashed = await createPassword({ password, salt: user.salt });
 
     await this.userRepository.update(user.id, { password: passwordHashed });
-  }
-
-  private async sendMail({ email, token }) {
-    const hostname = this.configService.get('EMAIL_USERNAME');
-
-    return await this.mailService.sendMail({
-      from: `${hostname}`,
-      to: email,
-      subject: 'Восстановление',
-      html: `<b>Востановите пароль по<a href="${hostname}/restore?token=${token}">ссылке</a></b>`,
-    });
   }
 }
