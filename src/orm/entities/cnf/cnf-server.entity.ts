@@ -23,6 +23,9 @@ export class CnfServerEntity {
   @Column()
   name: string;
 
+  @Column()
+  description: string;
+
   @OneToOne(
     () => CnfServerboxHeightEntity,
     (serverbox_height: CnfServerboxHeightEntity) => serverbox_height.id,
