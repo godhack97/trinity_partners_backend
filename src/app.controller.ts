@@ -15,16 +15,7 @@ export class AppController {
 
   @Public()
   @Get()
-  async getHello(): Promise<string> {
-    const hostname = this.configService.get('EMAIL_USERNAME');
-
-    return await this.mailerService.sendMail({
-      from: `://${hostname}`,
-      to: 'godforger@yandex.ru',
-      subject: 'asd',
-      html: `asdasd`,
-    });
-
-    //return 'Hello server!';
+  getHello(): string {
+    return 'Hello server!';
   }
 }
