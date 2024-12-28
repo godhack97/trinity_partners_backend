@@ -54,7 +54,7 @@ export class EmailConfirmerService {
   async send(data1: { user_id: number, email: string, method: string }) {
     const { user_id, email, method } = data1;
     const hashToken = createHash();
-    const link = `${this.hostname}/${method}?verify=${hashToken}`
+    const link = `://${this.hostname}/${method}?verify=${hashToken}`
 
     const data = confirmConfig({ link })
 

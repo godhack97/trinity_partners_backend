@@ -75,7 +75,7 @@ export class NotificationService {
             hostname = this.configService.get('EMAIL_USERNAME');
 
         return await this.mailerService.sendMail({
-            from: `${hostname}`,
+            from: `://${hostname}`,
             to: email,
             subject: title,
             html: `${text}`,
