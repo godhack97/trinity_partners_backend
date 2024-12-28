@@ -12,7 +12,10 @@ export enum DealStatus {
 }
 
 @Entity({
-  name: "deals"
+  name: "deals",
+  orderBy: {
+    id: "DESC"
+  }
 })
 export class DealEntity extends BasisEntity {
 
