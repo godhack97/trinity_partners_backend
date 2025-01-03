@@ -1,3 +1,4 @@
+import { NotificationService } from "@api/notification/notification.service";
 import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
@@ -21,6 +22,7 @@ import { AdminDistributorModule } from './distributor/admin-distributor.module';
   controllers: [AdminController],
   providers: [
     AdminService,
+    NotificationService,
     {
       provide: APP_GUARD,
       useClass: RoleGuard,
