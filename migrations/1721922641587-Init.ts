@@ -196,7 +196,7 @@ export class Init1721922641587 implements MigrationInterface {
             type       ENUM ('email', 'site')           NOT NULL COMMENT 'тип, уведомления на сайте или по почте',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            read_at    TIMESTAMP COMMENT 'дата прочтения. Если не прочитано то null',
+            read_at    TIMESTAMP NULL DEFAULT NULL COMMENT 'дата прочтения. Если не прочитано то null',
             PRIMARY KEY (id)
         ) ENGINE = InnoDB
           DEFAULT CHARSET = utf8mb4

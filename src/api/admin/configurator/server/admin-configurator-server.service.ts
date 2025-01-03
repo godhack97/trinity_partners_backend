@@ -14,7 +14,7 @@ export class AdminConfiguratorServerService {
     ) {}
 
   async addServer(data: AddServerRequestDto) {
-    const { name, serverbox_height_id, server_generation_id, price, slots, multislots, image, cert, guide } = data;
+    const { name, description, serverbox_height_id, server_generation_id, price, slots, multislots, image, cert, guide } = data;
     const serverGeneration = await this.cnfServerGenerationRepository.findOneBy({id: server_generation_id});
     
     if(!serverGeneration) {
@@ -23,6 +23,7 @@ export class AdminConfiguratorServerService {
 
     const server = await this.cnfServerRepository.save({
       name,
+      description,
       serverbox_height_id,
       server_generation_id,
       price,
@@ -38,7 +39,7 @@ export class AdminConfiguratorServerService {
 
   async updateServer(id: string, data: AddServerRequestDto) {
    
-    const { name, serverbox_height_id, server_generation_id, price, slots, multislots, image, cert, guide } = data;
+    const { name, description, serverbox_height_id, server_generation_id, price, slots, multislots, image, cert, guide } = data;
 
     const existsServer = await this.cnfServerRepository.findOneBy({id});
 
@@ -59,6 +60,7 @@ export class AdminConfiguratorServerService {
     const server = await this.cnfServerRepository.save({
       id: existsServer.id,
       name,
+      description,
       serverbox_height_id,
       server_generation_id,
       price,

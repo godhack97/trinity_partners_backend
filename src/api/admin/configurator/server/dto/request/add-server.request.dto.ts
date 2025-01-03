@@ -31,6 +31,9 @@ export class AddServerRequestDto {
   name: string;
 
   @ApiProperty()
+  description: string;
+
+  @ApiProperty()
   @IsNotEmptyRu()
   @MinLengthRu(1)
   serverbox_height_id: string;
