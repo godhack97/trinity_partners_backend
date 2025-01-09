@@ -23,6 +23,9 @@ export class AddFieldsToNews1736425117675 implements MigrationInterface {
             ADD COLUMN url varchar(255) COLLATE utf8mb4_bin DEFAULT NULL AFTER photo,
             ADD COLUMN author_id INT unsigned NOT NULL AFTER photo;
         `)
+        await queryRunner.query(`ALTER TABLE news
+            ADD FOREIGN KEY (author_id) REFERENCES users (id);`);
+
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
