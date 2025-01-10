@@ -1,4 +1,5 @@
 import { EmailConfirmModule } from "@api/email-confirmer/email-confirmer.module";
+import { NewsModule } from "@api/news/news.module";
 import { NotificationModule } from "@api/notification/notification.module";
 import { ProfileModule } from "@api/profile/profile.module";
 import { RoleGuard } from "@app/guards/role.guard";
@@ -91,6 +92,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     ProfileModule,
     NotificationModule,
     EmailConfirmModule,
+    NewsModule,
   ],
   controllers: [AppController],
   providers: [
