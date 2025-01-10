@@ -15,4 +15,13 @@ export class NewsRepository extends Repository<NewsEntity> {
   public async findById(id: number) {
     return await this.findOneBy({ id });
   }
+  public async findBySlug({ slug } : { slug: string}) {
+    return await this.findOneBy({ url: slug });
+  }
+  public async findBySlugOrName({ slug, name } : { slug: string, name: string }) {
+    return await this.findOneBy([{
+      url: slug,
+      name,
+    }]);
+  }
 }
