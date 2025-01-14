@@ -3,7 +3,8 @@ import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
   HttpException,
   HttpStatus,
-  Injectable
+  Injectable,
+  NotFoundException
 } from "@nestjs/common";
 import { UserEntity } from "@orm/entities";
 import { NewsRepository } from "@orm/repositories";
@@ -28,7 +29,11 @@ export class NewsService {
     return await this.newsRepository.find();
   }
   async findOne(slug: string) {
-    return await this.newsRepository.findBySlug({ slug });
+    const news = await this.newsRepository.findBySlug({ slug });
+
+    if(!news) {
+      throw new NotFoundException()
+    }
   }
   async create(data: NewsRequestDto, auth_user: Partial<UserEntity>) {
     const {name,content,photo} = data;
@@ -52,17 +57,22 @@ export class NewsService {
     const url = slug;
     const isExistSlug = await this.newsRepository.findBySlug({ slug });
 
-    if(isExistSlug) throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT)
+    if(isExistSlug && (isExistSlug.id !== id)) throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT)
 
-    return await this.newsRepository.update(id, {
+    const updateResult = await this.newsRepository.update(id, {
       name,
       content,
       photo,
       url
     });
+    console.log({updateResult})
+    if (updateResult.affected === 0) {
+      throw new HttpException('Не удалось обновить', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    return await this.newsRepository.findById(id);
   }
 
-  async delete(id: number){
+  async delete(id: number) {
     const news = await this.newsRepository.findById(id)
     if (!news) {
       throw new NotEntityException();
