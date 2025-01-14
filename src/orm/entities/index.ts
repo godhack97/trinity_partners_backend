@@ -10,3 +10,4 @@ export * from 'src/orm/entities/customer.entity';
 export * from '@orm/entities/distributor.entity';
 export * from './cnf';
 export * from '@orm/entities/notification.entity';
+export * from '@orm/entities/news.entity';

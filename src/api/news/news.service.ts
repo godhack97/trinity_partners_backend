@@ -1,0 +1,78 @@
+import { NewsRequestDto } from "@api/news/dto/news.request.dto";
+import {
+  HttpException,
+  HttpStatus,
+  Injectable
+} from "@nestjs/common";
+import { UserEntity } from "@orm/entities";
+import { NewsRepository } from "@orm/repositories";
+const opt = {
+  delimiter: '-',
+  charMap: {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh',
+    'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+    'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c',
+    'ч': 'ch', 'ш': 'sh', 'щ': 'sh', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu',
+    'я': 'ya',
+  }
+}
+
+@Injectable()
+export class NewsService {
+  ERROR_EXISTS = 'Новость с таким заголовком уже существует!';
+
+  constructor(private readonly newsRepository: NewsRepository) {}
+
+  async findAll() {
+    return await this.newsRepository.find();
+  }
+  async findOne(slug: string) {
+    return await this.newsRepository.findBySlug({ slug });
+  }
+  async create(data: NewsRequestDto, auth_user: Partial<UserEntity>) {
+    const {name,content,photo} = data;
+    const slug = this.makeCHEPEU(name);
+    const url = slug;
+    const isExistSlug = await this.newsRepository.findBySlugOrName({ slug, name });
+    console.log({isExistSlug})
+    if(isExistSlug) throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT)
+
+    return await this.newsRepository.save({
+      name,
+      content,
+      photo,
+      url,
+      author_id: auth_user.id
+    });
+  }
+  async update(id, data: NewsRequestDto) {
+    const {name,content,photo} = data;
+    const slug = this.makeCHEPEU(name);
+    const url = slug;
+    const isExistSlug = await this.newsRepository.findBySlug({ slug });
+
+    if(isExistSlug) throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT)
+
+    return await this.newsRepository.update(id, {
+      name,
+      content,
+      photo,
+      url
+    });
+  }
+
+  //ЧПУ
+  private makeCHEPEU(str: string): string {
+    let text = str.toLowerCase()
+
+    for (const key in opt.charMap) {
+      text = text.replace(RegExp(key, 'g'), opt.charMap[key]);
+    }
+
+    text = text.replace(RegExp(/[_ ]/, 'g'), opt.delimiter);
+    text = text.replace(/[^a-zA-Z0-9_-]/g, "")
+    text = text.replace(RegExp('[' + opt.delimiter + ']{2,}', 'g'), opt.delimiter);
+    text = text.replace(RegExp('(^' + opt.delimiter + '|' + opt.delimiter + '$)', 'g'), '');
+    return text
+  }
+}
