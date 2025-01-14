@@ -56,6 +56,12 @@ export class NewsController {
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async update(@Param('id') id: string, @Body() data: NewsRequestDto) {
-    return this.newsService.update(id, data);
+    return this.newsService.update(+id, data);
+  }
+
+  @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
+  @Post('/:id/delete')
+  async delete(@Param('id') id: string) {
+    return this.newsService.delete(+id);
   }
 }

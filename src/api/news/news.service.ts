@@ -1,4 +1,5 @@
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
+import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
   HttpException,
   HttpStatus,
@@ -45,7 +46,7 @@ export class NewsService {
       author_id: auth_user.id
     });
   }
-  async update(id, data: NewsRequestDto) {
+  async update(id: number, data: NewsRequestDto) {
     const {name,content,photo} = data;
     const slug = this.makeCHEPEU(name);
     const url = slug;
@@ -59,6 +60,19 @@ export class NewsService {
       photo,
       url
     });
+  }
+
+  async delete(id: number){
+    const news = await this.newsRepository.findById(id)
+    if (!news) {
+      throw new NotEntityException();
+    }
+
+    const deleteResult = await this.newsRepository.delete(id)
+
+    if (deleteResult.affected === 0) {
+      throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   //ЧПУ
