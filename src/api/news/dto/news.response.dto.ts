@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
 
-export class NewsResponseListDto  {
+export class NewsResponseListDto {
   @ApiProperty()
   @Expose()
   name: string;
@@ -19,7 +19,11 @@ export class NewsResponseListDto  {
   created_at: string;
 }
 
-export class NewsResponseDto extends NewsResponseListDto{
+export class NewsResponseDto extends NewsResponseListDto {
+  @ApiProperty()
+  @Expose()
+  id: number;
+
   @ApiProperty()
   @Expose()
   content: string;
