@@ -14,10 +14,12 @@ import {
 const confirmConfig = ({ link }: { link: string }) => ({
   registration: {
     subject: 'Регистрация пользователя',
+    text: `Подтвердите почту по ссылке: ${ link }`,
     html: `<b>Подтвердите почту по <a href="${link}">ссылке</a>: <a href="${ link }">${ link }</a></b>`
   },
   restore: {
     subject: 'Восстановление пароля',
+    text: `Востановите пароль по ссылке: ${ link }`,
     html: `<b>Востановите пароль по <a href="${link}">ссылке</a>: <a href="${ link }">${ link }</a></b>`
   }
 })
