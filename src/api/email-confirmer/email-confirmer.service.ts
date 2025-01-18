@@ -15,12 +15,12 @@ const confirmConfig = ({ link }: { link: string }) => ({
   registration: {
     subject: 'Регистрация пользователя',
     text: `Подтвердите почту по ссылке: ${ link }`,
-    html: `<b>Подтвердите почту по <a href="${link}">ссылке</a>: <a href="${ link }">${ link }</a></b>`
+    html: `<b>Подтвердите почту по ссылке:</b> <a href="${ link }">${ link }</a>`
   },
   restore: {
     subject: 'Восстановление пароля',
     text: `Востановите пароль по ссылке: ${ link }`,
-    html: `<b>Востановите пароль по <a href="${link}">ссылке</a>: <a href="${ link }">${ link }</a></b>`
+    html: `<b>Востановите пароль по ссылке:</b> <a href="${ link }">${ link }</a>`
   }
 })
 
@@ -56,7 +56,7 @@ export class EmailConfirmerService {
   async send(data1: { user_id: number, email: string, method: string }) {
     const { user_id, email, method } = data1;
     const hashToken = createHash();
-    const link = `://${this.hostname}/${method}?verify=${hashToken}`
+    const link = `https://${this.hostname}/${method}?verify=${hashToken}`
 
     const data = confirmConfig({ link })
 
