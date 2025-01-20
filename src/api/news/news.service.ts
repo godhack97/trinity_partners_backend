@@ -34,6 +34,8 @@ export class NewsService {
     if(!news) {
       throw new NotFoundException()
     }
+
+    return news;
   }
   async create(data: NewsRequestDto, auth_user: Partial<UserEntity>) {
     const {name,content,photo} = data;
@@ -51,15 +53,18 @@ export class NewsService {
       author_id: auth_user.id
     });
   }
-  async update(id: number, data: NewsRequestDto) {
+  async update(slug: string, data: NewsRequestDto) {
     const {name,content,photo} = data;
-    const slug = this.makeCHEPEU(name);
-    const url = slug;
-    const isExistSlug = await this.newsRepository.findBySlug({ slug });
+    const slugNew = this.makeCHEPEU(name);
+    const url = slugNew;
+    const news = await this.newsRepository.findBySlug({slug})
+    if (!news) throw new NotEntityException();
 
-    if(isExistSlug && (isExistSlug.id !== id)) throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT)
+    const isExistSlug = await this.newsRepository.findBySlug({ slug: slugNew });
 
-    const updateResult = await this.newsRepository.update(id, {
+    if(isExistSlug && (isExistSlug.id !== news.id)) throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT)
+
+    const updateResult = await this.newsRepository.update(news.id, {
       name,
       content,
       photo,
@@ -69,20 +74,22 @@ export class NewsService {
     if (updateResult.affected === 0) {
       throw new HttpException('Не удалось обновить', HttpStatus.INTERNAL_SERVER_ERROR);
     }
-    return await this.newsRepository.findById(id);
+    return await this.newsRepository.findById(news.id);
   }
 
-  async delete(id: number) {
-    const news = await this.newsRepository.findById(id)
+  async delete(slug: string) {
+    const news = await this.newsRepository.findBySlug({slug})
     if (!news) {
       throw new NotEntityException();
     }
 
-    const deleteResult = await this.newsRepository.delete(id)
+    const deleteResult = await this.newsRepository.delete(news.id)
 
     if (deleteResult.affected === 0) {
       throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    return 
   }
 
   //ЧПУ
