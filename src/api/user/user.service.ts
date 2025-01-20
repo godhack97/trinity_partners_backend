@@ -80,7 +80,7 @@ export class UserService {
     await this.emailConfirmerService.send({
       user_id: newUser.id,
       email: newUser.email,
-      method: 'registration'
+      method: 'email.confirmation'
     })
     return newUser;
   }
@@ -137,7 +137,7 @@ export class UserService {
     await this.emailConfirmerService.send({
       user_id: newUser.id,
       email: newUser.email,
-      method: 'registration'
+      method: 'email.confirmation'
     })
     return newUser;
   }
@@ -165,7 +165,7 @@ export class UserService {
     await this.emailConfirmerService.send({
       user_id: user.id,
       email: user.email,
-      method: 'registration'
+      method: 'email.confirmation'
     })
   }
 
