@@ -12,7 +12,7 @@ import {
 } from "@orm/repositories";
 
 const confirmConfig = ({ link }: { link: string }) => ({
-  registration: {
+  'email.confirmation': {
     subject: 'Регистрация пользователя',
     text: `Подтвердите почту по ссылке: ${ link }`,
     html: `<b>Подтвердите почту по ссылке:</b> <a href="${ link }">${ link }</a>`
