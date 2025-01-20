@@ -52,16 +52,16 @@ export class NewsController {
   }
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
-  @Post('/:id')
+  @Post('/:slug')
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
-  async update(@Param('id') id: string, @Body() data: NewsRequestDto) {
-    return this.newsService.update(+id, data);
+  async update(@Param('slug') slug: string, @Body() data: NewsRequestDto) {
+    return this.newsService.update(slug, data);
   }
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
-  @Post('/:id/delete')
-  async delete(@Param('id') id: string) {
-    return this.newsService.delete(+id);
+  @Post('/:slug/delete')
+  async delete(@Param('slug') slug: string) {
+    return this.newsService.delete(slug);
   }
 }
