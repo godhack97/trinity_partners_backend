@@ -1,3 +1,9 @@
+import { emailSendConfig } from "@api/email-confirmer/config";
+import {
+  ActionParams,
+  ConfirmParams,
+  SendParams
+} from "@api/email-confirmer/types";
 import { createHash } from "@app/utils/password";
 import { MailerService } from "@nestjs-modules/mailer";
 import {
@@ -7,70 +13,65 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
-  ResetTokenRepository,
+  ResetHashRepository,
   UserRepository
 } from "@orm/repositories";
-
-const confirmConfig = ({ link }: { link: string }) => ({
-  'email.confirmation': {
-    subject: 'Регистрация пользователя',
-    text: `Подтвердите почту по ссылке: ${ link }`,
-    html: `<b>Подтвердите почту по ссылке:</b> <a href="${ link }">${ link }</a>`
-  },
-  restore: {
-    subject: 'Восстановление пароля',
-    text: `Востановите пароль по ссылке: ${ link }`,
-    html: `<b>Востановите пароль по ссылке:</b> <a href="${ link }">${ link }</a>`
-  }
-})
+import * as querystring from "node:querystring";
 
 @Injectable()
 export class EmailConfirmerService {
   constructor(
     private readonly mailService: MailerService,
     private readonly configService: ConfigService,
-    private readonly resetTokenRepository: ResetTokenRepository,
+    private readonly resetHashRepository: ResetHashRepository,
     private readonly userRepository: UserRepository,
   ) {}
 
   mail = this.configService.get('EMAIL_USERNAME');
   hostname = this.configService.get('HOSTNAME');
-  actions = {
-    registration: this.registrationAction,
-    restore: this.restoreAction,
+
+  confirmActions = {
+    registration: this._registrationAction,
+    restore: this._restoreAction,
   }
 
-  async confirm(data: { hash: string, method: string }) {
-    const { hash, method } = data;
+  async confirm(data: ConfirmParams) {
+    const { hash, method, email } = data;
 
-    const resetToken = await this.resetTokenRepository.findOneBy({ token: hash})
-    console.log('resetToken',resetToken)
-    console.log('this',this)
+    const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email })
 
-    if(!resetToken) throw new HttpException('Хэш не найден', HttpStatus.NOT_FOUND)
+    if(!resetHashEntity) throw new HttpException('Хэш не найден', HttpStatus.NOT_FOUND)
 
-    const action = this.actions[method];
-    return await action.call(this, {resetToken});
+    const action = this.confirmActions[method];
+    return await action.call(this, { resetHashEntity });
   }
 
-  async send(data1: { user_id: number, email: string, method: string }) {
-    const { user_id, email, method } = data1;
-    const hashToken = createHash();
-    const link = `https://${this.hostname}/${method}?verify=${hashToken}`
-
-    const data = confirmConfig({ link })
-
-    await this.resetTokenRepository.save({
-      token: hashToken,
-      user_id,
-    });
-    return await this.emailSend({
+  async send(data: SendParams) {
+    const { user_id, email, method } = data;
+    const hash = createHash();
+    const qs = querystring.stringify({
       email,
-      ...data[method]
+      verify: hash
+    })
+
+    const link = `https://${this.hostname}/${method}?${qs}`
+
+    const expire_date = this._createExpireDate();
+
+    await this.resetHashRepository.save({
+      hash,
+      user_id,
+      email,
+      expire_date
+    });
+
+    return await this._emailSend({
+      email,
+      ...emailSendConfig({ link })[method]
     })
   }
 
-  private async emailSend({ email, subject, html }) {
+  private async _emailSend({ email, subject, html }) {
     return await this.mailService.sendMail({
       from: `${this.mail}`,
       to: email,
@@ -79,15 +80,14 @@ export class EmailConfirmerService {
     });
   }
 
-  private async registrationAction(data: { resetToken }) {
-    const { resetToken } = data;
-    const resetTokenDelete = await this.resetTokenRepository.remove(resetToken)
+  private async _restoreAction({ resetHashEntity }: ActionParams){
+    return await this._deleteResetHashEntity({ resetHashEntity })
+  }
 
-    if (!resetTokenDelete) {
-      throw new HttpException('Не удалось удалить хэш', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+  private async _registrationAction({ resetHashEntity }: ActionParams) {
+    await this._deleteResetHashEntity({ resetHashEntity })
 
-    const updateUser = await this.userRepository.update(resetToken.user_id, {
+    const updateUser = await this.userRepository.update(resetHashEntity.user_id, {
       email_confirmed: true,
     })
 
@@ -95,13 +95,20 @@ export class EmailConfirmerService {
       throw new HttpException('Не удалось обновить пользователя', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+  private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
+    const resetHashDelete = await this.resetHashRepository.remove(resetHashEntity)
 
-  private async restoreAction(data: { resetToken }) {
-    const { resetToken } = data;
-    const resetTokenDelete = await this.resetTokenRepository.remove(resetToken)
-
-    if (!resetTokenDelete) {
-      throw new HttpException('Не удалось удалить хэш', HttpStatus.INTERNAL_SERVER_ERROR);
+    if (!resetHashDelete) {
+      throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  private _createExpireDate(options: { addDays: number } = { addDays: 2 } ): string {
+    const { addDays = 2 } = options;
+    const d = new Date();
+    d.setDate(d.getDate() + addDays);
+    const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
+    const timeString = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
+    return`${yearString} ${timeString}`;
   }
 }

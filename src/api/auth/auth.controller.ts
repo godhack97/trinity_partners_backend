@@ -65,6 +65,6 @@ export class AuthController {
   @Post('change-forgot-password')
   @ApiBody({ type: () => ChangeForgotPasswordDto })
   changeForgotPassword(@Body() changeForgot: ChangeForgotPasswordDto) {
-    return this.authService.changeForgotPassword(changeForgot);
+    return this.authService.recoveryPassword(changeForgot);
   }
 }
