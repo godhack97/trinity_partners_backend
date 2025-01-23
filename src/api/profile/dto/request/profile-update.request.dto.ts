@@ -2,14 +2,15 @@ import {
     IsNumberRu,
     MinLengthRu
 } from "@decorators/validate";
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
+import { IsOptional } from "class-validator";
 
 export class ProfileUpdateRequestDto {
-    @ApiProperty()
-    @Expose()
-    @MinLengthRu(6)
-    photo_url: string;
+    
+    @ApiPropertyOptional()
+    @IsOptional()
+    photo_url?: string;
 
     @ApiProperty()
     @Expose()

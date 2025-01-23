@@ -83,19 +83,39 @@ export class ProfileService {
     }
 
     private async updateEmployee(user: UserEntity, data: ProfileEmployeeRequestDto) {
-        await this.userInfoRepository.update(user.info.id, {
+
+        let params: Partial<ProfileEmployeeRequestDto> = {
+
             job_title: data.job_title,
-            phone: data.phone,
-            photo_url: data.photo_url,
-        });
+            phone: data.phone
+
+        }
+
+        if ( data?.photo_url && data.photo_url.length ) {
+            params.photo_url = data.photo_url;
+        }
+
+        await this.userInfoRepository.update( user.info.id, params );
+
     }
+
     private async updatePartner(user: UserEntity, data: ProfilePartnerRequestDto) {
-        await this.userInfoRepository.update(user.info.id, {
+
+        let params: Partial<ProfilePartnerRequestDto> = {
+
             job_title: data.job_title,
-            phone: data.phone,
-            photo_url: data.photo_url,
-        });
-        const company = await this.companyRepository.findOneBy({ owner_id:user.id })
+            phone: data.phone
+
+        }
+
+        if ( data?.photo_url && data.photo_url.length ) {
+            params.photo_url = data.photo_url;
+        }
+
+        await this.userInfoRepository.update( user.info.id, params );
+        
+        const company = await this.companyRepository.findOneBy({ owner_id:user.id });
+
         await this.companyRepository.update(company.id, {
             company_business_line: data.company_business_line,
             employees_count: data.employees_count,
