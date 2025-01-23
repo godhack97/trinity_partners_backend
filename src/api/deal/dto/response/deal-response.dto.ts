@@ -77,4 +77,9 @@ export class DealResponseDto  extends WithIdDto{
   @Expose()
   @Type(() => DistributorResponseDto)
   distributor: DistributorResponseDto;
+
+  @ApiProperty()
+  @Expose()
+  @Type(() => DistributorResponseDto)
+  created_at: Date;
 }

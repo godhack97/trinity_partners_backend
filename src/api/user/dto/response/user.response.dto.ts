@@ -26,8 +26,8 @@ export class UserResponseDto extends WithIdDto {
   @Type(() => RoleResponseDto)
   role: RoleResponseDto;
 
-  // @ApiProperty()
-  // @Expose()
-  // @Type(() => PartnerResponseDto)
-  // owner_company?: PartnerResponseDto;
+  @ApiProperty()
+  @Expose()
+  @Type(() => PartnerResponseDto)
+  owner_company?: PartnerResponseDto;
 }

@@ -91,6 +91,28 @@ export class DealRepository extends Repository<DealEntity> {
         { search }
       );
     }
-    return await queryBuilder.getMany();
+
+    const dealsFromDB = await queryBuilder.getMany();
+
+    const deals = [];
+
+    for ( const deal of dealsFromDB ) {
+
+      let dealWithPartherCompany = deal;
+
+      const partner = deal.partner;
+      
+      if ( partner && partner.lazy_owner_company ) {
+          
+        const partnerCompany = await partner.lazy_owner_company;
+        dealWithPartherCompany.partner.owner_company = partnerCompany;
+
+      }
+
+      deals.push( dealWithPartherCompany );
+
+    }
+
+    return deals;
   }
 }

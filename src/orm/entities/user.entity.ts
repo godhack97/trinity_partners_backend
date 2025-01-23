@@ -57,8 +57,8 @@ export class UserEntity extends BasisEntity {
 
   @OneToOne(() => CompanyEntity, (company) => company.owner)
   lazy_owner_company: Promise<CompanyEntity>;
-
   owner_company: CompanyEntity;
+  
   @OneToOne(() => UserInfoEntity, (info) => info.user, { eager: true })
   info: UserInfoEntity
 
