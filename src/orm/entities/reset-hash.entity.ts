@@ -3,9 +3,9 @@ import { UserEntity } from './user.entity';
 import { BasisEntity } from './basis.entity';
 
 @Entity({
-  name: 'reset_tokens',
+  name: 'reset_hashs',
 })
-export class ResetTokenEntity extends BasisEntity {
+export class ResetHashEntity extends BasisEntity {
   @Column()
   user_id: number;
 
@@ -14,7 +14,10 @@ export class ResetTokenEntity extends BasisEntity {
   user: UserEntity;
 
   @Column()
-  token: string;
+  hash: string;
+
+  @Column()
+  email: string;
 
   @Column()
   expire_date?: Date;
