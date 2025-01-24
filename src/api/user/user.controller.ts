@@ -1,18 +1,9 @@
-import { ProfileUpdatePasswordRequestDto } from "@api/profile/dto/request/profile-update-password.request.dto";
-import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
-import { UserOwnerGuard } from "@app/guards/user-owner.guard";
-import { AuthUser } from "@decorators/auth-user";
 import {
   Controller,
   Delete,
   Get,
-  Post,
   Param,
-  Body,
   UseInterceptors,
-  HttpException,
-  HttpStatus,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from 'src/interceptors/transform-response.interceptor';

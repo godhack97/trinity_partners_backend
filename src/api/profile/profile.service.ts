@@ -13,8 +13,10 @@ import {
 import {
     HttpException,
     HttpStatus,
-    Injectable
+    Injectable,
+    UnauthorizedException
 } from "@nestjs/common";
+import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import {
     UserEntity,
     UserSettingType
@@ -55,6 +57,8 @@ export class ProfileService {
         if(user.role.name === RoleTypes.Employee) {
             return this.updateEmployee(user, data);
         }
+
+        throw new InternalServerErrorException('Кто ты воин ' + user.role.name);
     }
 
     async updateSettings(auth_user: Partial<UserEntity>, data: ProfileUpdateSettingsRequestDto){
