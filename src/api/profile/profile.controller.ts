@@ -46,7 +46,6 @@ export class ProfileController {
     @ApiBearerAuth()
     @UseInterceptors(new TransformResponse(ProfileUpdateSettingsRequestDto))
     @ApiResponse({ type: ProfileUpdateSettingsRequestDto })
-    @Roles([RoleTypes.Partner, RoleTypes.Employee])
     updateNotifications(@Body() data: ProfileUpdateSettingsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
         return this.profileService.updateSettings(auth_user, data)
     }
