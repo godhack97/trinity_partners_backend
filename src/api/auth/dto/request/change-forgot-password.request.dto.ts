@@ -20,5 +20,5 @@ export class ChangeForgotPasswordDto {
 
   @ApiProperty()
   @MinLengthRu(6)
-  password2: string;
+  repeat: string;
 }

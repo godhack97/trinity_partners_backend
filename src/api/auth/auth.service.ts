@@ -98,14 +98,14 @@ export class AuthService {
     })
   }
 
-  async recoveryPassword({ hash, email, password, password2 }) {
+  async recoveryPassword({ hash, email, password, repeat }) {
     const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email});
     if (!resetHashEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findById(resetHashEntity.user_id);
     if (!user) throw new UnauthorizedException();
 
-    if (password !== password2) throw new UnauthorizedException();
+    if (password !== repeat) throw new UnauthorizedException();
 
     const { password: passwordHashed, salt } = await createCredentials(password)
 

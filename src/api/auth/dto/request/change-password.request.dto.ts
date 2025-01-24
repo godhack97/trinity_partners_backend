@@ -8,5 +8,5 @@ export class UpdatePasswordRequestDto {
 
   @ApiProperty()
   @MinLengthRu(6)
-  password2: string;
+  repeat: string;
 }
