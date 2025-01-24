@@ -58,7 +58,7 @@ export class ProfileService {
             return this.updateEmployee(user, data);
         }
 
-        throw new InternalServerErrorException('Кто ты воин ' + user.role.name);
+        throw new InternalServerErrorException('Недостаточно прав для ' + user.role.name);
     }
 
     async updateSettings(auth_user: Partial<UserEntity>, data: ProfileUpdateSettingsRequestDto){
