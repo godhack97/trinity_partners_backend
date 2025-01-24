@@ -1,6 +1,6 @@
 export * from 'src/orm/entities/company.entity';
 export * from 'src/orm/entities/company-employee.entity';
-export * from 'src/orm/entities/reset-token.entity';
+export * from '@orm/entities/reset-hash.entity';
 export * from 'src/orm/entities/role.entity';
 export * from 'src/orm/entities/user-setting.entity';
 export * from 'src/orm/entities/user-info.entity';

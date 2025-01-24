@@ -1,8 +1,10 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
+import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
-import { ResetTokenRepository } from 'src/orm/repositories/reset-token.repository';
+import { ResetHashRepository } from '@orm/repositories/reset-hash.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import {
+  createCredentials,
   createPassword,
   createToken,
   verifyPassword,
@@ -14,7 +16,7 @@ import { RoleTypes } from "@app/types/RoleTypes";
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly resetTokenRepository: ResetTokenRepository,
+    private readonly resetHashRepository: ResetHashRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
   async login(authLoginDto: AuthLoginRequestDto) {
@@ -92,21 +94,27 @@ export class AuthService {
     await this.emailConfirmerService.send({
       user_id: user.id,
       email,
-      method: 'restore'
+      method: EmailConfirmerMethod.Recovery
     })
   }
 
-  async changeForgotPassword({ token, password, password2 }) {
-    const resetToken = await this.resetTokenRepository.findByToken(token);
-    if (!resetToken) throw new UnauthorizedException();
+  async recoveryPassword({ hash, email, password, repeat }) {
+    const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email});
+    if (!resetHashEntity) throw new UnauthorizedException();
 
-    const user = await this.userRepository.findById(resetToken.user_id);
+    const user = await this.userRepository.findById(resetHashEntity.user_id);
     if (!user) throw new UnauthorizedException();
 
-    if (password !== password2) throw new UnauthorizedException();
+    if (password !== repeat) throw new UnauthorizedException();
 
-    const passwordHashed = await createPassword({ password, salt: user.salt });
+    const { password: passwordHashed, salt } = await createCredentials(password)
 
-    await this.userRepository.update(user.id, { password: passwordHashed });
+    await this.userRepository.update(user.id, { password: passwordHashed, salt });
+
+    await this.emailConfirmerService.confirm({
+      hash,
+      email,
+      method: EmailConfirmerMethod.Recovery
+    })
   }
 }

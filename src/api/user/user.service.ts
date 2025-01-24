@@ -1,4 +1,5 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
+import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 
 import {
@@ -80,7 +81,7 @@ export class UserService {
     await this.emailConfirmerService.send({
       user_id: newUser.id,
       email: newUser.email,
-      method: 'email.confirmation'
+      method: EmailConfirmerMethod.EmailConfirmation
     })
     return newUser;
   }
@@ -137,7 +138,7 @@ export class UserService {
     await this.emailConfirmerService.send({
       user_id: newUser.id,
       email: newUser.email,
-      method: 'email.confirmation'
+      method: EmailConfirmerMethod.EmailConfirmation
     })
     return newUser;
   }
@@ -165,7 +166,7 @@ export class UserService {
     await this.emailConfirmerService.send({
       user_id: user.id,
       email: user.email,
-      method: 'email.confirmation'
+      method: EmailConfirmerMethod.EmailConfirmation
     })
   }
 
