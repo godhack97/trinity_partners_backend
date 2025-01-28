@@ -1,3 +1,4 @@
+import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import { CompanyEmployeeRepository, CompanyRepository, UserRepository } from "../../../orm/repositories";
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { CompanyEmployeeStatus, CompanyStatus } from "../../../orm/entities";
@@ -60,5 +61,17 @@ export default class AdminPartnerService {
     if (!companyEmployee) throw new HttpException('Сотрудник не найдена', HttpStatus.FORBIDDEN);
 
     await this.companyEmployeeRepository.update(companyEmployee.id, {status: CompanyEmployeeStatus.Accept});
+  }
+
+  async reject(id: number) {
+    const companyEntity = await this.companyRepository.findOneBy({id});
+
+    if (!companyEntity) throw new HttpException(`Компания не найдена: ${id}`, HttpStatus.FORBIDDEN);
+
+    const updateResult =await this.companyRepository.update(id, {
+      status: CompanyStatus.Reject,
+    })
+
+    if (updateResult.affected === 0) throw new InternalServerErrorException('Не удалось обновить');
   }
 }

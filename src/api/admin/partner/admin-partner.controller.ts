@@ -22,4 +22,9 @@ export class AdminPartnerController {
   acceptPartner(@Param('id') id: number) {
     return this.adminPartnerService.accept(id);
   }
+
+  @Post(':id/reject')
+  rejectPartner(@Param('id') id: number) {
+    return this.adminPartnerService.reject(id);
+  }
 }
