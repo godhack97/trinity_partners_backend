@@ -1,9 +1,11 @@
 import {
   Controller,
-  Get, Param
+  Get, Param,
+  Query
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { ConfiguratorService } from './configurator.service';
+import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
 
 @ApiTags('configurator')
 @Controller('configurator')
@@ -48,8 +50,8 @@ export class ConfiguratorController {
   }
 
   @Get('component')
-  getComponents() {
-    return this.configuratorService.getComponents()
+  getComponents( @Query() entry?: SearchComponentsDto ) {
+    return this.configuratorService.getComponents( entry )
   }
 
   @Get("component/:id")

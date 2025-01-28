@@ -6,6 +6,7 @@ import { CnfServerSlotRepository } from 'src/orm/repositories/cnf/cnf-server-slo
 import { CnfServerRepository } from 'src/orm/repositories/cnf/cnf-server.repository';
 import { CnfServerboxHeightRepository } from 'src/orm/repositories/cnf/cnf-serverbox-height.repository';
 import { CnfSlotRepository } from 'src/orm/repositories/cnf/cnf-slot.repository';
+import { SearchComponentsDto } from './dto/request/search-components.request.dto';
 
 @Injectable()
 export class ConfiguratorService {
@@ -167,9 +168,13 @@ export class ConfiguratorService {
     
   }
 
-  async getComponents() {
+  async getComponents( entry?: SearchComponentsDto ) {
 
-    const data = await this.cnfComponentRepository.createQueryBuilder('cmp')
+    console.log('');
+    console.log(`getComponents`, entry);
+    console.log('');
+
+    const queryBuilder = this.cnfComponentRepository.createQueryBuilder('cmp')
       .leftJoinAndMapMany(
         "cmp.component_slots",
         "cnf_component_slots",
@@ -181,8 +186,15 @@ export class ConfiguratorService {
         "cnf_slots",
         "cs",
         "cms.slot_id = cs.id",
-      )
-      .getMany();
+      );
+
+    if ( entry?.componentType ) {
+
+      queryBuilder.andWhere("cmp.type_id = :componentType", { componentType: entry.componentType });
+
+    }
+
+    const data = await queryBuilder.getMany();
 
     function transformData( data = [] ) {
 
