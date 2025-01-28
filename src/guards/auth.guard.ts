@@ -28,12 +28,7 @@ export class AuthGuard implements CanActivate {
 
     if(!user) throw new UnauthorizedException(`Пользователь по этому токену не найден!`);
 
-    request['auth_user'] = {
-      id: user.id,
-      email: user.email,
-      is_activated: user.is_activated,
-      role_id: user.role_id,
-    };
+    request['auth_user'] = user
     console.log('auth_user set',  request['auth_user'] )
     return Promise.resolve(!!user);
   }
