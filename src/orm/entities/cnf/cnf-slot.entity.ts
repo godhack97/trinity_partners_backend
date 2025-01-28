@@ -3,6 +3,9 @@ import { BasisUUIDEntity } from "@orm/entities/basis.entity";
 
 @Entity({
   name: 'cnf_slots',
+  orderBy: {
+    name: "ASC"
+  }
 })
 export class CnfSlotEntity extends BasisUUIDEntity{
   @Column()
