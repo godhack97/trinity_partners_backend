@@ -1,4 +1,6 @@
+import { AuthUser } from "@decorators/auth-user";
 import { Controller, Get, Post, Body, Param, UseInterceptors, Req, Query, UseGuards, UploadedFile, BadRequestException } from '@nestjs/common';
+import { UserEntity } from "@orm/entities";
 import { DealService } from './deal.service';
 import { CreateDealDto } from './dto/request/create-deal.dto';
 import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -17,28 +19,28 @@ export class DealController {
 
   @Post()
   @ApiBody({ type: () => CreateDealDto })
-  create(@Req() request: Request, @Body() createDealDto: CreateDealDto) {
-    return this.dealService.create(request, createDealDto);
+  create(@AuthUser() auth_user: UserEntity, @Body() createDealDto: CreateDealDto) {
+    return this.dealService.create(auth_user, createDealDto);
   }
 
   @Get()
   @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto, isArray: true })
-  findAll(@Req() request: Request, @Query() entry?: SearchDealDto) {
-    return this.dealService.findAll(request, entry);
+  findAll(@AuthUser() auth_user: UserEntity, @Query() entry?: SearchDealDto) {
+    return this.dealService.findAll(auth_user, entry);
   }
 
   @Get('statistic')
   //@UseInterceptors(new TransformResponse(DealStatisticsResponseDto))
   @ApiResponse({ type: DealStatisticsResponseDto })
-  getDealStatistic(@Req() request: Request): Promise<DealStatisticsResponseDto> {
-    return this.dealService.getDealStatistic(request);
+  getDealStatistic(@AuthUser() auth_user: UserEntity): Promise<DealStatisticsResponseDto> {
+    return this.dealService.getDealStatistic(auth_user);
   }
 
   @Get(':id')
   @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto })
-  findOne(@Param('id') id: string, @Req() request: Request) {
-    return this.dealService.findOne(+id, request);
+  findOne(@Param('id') id: string, @AuthUser() auth_user: UserEntity) {
+    return this.dealService.findOne(+id, auth_user);
   }
 }
