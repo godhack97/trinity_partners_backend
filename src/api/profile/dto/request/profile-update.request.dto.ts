@@ -1,47 +1,65 @@
+import { RoleTypes } from "@app/types/RoleTypes";
 import {
+    IsNotEmptyRu,
     IsNumberRu,
-    MinLengthRu
+    IsStringRu
 } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
+
 import { IsOptional } from "class-validator";
+
+const opts = {
+    first: { groups: [RoleTypes.Employee, RoleTypes.Partner] },
+    second: { groups: [RoleTypes.Partner] },
+}
 
 export class ProfileUpdateRequestDto {
     
     @ApiPropertyOptional()
-    @IsOptional()
+    @IsOptional(opts.first)
+    @Expose(opts.first)
     photo_url?: string;
 
     @ApiProperty()
-    @Expose()
+    @Expose(opts.first)
+    @IsStringRu(opts.first)
     job_title: string;
 
     @ApiProperty()
-    @Expose()
+    @Expose(opts.first)
+    @IsStringRu(opts.first)
     phone: string;
+
     @ApiProperty()
-    @Expose()
+    @Expose(opts.second)
+    @IsStringRu(opts.second)
     company_business_line: string; //направления деятельности
 
     @ApiProperty()
-    @Expose()
-    @IsNumberRu()
+    @Expose(opts.second)
+    @IsNotEmptyRu(opts.second)
+    @IsNumberRu({}, opts.second)
     employees_count: number;
 
     @ApiProperty()
-    @Expose()
+    @Expose(opts.second)
+    @IsStringRu(opts.second)
     site_url: string;
 
     @ApiProperty()
-    @Expose()
+    @Expose(opts.second)
+    @IsStringRu(opts.second)
     promoted_products: string;
 
     @ApiProperty()
-    @Expose()
+    @Expose(opts.second)
+    @IsStringRu(opts.second)
     products_of_interest: string;
 
     @ApiProperty()
-    @Expose()
+    @Expose(opts.second)
+    @IsStringRu(opts.second)
     main_customers: string;
 }
 
