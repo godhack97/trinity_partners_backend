@@ -32,7 +32,7 @@ export class EmailConfirmerService {
 
   confirmActions = {
     registration: this._registrationAction,
-    restore: this._restoreAction,
+    recovery: this._restoreAction,
   }
 
   async confirm(data: ConfirmParams) {
