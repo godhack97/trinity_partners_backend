@@ -73,5 +73,15 @@ export default class AdminPartnerService {
     })
 
     if (updateResult.affected === 0) throw new InternalServerErrorException('Не удалось обновить');
+
+    await this.userRepository.update(companyEntity.owner_id, {
+      is_activated: false,
+    })
+
+    const companyEmployee = await this.companyEmployeeRepository.findOneBy({employee_id: companyEntity.owner_id});
+
+    if (!companyEmployee) throw new HttpException('Сотрудник не найдена', HttpStatus.FORBIDDEN);
+
+    await this.companyEmployeeRepository.update(companyEmployee.id, {status: CompanyEmployeeStatus.Reject});
   }
 }
