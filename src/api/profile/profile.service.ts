@@ -4,7 +4,6 @@ import { ProfileUpdateEmailRequestDto } from "@api/profile/dto/request/profile-u
 import { ProfileUpdateSettingsRequestDto } from "@api/profile/dto/request/profile-update-settings.request.dto";
 import { ProfileUpdateRequestDto } from "@api/profile/dto/request/profile-update.request.dto";
 import { ProfileUpdatePasswordRequestDto } from "@api/profile/dto/request/profile-update-password.request.dto";
-import { UpdateUserRequestDto } from "@api/user/dto/request/update-user.request.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
     createPassword,
@@ -14,7 +13,6 @@ import {
     HttpException,
     HttpStatus,
     Injectable,
-    UnauthorizedException
 } from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import {
@@ -41,6 +39,13 @@ export class ProfileService {
         private readonly userSettingRepository: UserSettingRepository,
     ) {}
 
+    action = {
+        update: {
+            [RoleTypes.Partner]: this.updatePartner.bind(this),
+            [RoleTypes.Employee]: this.updateEmployee.bind(this),
+        }
+    }
+
     async getProfile(auth_user: Partial<UserEntity>) {
         console.log('auth_user', auth_user)
         const user = await this.userRepository.findById(auth_user.id);
@@ -50,12 +55,8 @@ export class ProfileService {
     async update(auth_user: Partial<UserEntity>, data: ProfileUpdateRequestDto) {
         const user = await this.userRepository.findById(auth_user.id);
 
-        if(user.role.name === RoleTypes.Partner) {
-            return this.updatePartner(user, data);
-        }
-
-        if(user.role.name === RoleTypes.Employee) {
-            return this.updateEmployee(user, data);
+        if(this.action.update[user.role.name]){
+            return this.action.update[user.role.name](user, data)
         }
 
         throw new InternalServerErrorException('Недостаточно прав для ' + user.role.name);
@@ -86,41 +87,33 @@ export class ProfileService {
         }
     }
 
-    private async updateEmployee(user: UserEntity, data: ProfileEmployeeRequestDto) {
+    private async _updateInfo(user: UserEntity, data: ProfileEmployeeRequestDto) {
 
-        let params: Partial<ProfileEmployeeRequestDto> = {
+        const params: Partial<ProfileEmployeeRequestDto> = {
 
             job_title: data.job_title,
-            phone: data.phone
+            phone: data.phone,
+            photo_url: !!data.photo_url ? data.photo_url : ''
 
         }
 
-        if ( data?.photo_url && data.photo_url.length ) {
-            params.photo_url = data.photo_url;
-        }
+        const updateResult = await this.userInfoRepository.update( user.info.id, params );
 
-        await this.userInfoRepository.update( user.info.id, params );
+        if ( updateResult.affected === 0) throw new InternalServerErrorException('Не удалось обновить');
+    }
 
+    private async updateEmployee(user: UserEntity, data: ProfileEmployeeRequestDto) {
+
+        await this._updateInfo(user, data)
     }
 
     private async updatePartner(user: UserEntity, data: ProfilePartnerRequestDto) {
 
-        let params: Partial<ProfilePartnerRequestDto> = {
+        await this._updateInfo(user, data)
 
-            job_title: data.job_title,
-            phone: data.phone
-
-        }
-
-        if ( data?.photo_url && data.photo_url.length ) {
-            params.photo_url = data.photo_url;
-        }
-
-        await this.userInfoRepository.update( user.info.id, params );
-        
         const company = await this.companyRepository.findOneBy({ owner_id:user.id });
 
-        await this.companyRepository.update(company.id, {
+        const updateResultCompany = await this.companyRepository.update(company.id, {
             company_business_line: data.company_business_line,
             employees_count: data.employees_count,
             site_url: data.site_url,
@@ -128,6 +121,8 @@ export class ProfileService {
             products_of_interest: data.products_of_interest,
             main_customers: data.main_customers,
         });
+
+        if ( updateResultCompany.affected === 0) throw new InternalServerErrorException('Не удалось обновить');
     }
 
     async updateEmail(id: number, data: ProfileUpdateEmailRequestDto) {

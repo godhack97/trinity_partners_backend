@@ -3,9 +3,8 @@ import { ProfileUpdateSettingsRequestDto } from "@api/profile/dto/request/profil
 import { ProfileUpdateRequestDto } from "@api/profile/dto/request/profile-update.request.dto";
 import { ProfileService } from "@api/profile/profile.service";
 import { ProfileUpdatePasswordRequestDto } from "@api/profile/dto/request/profile-update-password.request.dto";
-import { RoleTypes } from "@app/types/RoleTypes";
+import { ValidationException } from "@app/filters/validation.exception";
 import { AuthUser } from "@decorators/auth-user";
-import { Roles } from "@decorators/Roles";
 import { TransformResponse } from "@interceptors/transform-response.interceptor";
 import {
     Body,
@@ -14,7 +13,8 @@ import {
     HttpException,
     HttpStatus,
     Post,
-    UseInterceptors
+    Req,
+    UseInterceptors,
 } from "@nestjs/common";
 import {
     ApiBearerAuth,
@@ -22,6 +22,8 @@ import {
     ApiTags
 } from "@nestjs/swagger";
 import { UserEntity } from "@orm/entities";
+import { plainToInstance } from "class-transformer";
+import { validateOrReject } from "class-validator";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -38,7 +40,16 @@ export class ProfileController {
     @ApiBearerAuth()
     @UseInterceptors(new TransformResponse(ProfileUpdateRequestDto))
     @ApiResponse({ type: ProfileUpdateRequestDto })
-    update(@Body() data: ProfileUpdateRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
+    async update(@Req() req: Request, @AuthUser() auth_user: Partial<UserEntity>) {
+        const groups = { groups: [auth_user.role.name]}
+        const data = plainToInstance(ProfileUpdateRequestDto, req.body, groups);
+
+        try {
+            await validateOrReject(data, groups);
+        } catch (e) {
+            if (e.length > 0) throw new ValidationException(e)
+        }
+
         return this.profileService.update(auth_user, data)
     }
 
