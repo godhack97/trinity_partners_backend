@@ -4,7 +4,7 @@ import { CnfServerMultislotEntity } from "./cnf-server-multislot.entity";
 @Entity({
   name: "cnf_multislots",
   orderBy: {
-    name: "DESC"
+    name: "ASC"
   }
 })
 export class CnfMultislotEntity {
