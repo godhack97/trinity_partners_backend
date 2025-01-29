@@ -8,6 +8,9 @@ import { CnfComponentSlotEntity } from "./cnf-component-slot.entity";
 
 @Entity({
   name: 'cnf_components',
+  orderBy: {
+    name: "ASC"
+  }
 })
 export class CnfComponentEntity extends BasisUUIDEntity {
   constructor() {
