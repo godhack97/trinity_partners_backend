@@ -1,4 +1,4 @@
-import { IsNotEmptyRu,  IsDateRu, IsEnumRu, IsNumberRu, IsStringRu } from "@decorators/validate";
+import { IsNotEmptyRu,  IsDateRu, IsNumberRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
 import { Type } from "class-transformer";

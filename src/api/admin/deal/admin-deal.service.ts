@@ -3,15 +3,14 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from '@nestjs/common';
 import { DealStatusRu } from "@orm/entities";
 import { UpdateDealDto } from './dto/request/update-deals.dto';
 import { DealRepository } from '@orm/repositories';
 
 @Injectable()
-export class DealsService {
+export class AdminDealService {
 
   constructor(
     private readonly dealRepository: DealRepository,
@@ -24,7 +23,7 @@ export class DealsService {
 
     const { deal_sum } = deal;
     const special_discount  = updateDealDto.special_discount || null;
-    let special_price = null;
+    let special_price: null | number;
     let discount_date = updateDealDto.discount_date;
 
     if(special_discount) {
