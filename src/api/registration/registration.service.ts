@@ -1,4 +1,4 @@
-import { Body, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { RegistrationEmployeeRequestDto } from './dto/request/registration-employee.request.dto';
 import { RegistrationCompanyRequestDto } from './dto/request/registration-company.request.dto';
 import { UserService } from 'src/api/user/user.service';
@@ -10,8 +10,9 @@ export class RegistrationService {
   createEmployee(registrationEmployeeDto: RegistrationEmployeeRequestDto) {
     return this.userService.createEmployee(registrationEmployeeDto);
   }
-  createCompany(registrationCompanyDto: RegistrationCompanyRequestDto) {
-    return this.userService.createCompany(registrationCompanyDto);
+
+  async createCompany(registrationCompanyDto: RegistrationCompanyRequestDto) {
+    return await this.userService.createCompany(registrationCompanyDto);
   }
 
   createSuperAdmin(registrationSuperAdminDto: RegistrationSuperAdminDto) {
