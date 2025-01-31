@@ -62,7 +62,7 @@ export class AdminDealService {
 
   private async changeStatusNotify({deal}) {
     await this.notificationService.send({
-      user_id: deal.customer_id,
+      user_id: deal.partner_id,
       title: 'Статус сделки',
       text: `Обновление статуса Сделка №${deal.id} - сделка ${DealStatusRu[deal.status]}`,
     })
@@ -70,7 +70,7 @@ export class AdminDealService {
 
   private async specialDiscountNotify({deal}) {
     await this.notificationService.send({
-      user_id: deal.customer_id,
+      user_id: deal.partner_id,
       title: 'Выдана скидка',
       text: `По сделке №${deal.id} выдана скидка на ${deal.special_discount} ${deal.special_discount.indexOf('%') > -1 ? 'процентов': 'рублей'}`,
     })

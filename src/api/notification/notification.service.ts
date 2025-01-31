@@ -41,9 +41,12 @@ export class NotificationService {
         private readonly notificationRepository: NotificationRepository,
         private readonly mailerService: MailerService,
         private readonly configService: ConfigService,
-    ) {
-    }
+    ) {}
 
+    actionByType = {
+        [NotificationType.Site]: this.sendWeb.bind(this),
+        [NotificationType.Email]: this.sendEmail.bind(this),
+    }
     async send(data: NotificationSendDto) {
         const {user_id, title, text} = data;
 
@@ -58,12 +61,8 @@ export class NotificationService {
 
         for (const filteredSetting of filteredSettingTypes) {
             const type = mapSettingToNotificationType[filteredSetting.type];
-            const actionByType = {
-                [NotificationType.Site]: this.sendWeb,
-                [NotificationType.Email]: this.sendEmail,
-            }
 
-            await actionByType[type]({
+            await this.actionByType[type]({
                 user_id: user.id,
                 email: user.email,
                 title,
@@ -75,10 +74,10 @@ export class NotificationService {
 
     async sendEmail(data: ActionDataType & { email: string }) {
         const { email, title, text } = data,
-            hostname = this.configService.get('EMAIL_USERNAME');
+            email_from = this.configService.get('EMAIL_USERNAME');
 
         return await this.mailerService.sendMail({
-            from: `://${hostname}`,
+            from: `${email_from}`,
             to: email,
             subject: title,
             html: `${text}`,
