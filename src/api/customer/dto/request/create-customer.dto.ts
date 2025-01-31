@@ -1,5 +1,6 @@
 import { IsEmailRu, IsNotEmptyRu, MinLengthRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
+import { IsOptional } from "class-validator";
 
 export class CreateCustomerDto {
   @ApiProperty()
@@ -24,5 +25,6 @@ export class CreateCustomerDto {
 
   @ApiProperty()
   @IsNotEmptyRu()
+  @IsOptional()
   phone: string;
 }

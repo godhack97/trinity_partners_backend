@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { DealsService } from './deals.service';
+import { Controller,  Body, Patch, Param } from '@nestjs/common';
+import { AdminDealService } from './admin-deal.service';
 import { UpdateDealDto } from './dto/request/update-deals.dto';
 import { RoleTypes } from '@app/types/RoleTypes';
 import { Roles } from '@decorators/Roles';
@@ -9,8 +9,8 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 @ApiBearerAuth()
 @Controller("admin/deals")
 @Roles([RoleTypes.SuperAdmin])
-export class DealsController {
-  constructor(private readonly dealsService: DealsService) {}
+export class AdminDealController {
+  constructor(private readonly dealsService: AdminDealService) {}
 
   
   @Patch(':id/accept-deal')

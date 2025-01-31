@@ -3,13 +3,17 @@ import { CreateCustomerDto } from "@api/customer/dto/request/create-customer.dto
 import { IsDateRu, IsNotEmptyRu, IsNumberRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { ValidateNested } from "class-validator";
+import {
+  IsOptional,
+  ValidateNested
+} from "class-validator";
 
 export class CreateDealDto {
   
   @ApiProperty()
   @IsNotEmptyRu()
   @IsNumberRu()
+  @IsOptional()
   distributor_id: number;
 
   @ApiProperty({ type: () => CreateCustomerDto })
@@ -34,6 +38,7 @@ export class CreateDealDto {
   configuration_link: string;
 
   @ApiProperty()
+  @IsOptional()
   @IsNotEmptyRu()
   @IsDateRu()
   @Type(() => Date)
