@@ -19,7 +19,7 @@ export class CompanyService {
   ) {
   }
 
-  async addEmplyee(request: Request, addEmployeeDto: AddEmployeeRequestDto) {
+  async addEmployee(request: Request, addEmployeeDto: AddEmployeeRequestDto) {
 
     const token = this.authTokenService.extractToken(request);
     const role =  await this.authTokenService.getUserRole(token);

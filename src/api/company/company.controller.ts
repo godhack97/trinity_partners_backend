@@ -14,7 +14,7 @@ export class CompanyController {
 
   @Post('add-employee')
   addEmployee(@Req() request: Request, @Body() addEmployeeDto: AddEmployeeRequestDto) {
-    return this.companyService.addEmplyee(request, addEmployeeDto);
+    return this.companyService.addEmployee(request, addEmployeeDto);
   }
 
   @Get('get-employees')
