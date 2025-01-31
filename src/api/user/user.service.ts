@@ -3,6 +3,8 @@ import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 
 import {
+  InternalServerErrorException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -28,6 +30,7 @@ import { RegistrationSuperAdminDto } from "../registration/dto/request/registrat
 
 const USER_SECRET = 'Неправильно введен secret';
 const USER_EXISTS = 'Пользователь с таким email уже существует';
+const INN_EXISTS = 'Пользователь с таким inn уже существует';
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412'
 
@@ -50,7 +53,7 @@ export class UserService {
       registrationEmployeeDto.email,
     );
 
-    if (user) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    if (user) throw new ForbiddenException(USER_EXISTS);
 
     const roleEmployee = await this.roleRepository.getEmployee();
     const { email, password: _password } = registrationEmployeeDto;
@@ -93,7 +96,13 @@ export class UserService {
       registrationCompanyDto.email,
     );
 
-    if (user) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    if (user) throw new ForbiddenException(USER_EXISTS);
+
+    const isCompany = await this.companyRepository.findOneBy({
+      inn: registrationCompanyDto.inn,
+    });
+
+    if (isCompany) throw new InternalServerErrorException(INN_EXISTS);
 
     const { email, password: _password } = registrationCompanyDto;
     const rolePartner = await this.roleRepository.getPartner();
