@@ -1,7 +1,18 @@
+import {
+  HttpException,
+  HttpStatus,
+  Injectable
+} from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
-import { CompanyEmployeeRepository, CompanyRepository, UserRepository } from "../../../orm/repositories";
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { CompanyEmployeeStatus, CompanyStatus } from "../../../orm/entities";
+import {
+  CompanyEmployeeStatus,
+  CompanyStatus
+} from "@orm/entities";
+import {
+  CompanyEmployeeRepository,
+  CompanyRepository,
+  UserRepository
+} from "@orm/repositories";
 import { PartnerFilterRequestDto } from "./dto/partner-filters-request.dto";
 
 @Injectable()
@@ -33,13 +44,12 @@ export default class AdminPartnerService {
       "uinf.user_id = usr.id"
     );
 
+    qb.andWhere("usr.email_confirmed = 1");
+
     filters?.status &&
       qb.andWhere("cmp.status = :s", { s: filters.status });
-    
 
-    const data = await qb.getMany();
-
-    return data;
+    return await qb.getMany();
 
   }
 
