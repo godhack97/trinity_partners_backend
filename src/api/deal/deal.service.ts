@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateDealDto } from './dto/request/create-deal.dto';
-import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository, UserRepository } from '@orm/repositories';
+import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository } from '@orm/repositories';
 import { RoleTypes } from '@app/types/RoleTypes';
 import {
   DealStatus,
@@ -43,7 +43,7 @@ export class DealService {
     const dealData = {
       ...createDealDto,
       customer_id: customer.id,
-      partner_id: auth_user.id,
+      creator_id: auth_user.id,
       deal_num
     }
 
@@ -51,7 +51,7 @@ export class DealService {
   }
 
   async findAll(auth_user: UserEntity, entry?: SearchDealDto) {
-    let deals =[];
+    let deals: any[];
 
     switch (auth_user.role.name) {
       case RoleTypes.SuperAdmin:
@@ -62,12 +62,12 @@ export class DealService {
       case RoleTypes.Partner:
         const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(auth_user?.company_employee?.company_id);
         deals = await this.dealRepository.findDealsWithFilters(entry);
-        deals = deals.filter(deal => deal.partner_id === companyWithEmployees.owner_id);
+        deals = deals.filter(deal => deal.creator_id === companyWithEmployees.owner_id);
         break;
 
       case RoleTypes.Employee:
         deals = await this.dealRepository.findDealsWithFilters(entry);
-        deals = deals.filter(deal => deal.partner_id === auth_user.id);
+        deals = deals.filter(deal => deal.creator_id === auth_user.id);
         break;
 
       default:
@@ -92,15 +92,15 @@ export class DealService {
       case RoleTypes.EmployeeAdmin:
       case RoleTypes.Partner:
         const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(auth_user?.company_employee?.company_id);
-        //const isEmployeesDeal = companyWithEmployees.employee.some(el => deal.partner_id === el.id);
+        //const isEmployeesDeal = companyWithEmployees.employee.some(el => deal.creator_id === el.id);
       
-        if (deal.partner_id === companyWithEmployees.owner_id) {
+        if (deal.creator_id === companyWithEmployees.owner_id) {
           return deal;
         }
         throw new HttpException('У вашей компании недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
       
       case RoleTypes.Employee:
-        if (auth_user.id === deal.partner_id) {
+        if (auth_user.id === deal.creator_id) {
           return deal;
         }
         throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);

@@ -44,10 +44,10 @@ export class DealEntity extends BasisEntity {
   customer: CustomerEntity
 
   @Column()
-  partner_id: number;
+  creator_id: number;
 
   @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, { eager: true })
-  @JoinColumn({ name: "partner_id" })
+  @JoinColumn({ name: "creator_id" })
   partner: UserEntity;
 
   @Column({ nullable: true }) 
@@ -83,5 +83,4 @@ export class DealEntity extends BasisEntity {
 
   @Column({ nullable: true })
   discount_date: Date;
-
 }

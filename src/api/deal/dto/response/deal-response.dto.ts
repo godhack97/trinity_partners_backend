@@ -17,7 +17,7 @@ export class DealResponseDto  extends WithIdDto{
 
   @ApiProperty()
   @Expose()
-  partner_id: number;
+  creator_id: number;
 
   @ApiProperty()
   @Expose()
