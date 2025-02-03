@@ -60,10 +60,10 @@ export class DealService {
 
       case RoleTypes.EmployeeAdmin:
       case RoleTypes.Partner:
-        const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(auth_user?.company_employee?.company_id);
-        deals = await this.dealRepository.findDealsWithFilters(entry);
-        deals = deals.filter(deal => deal.creator_id === companyWithEmployees.owner_id);
-        break;
+        // const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(auth_user?.company_employee?.company_id);
+        // deals = await this.dealRepository.findDealsWithFilters(entry);
+        // deals = deals.filter(deal => deal.creator_id === companyWithEmployees.owner_id);
+        // break;
 
       case RoleTypes.Employee:
         deals = await this.dealRepository.findDealsWithFilters(entry);
