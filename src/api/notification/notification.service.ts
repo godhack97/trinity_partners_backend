@@ -94,4 +94,10 @@ export class NotificationService {
             type,
         })
     }
+
+    async getAll(id: number) {
+        return await this.notificationRepository.findBy({
+            user_id: id
+        });
+    }
 }

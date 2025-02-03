@@ -88,4 +88,9 @@ export class ProfileController {
             }, HttpStatus.FORBIDDEN);
         }
     }
+
+    @Get('/notifications')
+    async notifications(@AuthUser() auth_user: Partial<UserEntity>) {
+        return await this.profileService.getNotifications(auth_user.id);
+    }
 }
