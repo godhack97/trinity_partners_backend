@@ -1,7 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { IS_PUBLIC_KEY } from '../decorators/Public';
+import { IS_PUBLIC_KEY } from '@decorators/Public';
 import { Reflector } from '@nestjs/core';
 import { UserRepository } from 'src/orm/repositories/user.repository';
+
+const ERROR_MSG = `Пользователь не прошел аутентификацию!`;
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -20,13 +22,13 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const _token: string = request.headers.authorization || '';
 
-    if (_token.length == 0) return false;
+    if (_token.length == 0) throw new UnauthorizedException(ERROR_MSG);
 
     const token = _token.substring(7);
 
     const user = await this.userRepository.findOneBy({ token });
 
-    if(!user) throw new UnauthorizedException(`Пользователь по этому токену не найден!`);
+    if(!user) throw new UnauthorizedException(ERROR_MSG);
 
     request['auth_user'] = user
     console.log('auth_user set',  request['auth_user'] )
