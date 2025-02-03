@@ -28,8 +28,9 @@ import {
 } from "@orm/entities";
 import { RegistrationSuperAdminDto } from "../registration/dto/request/registration-super-admin.request.dto";
 
-const USER_SECRET = 'Неправильно введен secret';
-const USER_EXISTS = 'Пользователь с таким email уже существует';
+const USER_SECRET = 'Неправильно введен СЕКРЕТ';
+const USER_EXISTS = 'Пользователь с такой электронной почтой уже существует';
+const USER_PHONE_EXISTS = 'Пользователь с таким телефоном уже существует';
 const INN_EXISTS = 'Пользователь с таким ИНН уже существует';
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412'
@@ -54,6 +55,12 @@ export class UserService {
     );
 
     if (user) throw new ForbiddenException(USER_EXISTS);
+
+    const isUserPhone = await this.userRepository.findOneBy({
+      phone: registrationEmployeeDto.phone,
+    });
+
+    if (isUserPhone) throw new ForbiddenException(USER_PHONE_EXISTS);
 
     const roleEmployee = await this.roleRepository.getEmployee();
     const { email, password: _password } = registrationEmployeeDto;
@@ -97,6 +104,12 @@ export class UserService {
     );
 
     if (user) throw new ForbiddenException(USER_EXISTS);
+
+    const isUserPhone = await this.userRepository.findOneBy({
+      phone: registrationCompanyDto.phone,
+    });
+
+    if (isUserPhone) throw new ForbiddenException(USER_PHONE_EXISTS);
 
     const isCompany = await this.companyRepository.findOneBy({
       inn: registrationCompanyDto.inn,
