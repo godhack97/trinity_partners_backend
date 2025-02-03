@@ -31,6 +31,7 @@ import { UploadFileModule } from './api/upload-file/upload-file.module';
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -60,20 +61,25 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       inject: [ConfigService],
     }),
     MailerModule.forRootAsync({
-      useFactory: async(configService: ConfigService) => ({
-        transport: {
-          host: configService.get('EMAIL_HOST'),
-          port: 465,
-          secure: true,
-          auth: {
-            user: configService.get('EMAIL_USERNAME'),
-            pass: configService.get('EMAIL_PASSWORD'),
+      useFactory: async(configService: ConfigService) => {
+        console.log({
+          EMAIL_SECURE: configService.get('EMAIL_SECURE')
+        })
+        return ({
+          transport: {
+            host: configService.get('EMAIL_HOST'),
+            port: configService.get('EMAIL_PORT') || 465,
+            secure: configService.get('EMAIL_SECURE'),
+            auth: {
+              user: configService.get('EMAIL_USERNAME'),
+              pass: configService.get('EMAIL_PASSWORD'),
+            },
+            debug: configService.get('EMAIL_DEBUG') || false, // show debug output
+            logger: true
           },
-          debug: true, // show debug output
-          logger: true
-        },
 
-      }),
+        })
+      },
       inject: [ConfigService],
     }),
     UserModule,
