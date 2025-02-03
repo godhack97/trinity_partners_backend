@@ -22,13 +22,14 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 9131;
-  console.log('port', port);
+
   const document = SwaggerModule.createDocument(app, config);
   const swaggerCustomOptions: SwaggerCustomOptions = {
     explorer: true,
   };
   SwaggerModule.setup('api/swagger', app, document, swaggerCustomOptions);
   await app.listen(port);
+  console.log('port', port);
 }
 
 bootstrap();
