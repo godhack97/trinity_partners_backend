@@ -1,4 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseInterceptors } from '@nestjs/common';
+import { RoleTypes } from "@app/types/RoleTypes";
+import { AuthUser } from "@decorators/auth-user";
+import { Roles } from "@decorators/Roles";
+import { Controller, Get, Post, Body, Patch, Param, Req, UseInterceptors } from '@nestjs/common';
+import { UserEntity } from "@orm/entities";
 import { CompanyService } from './company.service';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
@@ -13,8 +17,9 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Post('add-employee')
-  addEmployee(@Req() request: Request, @Body() addEmployeeDto: AddEmployeeRequestDto) {
-    return this.companyService.addEmplyee(request, addEmployeeDto);
+  @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin])
+  addEmployee(@AuthUser() auth_user: UserEntity, @Body() addEmployeeDto: AddEmployeeRequestDto) {
+    return this.companyService.addEmployee(auth_user, addEmployeeDto);
   }
 
   @Get('get-employees')

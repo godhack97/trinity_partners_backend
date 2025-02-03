@@ -1,9 +1,17 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable
+} from '@nestjs/common';
 import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
 import { AuthTokenService } from '@app/services/auth-token/auth-token.service';
 import { CompanyEmployeeRepository, CompanyRepository, RoleRepository, UserInfoRepository, UserRepository } from '@orm/repositories';
 import { RoleTypes } from '@app/types/RoleTypes';
-import { CompanyEmployeeStatus } from '@orm/entities';
+import {
+  CompanyEmployeeStatus,
+  UserEntity
+} from '@orm/entities';
 import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
 
 @Injectable()
@@ -19,18 +27,30 @@ export class CompanyService {
   ) {
   }
 
-  async addEmplyee(request: Request, addEmployeeDto: AddEmployeeRequestDto) {
+  async addEmployee(auth_user: UserEntity, addEmployeeDto: AddEmployeeRequestDto) {
+    const user = await this.userRepository.findByEmailWithCompanyEmployees(addEmployeeDto.email);
 
-    const token = this.authTokenService.extractToken(request);
-    const role =  await this.authTokenService.getUserRole(token);
+    const hasEmployeeRelation = await this.companyEmployeeRepository.findOneBy({
+      employee_id: user.id
+    })
 
-    if(![RoleTypes.Partner, RoleTypes.EmployeeAdmin].includes(role.role as RoleTypes)) {
-      throw new HttpException('У вас нет прав для данного действия', HttpStatus.FORBIDDEN);
+    if(!hasEmployeeRelation) {
+      await this.companyEmployeeRepository.save({
+        company_id: null,
+        employee_id: user.id,
+        status: CompanyEmployeeStatus.Pending,
+      })
     }
 
-    const user = await this.userRepository.findByEmailWithCompanyEmployees(addEmployeeDto.email);
-    
-    const companyId =  (await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(role.userId)).company_id;
+    const hasEmployeeCompanyRelation = await this.companyEmployeeRepository.findOneBy({
+      employee_id: user.id
+    })
+
+    if(hasEmployeeCompanyRelation.company_id !== null) {
+      throw new ForbiddenException('Этот сотрудник уже присоединен к другой компании')
+    }
+
+    const companyId =  (await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(auth_user.id)).company_id;
 
     const companyName = (await this.companyRepository.findById(companyId)).name;
 
