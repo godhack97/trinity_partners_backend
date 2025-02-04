@@ -1,5 +1,6 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
+import { NewsService } from "@api/news/news.service";
 import { NotificationService } from "@api/notification/notification.service";
 import {
   HttpException,
@@ -25,6 +26,7 @@ export class AuthService {
     private readonly resetHashRepository: ResetHashRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly notificationService: NotificationService,
+    private readonly newsService: NewsService,
   ) {}
   async login(authLoginDto: AuthLoginRequestDto) {
     let user = await this.userRepository.findByEmail(authLoginDto.email);
@@ -71,9 +73,13 @@ export class AuthService {
     console.warn('AuthService:check')
 
     const notifications = await this.notificationService.check(user.id)
+    const notifications_unread = await this.notificationService.countUnread(user.id)
+    const news = await this.newsService.check()
     return {
       ...user,
-      notifications: notifications
+      notifications,
+      notifications_unread,
+      news
     };
   }
   async updatePassword(authorization, { password, newPassword }) {
