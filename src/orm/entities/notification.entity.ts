@@ -19,7 +19,10 @@ export enum NotificationIconType {
 }
 
 @Entity({
-  name: "notifications"
+  name: "notifications",
+  orderBy: {
+    id: "DESC"
+  }
 })
 export class NotificationEntity extends BasisEntity {
   @Column()
