@@ -143,4 +143,10 @@ export class NewsService {
     text = text.replace(RegExp('(^' + opt.delimiter + '|' + opt.delimiter + '$)', 'g'), '');
     return text
   }
+
+  async check() {
+    return this.newsRepository.createQueryBuilder()
+      .limit(3)
+      .getMany();
+  }
 }

@@ -106,4 +106,14 @@ export class NotificationService {
       .limit(6)
       .getMany();
   }
+
+  async countUnread(id: number) {
+    return await this.notificationRepository
+      .createQueryBuilder()
+      .where({
+        user_id: id,
+        is_read: false
+      })
+      .getCount();
+  }
 }
