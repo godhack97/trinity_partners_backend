@@ -21,6 +21,7 @@ import {
 } from "@orm/entities";
 import {
     CompanyRepository,
+    NotificationRepository,
     UserInfoRepository,
     UserRepository
 } from "@orm/repositories";
@@ -37,6 +38,7 @@ export class ProfileService {
         private readonly userInfoRepository: UserInfoRepository,
         private readonly companyRepository: CompanyRepository,
         private readonly userSettingRepository: UserSettingRepository,
+        private readonly notificationRepository: NotificationRepository,
     ) {}
 
     action = {
@@ -158,5 +160,11 @@ export class ProfileService {
         const passwordHashed = await createPassword({password: data.passwordNew, salt: user.salt})
 
         await this.userRepository.update(id, { password: passwordHashed });
+    }
+
+    async getNotifications(id: number) {
+        return this.notificationRepository.findBy({
+            user_id: id
+        })
     }
 }
