@@ -12,6 +12,12 @@ export enum NotificationType {
   Email = 'email',
 }
 
+export enum NotificationIconType {
+  BELL = 'bell', // КОЛОКОЛЬЧИК
+  HORN = 'horn', // РУПОР
+  SHIELD = 'shield', //ЩИТ
+}
+
 @Entity({
   name: "notifications"
 })
@@ -39,4 +45,11 @@ export class NotificationEntity extends BasisEntity {
     default: false,
   })
   is_read: boolean;
+
+  @Column({
+    type: "enum",
+    enum: NotificationIconType,
+    default: NotificationIconType.BELL
+  })
+  icon: NotificationIconType;
 }
