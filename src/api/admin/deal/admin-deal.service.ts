@@ -8,6 +8,7 @@ import {
 import { DealStatusRu } from "@orm/entities";
 import { UpdateDealDto } from './dto/request/update-deals.dto';
 import { DealRepository } from '@orm/repositories';
+import { CURRENCY } from "@config/constants";
 
 @Injectable()
 export class AdminDealService {
@@ -72,7 +73,7 @@ export class AdminDealService {
     await this.notificationService.send({
       user_id: deal.partner_id,
       title: 'Выдана скидка',
-      text: `По сделке №${deal.id} выдана скидка на ${deal.special_discount} ${deal.special_discount.indexOf('%') > -1 ? 'процентов': 'рублей'}`,
+      text: `По сделке №${deal.id} выдана скидка на ${deal.special_discount} ${deal.special_discount.indexOf('%') > -1 ? 'процентов': CURRENCY }`,
     })
   }
 }
