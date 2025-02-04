@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsArrayRu, IsNotEmptyRu, MinRu } from "../../../../../../decorators/validate";
+import { IsOptional } from "class-validator";
 
 export class CreateConfigurationComponentRequestDto {
   @ApiProperty()
@@ -18,8 +19,9 @@ export class CreateConfigurationComponentRequestDto {
   subtype: string;
 
   @ApiProperty()
+  @IsOptional()
   @IsArrayRu()
-  slots: [{
+  slots?: [{
     amount: number;
     increase: boolean;
     slot_id: string;
