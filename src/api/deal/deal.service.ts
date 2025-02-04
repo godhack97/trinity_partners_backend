@@ -89,9 +89,10 @@ export class DealService {
         const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(auth_user?.company_employee?.company_id);
         //const isEmployeesDeal = companyWithEmployees.employee.some(el => deal.creator_id === el.id);
       
-        if (deal.creator_id === companyWithEmployees.owner_id) {
+        if (auth_user.id === deal.creator_id) {
           return deal;
         }
+
         throw new HttpException('У вашей компании недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
       
       case RoleTypes.Employee:

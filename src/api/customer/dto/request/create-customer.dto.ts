@@ -24,7 +24,6 @@ export class CreateCustomerDto {
   email: string;
 
   @ApiProperty()
-  @IsNotEmptyRu()
   @IsOptional()
   phone: string;
 }
