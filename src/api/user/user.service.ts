@@ -3,11 +3,10 @@ import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 
 import {
-  InternalServerErrorException,
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
+  BadRequestException,
 } from '@nestjs/common';
 
 import { CompanyRepository } from 'src/orm/repositories/company.repository';
@@ -54,17 +53,18 @@ export class UserService {
       registrationEmployeeDto.email,
     );
 
-    if (user) throw new ForbiddenException(USER_EXISTS);
+    if (user) throw new BadRequestException(USER_EXISTS);
 
     const isUserPhone = await this.userRepository.findOneBy({
       phone: registrationEmployeeDto.phone,
     });
 
-    if (isUserPhone) throw new ForbiddenException(USER_PHONE_EXISTS);
+    if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
 
     const roleEmployee = await this.roleRepository.getEmployee();
     const { email, password: _password } = registrationEmployeeDto;
     const { salt, password } = await createCredentials(_password);
+
     const newUser = await this.userRepository.save({
       salt,
       email,
@@ -103,19 +103,19 @@ export class UserService {
       registrationCompanyDto.email,
     );
 
-    if (user) throw new ForbiddenException(USER_EXISTS);
+    if (user) throw new BadRequestException(USER_EXISTS);
 
     const isUserPhone = await this.userRepository.findOneBy({
       phone: registrationCompanyDto.phone,
     });
 
-    if (isUserPhone) throw new ForbiddenException(USER_PHONE_EXISTS);
+    if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
 
-    const isCompany = await this.companyRepository.findOneBy({
+    const isExistInn = await this.companyRepository.findOneBy({
       inn: registrationCompanyDto.inn,
     });
 
-    if (isCompany) throw new InternalServerErrorException(INN_EXISTS);
+    if (isExistInn) throw new BadRequestException(INN_EXISTS);
 
     const { email, password: _password } = registrationCompanyDto;
     const rolePartner = await this.roleRepository.getPartner();
