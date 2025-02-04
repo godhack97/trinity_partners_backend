@@ -1,4 +1,5 @@
 import { CompanyEmployeesResponseDto, UserInfoDto } from "@api/company/dto/response/company-employees-response.dto";
+import { NotificationsResponseDto } from "@api/notification/notifications.response.dto";
 import { PartnerResponseDto } from "@api/partner/dto/response/PartnerResponseDto";
 import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
 import { ApiProperty } from "@nestjs/swagger";
@@ -43,4 +44,9 @@ export class AuthCheckResponseDto extends UserResponseDto {
   @Expose()
   @Type(() => UserSettingsDto)
   user_settings: UserSettingsDto;
+
+  @ApiProperty()
+  @Expose()
+  @Type(() => NotificationsResponseDto)
+  notifications: NotificationsResponseDto[];
 }

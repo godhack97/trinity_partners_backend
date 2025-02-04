@@ -20,9 +20,4 @@ export class NotificationController {
     async getAll(@AuthUser() auth_user: Partial<UserEntity>) {
         return await this.notificationService.getAll(auth_user.id);
     }
-
-    @Get('/check')
-    async check(@AuthUser() auth_user: Partial<UserEntity>) {
-        return await this.notificationService.check(auth_user.id);
-    }
 }
