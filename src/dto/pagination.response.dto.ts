@@ -1,9 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { MinRu } from "../decorators/validate";
-import { Expose, Type } from "class-transformer";
-import { RoleResponseDto } from "../api/role/dto/response/role.response.dto";
+import { Expose, } from "class-transformer";
 
-export class PaginationResponseDto {
+export class PaginationResponseDto<T> {
   @ApiProperty()
   @Expose()
   current_page: number;
@@ -22,5 +20,5 @@ export class PaginationResponseDto {
 
   @ApiProperty()
   @Expose()
-  data: any[];
+  data: T[];
 }

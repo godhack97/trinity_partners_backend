@@ -1,4 +1,5 @@
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
+import { PaginationRequestDto } from "@app/dto/pagination.request.dto";
 import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
   HttpException,
@@ -19,14 +20,41 @@ const opt = {
   }
 }
 
+const defaultFilter = {
+  limit: 10,
+  page: 1,
+}
+
 @Injectable()
 export class NewsService {
   ERROR_EXISTS = 'Новость с таким заголовком уже существует!';
 
   constructor(private readonly newsRepository: NewsRepository) {}
 
-  async findAll() {
-    return await this.newsRepository.find();
+  async findAll(filters: PaginationRequestDto) {
+    const current_page = filters.current_page || 1;
+    const limit = filters.limit || defaultFilter.limit;
+    const skip = (current_page - 1) * limit;
+
+    const qb = this.newsRepository.createQueryBuilder();
+
+    const data = await qb
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    const total = await qb.getCount();
+
+    console.log({
+      data
+    })
+    return {
+      current_page,
+      limit,
+      total,
+      pages_count: Math.ceil(total/limit),
+      data,
+    };
   }
   async findOne(slug: string) {
     const news = await this.newsRepository.findBySlug({ slug });

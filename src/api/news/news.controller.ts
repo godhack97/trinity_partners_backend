@@ -1,9 +1,11 @@
+import { NewsPaginationDto } from "@api/news/dto/news-pagination.dto";
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
 import {
   NewsResponseDto,
   NewsResponseListDto
 } from "@api/news/dto/news.response.dto";
 import { NewsService } from "@api/news/news.service";
+import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AuthUser } from "@decorators/auth-user";
 import { Roles } from "@decorators/Roles";
@@ -30,10 +32,10 @@ export class NewsController {
   constructor(private readonly newsService: NewsService) {}
 
   @Get()
-  @UseInterceptors(new TransformResponse(NewsResponseListDto, true))
-  @ApiResponse({ type: NewsResponseListDto })
-  async findAll() {
-    return this.newsService.findAll();
+  //@UseInterceptors(new TransformResponse(PaginationResponseDto<NewsResponseListDto>))
+  @ApiResponse({ type: PaginationResponseDto<NewsResponseListDto> })
+  async findAll(@Body() filters: NewsPaginationDto) {
+    return this.newsService.findAll(filters);
   }
 
   @Get('/:slug')
