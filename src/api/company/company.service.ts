@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -29,6 +30,10 @@ export class CompanyService {
 
   async addEmployee(auth_user: UserEntity, addEmployeeDto: AddEmployeeRequestDto) {
     const user = await this.userRepository.findByEmailWithCompanyEmployees(addEmployeeDto.email);
+
+    if( user.role.name !== RoleTypes.Employee) {
+      throw new BadRequestException('Этот пользователь не может быть добавлен!')
+    }
 
     const hasEmployeeRelation = await this.companyEmployeeRepository.findOneBy({
       employee_id: user.id
