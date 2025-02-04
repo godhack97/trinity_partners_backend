@@ -1,3 +1,4 @@
+import { NewsPaginationDto } from "@api/news/dto/news-pagination.dto";
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
 import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
@@ -6,7 +7,10 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { UserEntity } from "@orm/entities";
+import {
+  NewsEntity,
+  UserEntity
+} from "@orm/entities";
 import { NewsRepository } from "@orm/repositories";
 const opt = {
   delimiter: '-',
@@ -19,15 +23,48 @@ const opt = {
   }
 }
 
+const defaultFilter = {
+  limit: 10,
+  page: 1,
+}
+
 @Injectable()
 export class NewsService {
   ERROR_EXISTS = 'Новость с таким заголовком уже существует!';
 
   constructor(private readonly newsRepository: NewsRepository) {}
 
-  async findAll() {
-    return await this.newsRepository.find();
+  async findAll(filters: NewsPaginationDto) {
+    const page = filters.page;
+    const limit = filters.limit;
+
+    const qb = this.newsRepository.createQueryBuilder();
+    let data: NewsEntity[];
+
+    if(!page || !limit) {
+
+      data = await qb.getMany();
+
+    } else  {
+
+      const skip = (page - 1) * limit;
+      data = await qb
+        .skip(skip)
+        .take(limit)
+        .getMany();
+
+    }
+    const total = await qb.getCount();
+
+    return {
+      current_page: page,
+      limit,
+      total,
+      pages_count: Math.ceil(total/limit),
+      data,
+    };
   }
+
   async findOne(slug: string) {
     const news = await this.newsRepository.findBySlug({ slug });
 
