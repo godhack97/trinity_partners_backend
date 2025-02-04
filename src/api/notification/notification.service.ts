@@ -96,8 +96,14 @@ export class NotificationService {
   }
 
   async getAll(id: number) {
-    return await this.notificationRepository.findBy({
-      user_id: id
-    });
+    return await this.notificationRepository.findBy({ user_id: id });
+  }
+
+  async check(id: number) {
+    return await this.notificationRepository
+      .createQueryBuilder()
+      .where({ user_id: id })
+      .limit(6)
+      .getMany();
   }
 }
