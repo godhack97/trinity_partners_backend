@@ -14,7 +14,7 @@ export enum DealStatus {
 export const DealStatusRu = {
   registered: 'зарегистрирована',
   canceled: 'не зарегистрирована',
-  Moderation: "на рассмотрении",
+  moderation: "на рассмотрении",
   win: 'выиграна',
   loose: 'проиграла'
 }
