@@ -6,7 +6,7 @@ export class NewsPaginationDto {
   @ApiProperty()
   @MinRu(1)
   @IsOptional()
-  current_page: number;
+  page: number;
 
   @ApiProperty()
   @MinRu(1)

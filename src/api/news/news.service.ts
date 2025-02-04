@@ -1,5 +1,5 @@
+import { NewsPaginationDto } from "@api/news/dto/news-pagination.dto";
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
-import { PaginationRequestDto } from "@app/dto/pagination.request.dto";
 import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
   HttpException,
@@ -7,7 +7,10 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { UserEntity } from "@orm/entities";
+import {
+  NewsEntity,
+  UserEntity
+} from "@orm/entities";
 import { NewsRepository } from "@orm/repositories";
 const opt = {
   delimiter: '-',
@@ -31,31 +34,37 @@ export class NewsService {
 
   constructor(private readonly newsRepository: NewsRepository) {}
 
-  async findAll(filters: PaginationRequestDto) {
-    const current_page = filters.current_page || 1;
-    const limit = filters.limit || defaultFilter.limit;
-    const skip = (current_page - 1) * limit;
+  async findAll(filters: NewsPaginationDto) {
+    const page = filters.page;
+    const limit = filters.limit;
 
     const qb = this.newsRepository.createQueryBuilder();
+    let data: NewsEntity[];
 
-    const data = await qb
-      .skip(skip)
-      .take(limit)
-      .getMany();
+    if(!page || !limit) {
 
+      data = await qb.getMany();
+
+    } else  {
+
+      const skip = (page - 1) * limit;
+      data = await qb
+        .skip(skip)
+        .take(limit)
+        .getMany();
+
+    }
     const total = await qb.getCount();
 
-    console.log({
-      data
-    })
     return {
-      current_page,
+      current_page: page,
       limit,
       total,
       pages_count: Math.ceil(total/limit),
       data,
     };
   }
+
   async findOne(slug: string) {
     const news = await this.newsRepository.findBySlug({ slug });
 
