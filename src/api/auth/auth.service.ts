@@ -1,6 +1,12 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
+import { NotificationService } from "@api/notification/notification.service";
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException
+} from "@nestjs/common";
 import { ResetHashRepository } from '@orm/repositories/reset-hash.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import {
@@ -18,6 +24,7 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     private readonly resetHashRepository: ResetHashRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
+    private readonly notificationService: NotificationService,
   ) {}
   async login(authLoginDto: AuthLoginRequestDto) {
     let user = await this.userRepository.findByEmail(authLoginDto.email);
@@ -63,7 +70,11 @@ export class AuthService {
     if (!user) throw new HttpException(`Пользователь не найден по токену: ${token}`, HttpStatus.NOT_FOUND);
     console.warn('AuthService:check')
 
-    return user;
+    const notifications = await this.notificationService.check(user.id)
+    return {
+      ...user,
+      notifications: notifications
+    };
   }
   async updatePassword(authorization, { password, newPassword }) {
     const token = authorization.substring(7);
