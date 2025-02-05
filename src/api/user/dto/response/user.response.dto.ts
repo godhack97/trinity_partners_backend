@@ -15,10 +15,6 @@ export class UserResponseDto extends WithIdDto {
 
   @ApiProperty()
   @Expose()
-  phone: string;
-
-  @ApiProperty()
-  @Expose()
   email_confirmed: boolean;
 
   @ApiProperty()
