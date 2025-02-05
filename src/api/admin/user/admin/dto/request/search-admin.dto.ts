@@ -7,7 +7,8 @@ import {
 
 enum RoleAdminTypes {
   SuperAdmin = RoleTypes.SuperAdmin,
-  ContentManager = RoleTypes.ContentManager
+  ContentManager = RoleTypes.ContentManager,
+  ALL = 'all'
 }
 
 export class SearchAdminDto {

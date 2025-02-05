@@ -40,7 +40,11 @@ export class AdminUserAdminService {
     queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r',  'u.role_id = r.id')
 
     if(entry.role) {
-      queryBuilder.andWhere("r.name = :name", { name: entry.role });
+      if(entry.role === 'all') {
+        queryBuilder.andWhere("r.name IN (:...name)", { name: role_names });
+      } else {
+        queryBuilder.andWhere("r.name = :name", { name: entry.role });
+      }
     } else {
       queryBuilder.andWhere("r.name IN (:...name)", { name: role_names });
     }
