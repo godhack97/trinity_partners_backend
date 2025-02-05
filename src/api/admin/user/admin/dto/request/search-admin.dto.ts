@@ -1,21 +1,15 @@
-import { RoleTypes } from "@app/types/RoleTypes";
+import { SearchRoleAdminTypes } from "@api/admin/user/admin/admin-user-admin.service";
 import { ApiProperty } from "@nestjs/swagger";
 import {
   IsEnum,
   IsOptional
 } from "class-validator";
 
-enum RoleAdminTypes {
-  SuperAdmin = RoleTypes.SuperAdmin,
-  ContentManager = RoleTypes.ContentManager,
-  ALL = 'all'
-}
-
 export class SearchAdminDto {
 
-  @ApiProperty({ enum: RoleAdminTypes})
-  @IsEnum(RoleAdminTypes)
+  @ApiProperty({ enum: SearchRoleAdminTypes})
+  @IsEnum(SearchRoleAdminTypes)
   @IsOptional()
-  role: RoleAdminTypes;
+  role: SearchRoleAdminTypes;
 
 }

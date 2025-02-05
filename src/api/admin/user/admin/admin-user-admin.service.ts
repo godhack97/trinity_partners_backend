@@ -22,6 +22,12 @@ import {
 
 const USER_EXISTS = 'Пользователь с такой почтой уже существует'
 
+export enum SearchRoleAdminTypes {
+  SuperAdmin = RoleTypes.SuperAdmin,
+  ContentManager = RoleTypes.ContentManager,
+  ALL = 'all'
+}
+
 @Injectable()
 export class AdminUserAdminService {
   constructor(
@@ -38,14 +44,14 @@ export class AdminUserAdminService {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r',  'u.role_id = r.id')
 
-    if(entry.role) {
-      if(entry.role === 'all') {
-        queryBuilder.andWhere("r.name IN (:...name)", { name: this.role_names });
-      } else {
+    switch (entry.role) {
+      case SearchRoleAdminTypes.SuperAdmin:
+      case SearchRoleAdminTypes.ContentManager:
         queryBuilder.andWhere("r.name = :name", { name: entry.role });
-      }
-    } else {
-      queryBuilder.andWhere("r.name IN (:...name)", { name: this.role_names });
+        break;
+      case SearchRoleAdminTypes.ALL:
+      default:
+        queryBuilder.andWhere("r.name IN (:...name)", { name: this.role_names });
     }
 
     return queryBuilder.getMany()
