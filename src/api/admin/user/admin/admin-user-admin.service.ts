@@ -28,6 +28,10 @@ export enum SearchRoleAdminTypes {
   ALL = 'all'
 }
 
+export enum RoleAdminTypes {
+  SuperAdmin = RoleTypes.SuperAdmin,
+  ContentManager = RoleTypes.ContentManager
+}
 @Injectable()
 export class AdminUserAdminService {
   constructor(
@@ -86,11 +90,6 @@ export class AdminUserAdminService {
   }
 
   async update(id: number, data: UpdateAdminRequestDto) {
-    const isExistEmail = await this.userRepository.findByEmail(data.email);
-
-    if (isExistEmail && (isExistEmail.id !== id)) {
-      throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
-    }
 
     const isUserAdmin = await this.userRepository.findById(id);
 
@@ -98,15 +97,11 @@ export class AdminUserAdminService {
       throw new HttpException('Это не администратор!', HttpStatus.FORBIDDEN);
     }
 
-    const { email, password: _password, role } = data;
+    const { role } = data;
+
     const roleSuperAdmin = await this.roleRepository.findOneBy({ name: role });
 
-    const { salt, password } = await createCredentials(_password);
-
     await this.userRepository.update(id, {
-      salt,
-      email,
-      password,
       role: roleSuperAdmin,
     });
 
