@@ -25,7 +25,10 @@ import {
   UserNotificationType,
   UserSettingType
 } from "@orm/entities";
-import { RegistrationSuperAdminDto } from "../registration/dto/request/registration-super-admin.request.dto";
+import {
+  RegistrationSuperAdminDto,
+  RegistrationSuperAdminWithSecretDto
+} from "../registration/dto/request/registration-super-admin.request.dto";
 
 const USER_SECRET = 'Неправильно введен СЕКРЕТ';
 const USER_EXISTS = 'Пользователь с такой электронной почтой уже существует';
@@ -165,10 +168,14 @@ export class UserService {
     return newUser;
   }
 
-  async createSuperAdmin(data: RegistrationSuperAdminDto) {
+  async createSuperAdminWithSecret(data: RegistrationSuperAdminWithSecretDto) {
     if(!(data.secret === SECRET_KEY)) {
       throw new HttpException(USER_SECRET, HttpStatus.FORBIDDEN);
     }
+    await this.createSuperAdmin(data);
+  }
+
+  async createSuperAdmin(data: RegistrationSuperAdminDto) {
     const userExist = await this.userRepository.findByEmail(data.email);
 
     if (userExist) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);

@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { UserRepository } from "../../../orm/repositories";
+import { UserRepository } from "@orm/repositories";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
-import { DataSource } from "typeorm";
-
 const defaultFilter = {
   limit: 10,
   page: 1,
 }
 @Injectable()
 export class AdminUserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository
+  ) {}
 
   async find(filters: UserFilterRequestDto) {
     const current_page = filters.current_page || 1;

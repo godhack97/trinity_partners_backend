@@ -12,6 +12,9 @@ export class RegistrationSuperAdminDto {
   @MinLengthRu(6)
   password: string;
 
+}
+
+export class RegistrationSuperAdminWithSecretDto extends RegistrationSuperAdminDto{
   @ApiProperty()
   @IsNotEmptyRu()
   @MinLengthRu(6)
