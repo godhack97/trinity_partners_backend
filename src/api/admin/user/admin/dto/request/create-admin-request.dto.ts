@@ -1,4 +1,4 @@
-import { RoleTypes } from "@app/types/RoleTypes";
+import { RoleAdminTypes } from "@api/admin/user/admin/admin-user-admin.service";
 import {
   IsEmailRu,
   IsNotEmptyRu,
@@ -8,11 +8,6 @@ import { ApiProperty } from "@nestjs/swagger";
 import {
   IsEnum,
 } from "class-validator";
-
-enum RoleAdminTypes {
-  SuperAdmin = RoleTypes.SuperAdmin,
-  ContentManager = RoleTypes.ContentManager
-}
 
 export class CreateAdminRequestDto {
   @ApiProperty()
