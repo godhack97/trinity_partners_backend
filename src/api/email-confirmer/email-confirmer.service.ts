@@ -9,7 +9,8 @@ import { MailerService } from "@nestjs-modules/mailer";
 import {
   HttpException,
   HttpStatus,
-  Injectable
+  Injectable,
+  Logger
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -73,12 +74,16 @@ export class EmailConfirmerService {
 
   private async _emailSend({ email, subject, html }) {
 
-    return await this.mailerService.sendMail({
-      from: `${this.mail}`,
-      to: email,
-      subject,
-      html,
-    });
+      try {
+        return await this.mailerService.sendMail({
+          from: `${this.mail}`,
+          to: email,
+          subject,
+          html,
+        });
+      } catch (error) {
+        Logger.error(error);
+      }
   }
 
   private async _restoreAction({ resetHashEntity }: ActionParams){
