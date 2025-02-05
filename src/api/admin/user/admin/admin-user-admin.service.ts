@@ -81,7 +81,7 @@ export class AdminUserAdminService {
   async update(id: number, data: UpdateAdminRequestDto) {
     const isExistEmail = await this.userRepository.findByEmail(data.email);
 
-    if (isExistEmail.id !== id) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    if (isExistEmail?.id !== id) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
 
     const { email, password: _password, role } = data;
     const roleSuperAdmin = await this.roleRepository.findOneBy({ name: role });
