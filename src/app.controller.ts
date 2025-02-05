@@ -8,7 +8,6 @@ import { Public } from "./decorators/Public";
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
 
   ) {}

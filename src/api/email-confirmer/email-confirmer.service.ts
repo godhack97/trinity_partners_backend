@@ -21,7 +21,7 @@ import * as querystring from "node:querystring";
 @Injectable()
 export class EmailConfirmerService {
   constructor(
-    private readonly mailService: MailerService,
+    private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly resetHashRepository: ResetHashRepository,
     private readonly userRepository: UserRepository,
@@ -72,7 +72,8 @@ export class EmailConfirmerService {
   }
 
   private async _emailSend({ email, subject, html }) {
-    return await this.mailService.sendMail({
+
+    return await this.mailerService.sendMail({
       from: `${this.mail}`,
       to: email,
       subject,
