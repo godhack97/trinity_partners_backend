@@ -55,4 +55,8 @@ export class NotificationEntity extends BasisEntity {
     default: NotificationIconType.BELL
   })
   icon: NotificationIconType;
+
+  @Column({ type: 'timestamp' })
+  read_at: Date;
+
 }
