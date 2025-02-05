@@ -55,7 +55,7 @@ export class UserService {
 
     if (user) throw new BadRequestException(USER_EXISTS);
 
-    const isUserPhone = await this.userRepository.findOneBy({
+    const isUserPhone = await this.userInfoRepository.findOneBy({
       phone: registrationEmployeeDto.phone,
     });
 
@@ -105,7 +105,7 @@ export class UserService {
 
     if (user) throw new BadRequestException(USER_EXISTS);
 
-    const isUserPhone = await this.userRepository.findOneBy({
+    const isUserPhone = await this.userInfoRepository.findOneBy({
       phone: registrationCompanyDto.phone,
     });
 
