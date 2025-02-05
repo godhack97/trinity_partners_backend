@@ -96,6 +96,12 @@ export class NotificationService {
   }
 
   async getAll(id: number) {
+
+    await this.notificationRepository.update(
+      { user_id: id, is_read: false },
+      { is_read: true, read_at: new Date()}
+    )
+
     return await this.notificationRepository.findBy({ user_id: id });
   }
 
