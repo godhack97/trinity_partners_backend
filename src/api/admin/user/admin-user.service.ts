@@ -1,10 +1,6 @@
-import { RegistrationSuperAdminDto } from "@api/registration/dto/request/registration-super-admin.request.dto";
-import { UserService } from "@api/user/user.service";
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from "@orm/repositories";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
-import { DataSource } from "typeorm";
-
 const defaultFilter = {
   limit: 10,
   page: 1,
@@ -12,8 +8,7 @@ const defaultFilter = {
 @Injectable()
 export class AdminUserService {
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly userService: UserService,
+    private readonly userRepository: UserRepository
   ) {}
 
   async find(filters: UserFilterRequestDto) {
@@ -55,9 +50,5 @@ export class AdminUserService {
       pages_count: Math.ceil(total/limit),
       data,
     }
-  }
-
-  createSuperAdmin(registrationSuperAdminDto: RegistrationSuperAdminDto)  {
-    return this.userService.createSuperAdmin(registrationSuperAdminDto);
   }
 }
