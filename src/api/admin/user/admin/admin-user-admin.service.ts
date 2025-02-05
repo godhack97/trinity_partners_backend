@@ -36,10 +36,12 @@ export class AdminUserAdminService {
     private readonly roleRepository: RoleRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
-  role_names =  [
+
+  allowed_roles =  [
     RoleTypes.SuperAdmin,
     RoleTypes.ContentManager
   ]
+
   async findAll(entry?: SearchAdminDto) {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r',  'u.role_id = r.id')
@@ -51,7 +53,7 @@ export class AdminUserAdminService {
         break;
       case SearchRoleAdminTypes.ALL:
       default:
-        queryBuilder.andWhere("r.name IN (:...name)", { name: this.role_names });
+        queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
     }
 
     return queryBuilder.getMany()
@@ -92,7 +94,7 @@ export class AdminUserAdminService {
 
     const isUserAdmin = await this.userRepository.findById(id);
 
-    if (!this.role_names.includes(isUserAdmin.role.name as RoleTypes)) {
+    if (!this.allowed_roles.includes(isUserAdmin.role.name as RoleTypes)) {
       throw new HttpException('Это не администратор!', HttpStatus.FORBIDDEN);
     }
 
