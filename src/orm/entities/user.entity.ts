@@ -52,9 +52,6 @@ export class UserEntity extends BasisEntity {
   @DeleteDateColumn()
   deleted_at: Date;
 
-  @Column()
-  phone: string;
-
   @OneToOne(() => CompanyEntity, (company) => company.owner)
   lazy_owner_company: Promise<CompanyEntity>;
   owner_company: CompanyEntity;
