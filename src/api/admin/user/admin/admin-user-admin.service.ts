@@ -30,23 +30,22 @@ export class AdminUserAdminService {
     private readonly roleRepository: RoleRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
-
+  role_names =  [
+    RoleTypes.SuperAdmin,
+    RoleTypes.ContentManager
+  ]
   async findAll(entry?: SearchAdminDto) {
-    const role_names =  [
-      RoleTypes.SuperAdmin,
-      RoleTypes.ContentManager
-    ]
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r',  'u.role_id = r.id')
 
     if(entry.role) {
       if(entry.role === 'all') {
-        queryBuilder.andWhere("r.name IN (:...name)", { name: role_names });
+        queryBuilder.andWhere("r.name IN (:...name)", { name: this.role_names });
       } else {
         queryBuilder.andWhere("r.name = :name", { name: entry.role });
       }
     } else {
-      queryBuilder.andWhere("r.name IN (:...name)", { name: role_names });
+      queryBuilder.andWhere("r.name IN (:...name)", { name: this.role_names });
     }
 
     return queryBuilder.getMany()
@@ -81,19 +80,29 @@ export class AdminUserAdminService {
   async update(id: number, data: UpdateAdminRequestDto) {
     const isExistEmail = await this.userRepository.findByEmail(data.email);
 
-    if (isExistEmail?.id !== id) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    if (isExistEmail && (isExistEmail.id !== id)) {
+      throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    }
+
+    const isUserAdmin = await this.userRepository.findById(id);
+
+    if (this.role_names.includes(isUserAdmin.role.name as RoleTypes)) {
+      throw new HttpException('Это не администратор!', HttpStatus.FORBIDDEN);
+    }
 
     const { email, password: _password, role } = data;
     const roleSuperAdmin = await this.roleRepository.findOneBy({ name: role });
 
     const { salt, password } = await createCredentials(_password);
 
-    return await this.userRepository.update(id, {
+    await this.userRepository.update(id, {
       salt,
       email,
       password,
       role: roleSuperAdmin,
     });
+
+    return await this.userRepository.findById(id);
   }
 
   async delete(id: number) {
