@@ -86,7 +86,7 @@ export class AdminUserAdminService {
 
     const isUserAdmin = await this.userRepository.findById(id);
 
-    if (this.role_names.includes(isUserAdmin.role.name as RoleTypes)) {
+    if (!this.role_names.includes(isUserAdmin.role.name as RoleTypes)) {
       throw new HttpException('Это не администратор!', HttpStatus.FORBIDDEN);
     }
 
