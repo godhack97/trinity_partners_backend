@@ -126,7 +126,6 @@ export class UserService {
       email,
       password,
       role: rolePartner,
-      phone: registrationCompanyDto.phone,
     });
 
     await this._createNotificationSettings(newUser.id)
