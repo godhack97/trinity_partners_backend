@@ -1,8 +1,9 @@
-import { CompanyEmployeesResponseDto, UserInfoDto } from "@api/company/dto/response/company-employees-response.dto";
+import { CompanyEmployeesResponseDto } from "@api/company/dto/response/company-employees-response.dto";
 import { NewsResponseListDto } from "@api/news/dto/news.response.dto";
 import { NotificationsResponseDto } from "@api/notification/notifications.response.dto";
 import { PartnerResponseDto } from "@api/partner/dto/response/PartnerResponseDto";
 import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
+import { UserInfoDto } from "@app/dto/user-info.dto";
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose, Type } from "class-transformer";
 
