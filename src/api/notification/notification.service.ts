@@ -1,5 +1,8 @@
 import { MailerService } from "@nestjs-modules/mailer";
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  Logger
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   NotificationType,
@@ -76,12 +79,16 @@ export class NotificationService {
     const { email, title, text } = data,
       email_from = this.configService.get('EMAIL_USERNAME');
 
-    return await this.mailerService.sendMail({
-      from: `${email_from}`,
-      to: email,
-      subject: title,
-      html: `${text}`,
-    });
+    try {
+      return await this.mailerService.sendMail({
+        from: `${email_from}`,
+        to: email,
+        subject: title,
+        html: `${text}`,
+      });
+    } catch (error) {
+      Logger.error(error);
+    }
   }
 
   async sendWeb(data: ActionDataType & { type }) {
