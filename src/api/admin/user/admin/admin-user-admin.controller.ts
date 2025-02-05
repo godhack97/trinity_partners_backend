@@ -35,4 +35,9 @@ export class AdminUserAdminController {
   async update(@Param('id') id: string, @Body() data: UpdateAdminRequestDto) {
     return await this.adminUserAdminService.update(+id, data);
   }
+
+  @Post(':id/delete')
+  async delete(@Param('id') id: string) {
+    return await this.adminUserAdminService.delete(+id);
+  }
 }

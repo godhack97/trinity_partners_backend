@@ -92,6 +92,14 @@ export class AdminUserAdminService {
     });
   }
 
+  async delete(id: number) {
+    const deleteResult =  await this.userRepository.delete(id);
+
+    if (deleteResult.affected === 0) {
+      throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+  }
   private async _createNotificationSettings(id: number) {
     await this.userSettingRepository.save([
       {
