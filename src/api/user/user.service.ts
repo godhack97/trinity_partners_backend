@@ -15,6 +15,7 @@ import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import {
   createCredentials,
+  createToken,
 } from 'src/utils/password';
 import { RegistrationEmployeeRequestDto } from '../registration/dto/request/registration-employee.request.dto';
 import { RegistrationCompanyRequestDto } from '../registration/dto/request/registration-company.request.dto';
@@ -67,8 +68,10 @@ export class UserService {
     const roleEmployee = await this.roleRepository.getEmployee();
     const { email, password: _password } = registrationEmployeeDto;
     const { salt, password } = await createCredentials(_password);
+    const token = await createToken(salt);
 
     const newUser = await this.userRepository.save({
+      token,
       salt,
       email,
       password,
@@ -124,7 +127,10 @@ export class UserService {
     const rolePartner = await this.roleRepository.getPartner();
 
     const { salt, password } = await createCredentials(_password);
+    const token = await createToken(salt);
+
     const newUser = await this.userRepository.save({
+      token,
       salt,
       email,
       password,
@@ -171,7 +177,8 @@ export class UserService {
     if(!(data.secret === SECRET_KEY)) {
       throw new HttpException(USER_SECRET, HttpStatus.FORBIDDEN);
     }
-    await this.createSuperAdmin(data);
+
+    return await this.createSuperAdmin(data);
   }
 
   async createSuperAdmin(data: RegistrationSuperAdminDto) {
@@ -183,7 +190,10 @@ export class UserService {
     const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
 
     const { salt, password } = await createCredentials(_password);
+    const token = await createToken(salt);
+
     const user = await this.userRepository.save({
+      token,
       salt,
       email,
       password,
@@ -195,7 +205,9 @@ export class UserService {
       user_id: user.id,
       email: user.email,
       method: EmailConfirmerMethod.EmailConfirmation
-    })
+    });
+
+    return user;
   }
 
   async findAll() {
