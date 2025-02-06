@@ -65,7 +65,7 @@ export class AdminDealService {
     await this.notificationService.send({
       user_id: deal.creator_id,
       title: 'Статус сделки',
-      text: `Обновление статуса Сделка №${deal.id} - сделка ${DealStatusRu[deal.status]}`,
+      text: `Обновление статуса Сделка №${deal.deal_num} - сделка ${DealStatusRu[deal.status]}`,
     })
   }
 
@@ -73,7 +73,7 @@ export class AdminDealService {
     await this.notificationService.send({
       user_id: deal.creator_id,
       title: 'Выдана скидка',
-      text: `По сделке №${deal.id} выдана скидка на ${deal.special_discount} ${deal.special_discount.indexOf('%') > -1 ? 'процентов': CURRENCY }`,
+      text: `По сделке №${deal.deal_num} выдана скидка на ${deal.special_discount} ${deal.special_discount.indexOf('%') > -1 ? 'процентов': CURRENCY }`,
     })
   }
 }
