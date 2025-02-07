@@ -119,7 +119,7 @@ export class NotificationService {
     return await this.notificationRepository
       .createQueryBuilder()
       .where({ user_id: id })
-      .limit(6)
+      .limit(5)
       .getMany();
   }
 
