@@ -17,4 +17,12 @@ export class DealStatisticsResponseDto {
   @ApiProperty()
   @Expose()
   moderation: number;
+
+  @ApiProperty()
+  @Expose()
+  win: number;
+
+  @ApiProperty()
+  @Expose()
+  loose: number;
 }

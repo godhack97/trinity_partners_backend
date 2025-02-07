@@ -113,6 +113,8 @@ export class DealService {
       canceled: dealsData.filter(el => el.status === DealStatus.Canceled).length,
       registered: dealsData.filter(el => el.status === DealStatus.Registered).length,
       moderation: dealsData.filter(el => el.status === DealStatus.Moderation).length,
+      win: dealsData.filter(el => el.status === DealStatus.Win).length,
+      loose: dealsData.filter(el => el.status === DealStatus.Lose).length,
     };
 
     return statistic;
