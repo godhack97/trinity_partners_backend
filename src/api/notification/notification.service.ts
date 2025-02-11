@@ -1,3 +1,4 @@
+import { NotificationsReadDto } from "@api/notification/dto/notifications-read.dto";
 import { MailerService } from "@nestjs-modules/mailer";
 import {
   Injectable,
@@ -131,5 +132,26 @@ export class NotificationService {
         is_read: false
       })
       .getCount();
+  }
+
+  async readList(user_id: number, { ids }: NotificationsReadDto) {
+    await this.notificationRepository
+      .createQueryBuilder()
+      .update()
+      .set({ is_read: true, read_at: new Date() })
+      .where({
+        id: In(ids),
+        user_id
+      })
+      .execute();
+
+    return await this.notificationRepository
+      .createQueryBuilder()
+      .where({
+        id: In(ids),
+        user_id
+      })
+      .orderBy('id', 'ASC')
+      .getMany();
   }
 }
