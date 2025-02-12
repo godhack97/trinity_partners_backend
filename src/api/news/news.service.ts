@@ -75,7 +75,7 @@ export class NewsService {
     return news;
   }
   async create(data: NewsRequestDto, auth_user: Partial<UserEntity>) {
-    const {name,content,photo} = data;
+    const {name,content,photo,image_big} = data;
     const slug = this.makeCHEPEU(name);
     const url = slug;
     const isExistSlug = await this.newsRepository.findBySlugOrName({ slug, name });
@@ -86,12 +86,13 @@ export class NewsService {
       name,
       content,
       photo,
+      image_big,
       url,
       author_id: auth_user.id
     });
   }
   async update(slug: string, data: NewsRequestDto) {
-    const {name,content,photo} = data;
+    const {name,content,photo, image_big} = data;
     const slugNew = this.makeCHEPEU(name);
     const url = slugNew;
     const news = await this.newsRepository.findBySlug({slug})
@@ -105,6 +106,7 @@ export class NewsService {
       name,
       content,
       photo,
+      image_big,
       url
     });
     console.log({updateResult})

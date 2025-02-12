@@ -29,6 +29,9 @@ export class NewsEntity extends BasisEntity {
   @Column()
   photo: string;
 
+  @Column()
+  image_big: string;
+
   @DeleteDateColumn()
   deleted_at: Date;
 }

@@ -30,6 +30,10 @@ export class NewsResponseDto extends NewsResponseListDto {
 
   @ApiProperty()
   @Expose()
+  image_big: string;
+
+  @ApiProperty()
+  @Expose()
   author_id: string;
 
   @ApiProperty()

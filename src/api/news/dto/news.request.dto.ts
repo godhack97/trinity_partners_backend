@@ -9,6 +9,9 @@ export class NewsRequestDto {
 
   @ApiProperty()
   photo: string;
+
+  @ApiProperty()
+  image_big: string;
 }
 
 
