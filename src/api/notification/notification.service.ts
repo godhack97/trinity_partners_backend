@@ -106,12 +106,6 @@ export class NotificationService {
   async getAll(id: number) {
 
     const notifications = await this.notificationRepository.findBy({ user_id: id });
-
-    await this.notificationRepository.update(
-      { user_id: id, is_read: false },
-      { is_read: true, read_at: new Date()}
-    )
-
     return notifications;
     
   }
