@@ -1,3 +1,4 @@
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import {
   HttpException,
   HttpStatus,
@@ -22,7 +23,9 @@ export default class AdminPartnerService {
 
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly emailConfirmerService: EmailConfirmerService,
+
 
   ) {}
 
@@ -71,6 +74,14 @@ export default class AdminPartnerService {
     if (!companyEmployee) throw new HttpException('Сотрудник не найдена', HttpStatus.FORBIDDEN);
 
     await this.companyEmployeeRepository.update(companyEmployee.id, {status: CompanyEmployeeStatus.Accept});
+
+    const user = await this.userRepository.findById(companyEntity.owner_id);
+
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: 'Подтверждение регистрации!',
+      html: 'Спасибо за ожидание! Доступ к порталу открыт <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
+    })
   }
 
   async reject(id: number) {
@@ -93,5 +104,13 @@ export default class AdminPartnerService {
     if (!companyEmployee) throw new HttpException('Сотрудник не найдена', HttpStatus.FORBIDDEN);
 
     await this.companyEmployeeRepository.update(companyEmployee.id, {status: CompanyEmployeeStatus.Reject});
+
+    const user = await this.userRepository.findById(companyEntity.owner_id);
+
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: 'Регистрация отклонена!',
+      html: 'К сожалению, на данный момент доступ не одобрен. Если Вы не согласны с решением администратора или считаете. что произошла ошибка, свяжитесь с нами по почте: <a href="mailto:support@trinity.ru">support@trinity.ru</a>'
+    })
   }
 }
