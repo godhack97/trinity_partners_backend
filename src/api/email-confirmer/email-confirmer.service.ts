@@ -7,6 +7,7 @@ import {
 import { createHash } from "@app/utils/password";
 import { MailerService } from "@nestjs-modules/mailer";
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -70,6 +71,31 @@ export class EmailConfirmerService {
       email,
       ...emailSendConfig({ link })[method]
     })
+  }
+
+  async resend(data: SendParams) {
+
+    const { user_id, email, method } = data;
+
+    const resetHashEntity = await this.resetHashRepository.findOne({
+      where: { user_id },
+      order: { id: 'DESC' }
+    });
+
+    if(!resetHashEntity) throw new BadRequestException('Пользователь для отправки не найден!')
+
+    const qs = querystring.stringify({
+      email: resetHashEntity.email,
+      verify: resetHashEntity.hash
+    })
+
+    const link = `https://${this.hostname}/${method}?${qs}`
+
+    return await this._emailSend({
+      email,
+      ...emailSendConfig({ link })[method]
+    })
+
   }
 
   private async _emailSend({ email, subject, html }) {
