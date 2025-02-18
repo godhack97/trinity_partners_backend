@@ -1,3 +1,4 @@
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import {
   BadRequestException,
   ForbiddenException,
@@ -24,7 +25,9 @@ export class CompanyService {
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userInfoRepository: UserInfoRepository,
-    private readonly roleRepository: RoleRepository
+    private readonly roleRepository: RoleRepository,
+    private readonly emailConfirmerService: EmailConfirmerService,
+
   ) {
   }
 
@@ -74,7 +77,13 @@ export class CompanyService {
     });
 
     await this.userRepository.update(user.id, { is_activated: true });
-    
+
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: 'Вас добавили к списку сотрудников!',
+      html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
+    })
+
     return { succes: true }
   }
 
