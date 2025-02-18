@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { UserRepository } from '@orm/repositories';
 
 @Injectable()
-export class AuthTokenService {f
+export class AuthTokenService {
 
   constructor(private readonly userRepository: UserRepository) {}
 
