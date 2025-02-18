@@ -105,6 +105,12 @@ export class EmailConfirmerService {
 
   }
 
+  async emailSend({ email, subject, html }) {
+
+    return await this._emailSend({ email, subject, html });
+
+  }
+
   private async _emailSend({ email, subject, html }) {
 
       try {
@@ -117,6 +123,7 @@ export class EmailConfirmerService {
       } catch (error) {
         Logger.error(error);
       }
+
   }
 
   private async _restoreAction({ resetHashEntity }: ActionParams){
