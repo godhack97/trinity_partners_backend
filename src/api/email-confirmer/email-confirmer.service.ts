@@ -4,6 +4,7 @@ import {
   ConfirmParams,
   SendParams
 } from "@api/email-confirmer/types";
+import { RoleTypes } from "@app/types/RoleTypes";
 import { createHash } from "@app/utils/password";
 import { MailerService } from "@nestjs-modules/mailer";
 import {
@@ -13,6 +14,7 @@ import {
   Injectable,
   Logger
 } from "@nestjs/common";
+import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import { ConfigService } from "@nestjs/config";
 import {
   ResetHashRepository,
@@ -35,6 +37,11 @@ export class EmailConfirmerService {
   confirmActions = {
     registration: this._registrationAction,
     recovery: this._restoreAction,
+  }
+
+  confirmHtml = {
+    [RoleTypes.Partner]: 'Ваша заявка на доступ к порталу принята. Ожидайте, пожалуйста, ответный e-mail с подтверждением доступа в течение 12 часов.',
+    [RoleTypes.Employee]: 'Вы успешно зарегистрированы на портале. Ожидайте, когда вас добавят к списку сотрудников в партнерском аккаунте.',
   }
 
   async confirm(data: ConfirmParams) {
@@ -124,8 +131,35 @@ export class EmailConfirmerService {
     })
 
     if (updateUser.affected === 0) {
-      throw new HttpException('Не удалось обновить пользователя', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException('Не удалось обновить пользователя');
     }
+
+    const user = await this.userRepository.findById(resetHashEntity.user_id)
+
+    if(!user) throw new InternalServerErrorException('Не удалось найти пользователя');
+
+    const sendOpts = {
+      email: user.email,
+      subject: 'Подтверждение почты!',
+    }
+
+    switch (user.role.name) {
+      case RoleTypes.Partner:
+        await this._emailSend({
+          ...sendOpts,
+          html: this.confirmHtml[RoleTypes.Partner]
+        })
+        break;
+      case RoleTypes.Employee:
+        await this._emailSend({
+          ...sendOpts,
+          html: this.confirmHtml[RoleTypes.Employee]
+        })
+        break;
+      default:
+        break;
+    }
+
   }
   private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
     const resetHashDelete = await this.resetHashRepository.remove(resetHashEntity)
