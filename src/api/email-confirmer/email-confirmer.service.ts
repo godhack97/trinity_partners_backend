@@ -29,7 +29,7 @@ export class EmailConfirmerService {
   ) {}
 
   mail = this.configService.get('EMAIL_USERNAME');
-  hostname = this.configService.get('HOSTNAME');
+  hostname = this.configService.get('FRONTEND_HOSTNAME');
 
   confirmActions = {
     registration: this._registrationAction,
