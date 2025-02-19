@@ -1,3 +1,6 @@
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
+import { AuthTokenService } from '@app/services/auth-token/auth-token.service';
+import { RoleTypes } from '@app/types/RoleTypes';
 import {
   BadRequestException,
   ForbiddenException,
@@ -5,15 +8,20 @@ import {
   HttpStatus,
   Injectable
 } from '@nestjs/common';
-import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
-import { AuthTokenService } from '@app/services/auth-token/auth-token.service';
-import { CompanyEmployeeRepository, CompanyRepository, RoleRepository, UserInfoRepository, UserRepository } from '@orm/repositories';
-import { RoleTypes } from '@app/types/RoleTypes';
+import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import {
   CompanyEmployeeStatus,
   UserEntity
 } from '@orm/entities';
+import {
+  CompanyEmployeeRepository,
+  CompanyRepository,
+  RoleRepository,
+  UserInfoRepository,
+  UserRepository
+} from '@orm/repositories';
 import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
+import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
 
 @Injectable()
 export class CompanyService {
@@ -24,7 +32,9 @@ export class CompanyService {
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userInfoRepository: UserInfoRepository,
-    private readonly roleRepository: RoleRepository
+    private readonly roleRepository: RoleRepository,
+    private readonly emailConfirmerService: EmailConfirmerService,
+
   ) {
   }
 
@@ -74,7 +84,13 @@ export class CompanyService {
     });
 
     await this.userRepository.update(user.id, { is_activated: true });
-    
+
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: 'Вас добавили к списку сотрудников!',
+      html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
+    })
+
     return { succes: true }
   }
 
@@ -107,7 +123,7 @@ export class CompanyService {
       });
       
     if (updateResult.affected === 0) {
-      throw new HttpException('Не удалось обновить роль пользователя', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException('Не удалось обновить роль пользователя');
     }
       
     return {
@@ -121,11 +137,21 @@ export class CompanyService {
 
     const { user } = await this.checkUserPermissions(request, id);
 
-    await this.companyEmployeeRepository.update(user.company_employee.id, {
-      status: CompanyEmployeeStatus.Deleted
+    const role = await this.roleRepository.findByRole(RoleTypes.Employee);
+
+    const updateResult = await this.userRepository.update(user.id, {
+      role,
     });
 
-    //return await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(user.id);
+    if (updateResult.affected === 0) {
+      throw new InternalServerErrorException('Не удалось обновить роль пользователя');
+    }
+
+    const deleteResult = await this.companyEmployeeRepository.delete(user.company_employee.id);
+
+    if (deleteResult.affected === 0) {
+      throw new InternalServerErrorException('Не удалось удалить пользователя');
+    }
 
     return {
       message: `Cотрудник c ${user.id} был успешно удален`,
