@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { config as dotenvConfig } from 'dotenv';
 import { DataSource, DataSourceOptions } from 'typeorm';
-const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
+const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'prod'}`;
 dotenvConfig({ path: envFilePath });
 
 const config = {
