@@ -1,5 +1,10 @@
 import { AuthUser } from "@decorators/auth-user";
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post
+} from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { UserEntity } from "@orm/entities";
 import { Public } from 'src/decorators/Public';
@@ -27,6 +32,7 @@ export class RegistrationController {
   }
   @Public()
   @Post('/partner')
+  @HttpCode(200)
   @ApiBody({ type: () => RegistrationCompanyRequestDto })
   createCompany(@Body() registrationCompanyDto: RegistrationCompanyRequestDto) {
     return this.registrationService.createCompany(registrationCompanyDto);
