@@ -169,7 +169,7 @@ export class EmailConfirmerService {
 
   }
   private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
-    const resetHashDelete = await this.resetHashRepository.remove(resetHashEntity)
+    const resetHashDelete = await this.resetHashRepository.delete(resetHashEntity.id)
 
     if (!resetHashDelete) {
       throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
