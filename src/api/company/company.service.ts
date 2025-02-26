@@ -9,6 +9,7 @@ import {
   Injectable
 } from '@nestjs/common';
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
+import { ConfigService } from "@nestjs/config";
 import {
   CompanyEmployeeStatus,
   UserEntity
@@ -34,6 +35,7 @@ export class CompanyService {
     private readonly userInfoRepository: UserInfoRepository,
     private readonly roleRepository: RoleRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
+    private readonly configService: ConfigService,
 
   ) {
   }
@@ -88,7 +90,12 @@ export class CompanyService {
     await this.emailConfirmerService.emailSend({
       email: user.email,
       subject: 'Вас добавили к списку сотрудников!',
-      html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
+      template: 'employee-add-to-company',
+      context: {
+        link: 'https://partner.trinity.ru/',
+        URL: this.configService.get('HOSTNAME')
+      }
+      //html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
     })
 
     return { succes: true }
