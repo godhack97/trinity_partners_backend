@@ -5,6 +5,7 @@ import {
   Injectable
 } from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
+import { ConfigService } from "@nestjs/config";
 import {
   CompanyEmployeeStatus,
   CompanyStatus
@@ -25,7 +26,7 @@ export default class AdminPartnerService {
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userRepository: UserRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
-
+    private readonly configService: ConfigService,
 
   ) {}
 
@@ -80,7 +81,11 @@ export default class AdminPartnerService {
     await this.emailConfirmerService.emailSend({
       email: user.email,
       subject: 'Подтверждение регистрации!',
-      html: 'Спасибо за ожидание! Доступ к порталу открыт <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
+      template: 'request-company-approve',
+      context: {
+        link: 'https://partner.trinity.ru/',
+        URL: this.configService.get('HOSTNAME')
+      }
     })
   }
 
@@ -110,7 +115,12 @@ export default class AdminPartnerService {
     await this.emailConfirmerService.emailSend({
       email: user.email,
       subject: 'Регистрация отклонена!',
-      html: 'К сожалению, на данный момент доступ не одобрен. Если Вы не согласны с решением администратора или считаете. что произошла ошибка, свяжитесь с нами по почте: <a href="mailto:support@trinity.ru">support@trinity.ru</a>'
+      template: 'request-company-reject',
+      context: {
+        link: 'https://partner.trinity.ru/',
+        URL: this.configService.get('HOSTNAME')
+      }
+      //html: 'К сожалению, на данный момент доступ не одобрен. Если Вы не согласны с решением администратора или считаете. что произошла ошибка, свяжитесь с нами по почте: <a href="mailto:support@trinity.ru">support@trinity.ru</a>'
     })
   }
 }

@@ -76,7 +76,7 @@ export class EmailConfirmerService {
 
     return await this._emailSend({
       email,
-      ...emailSendConfig({ link })[method]
+      ...emailSendConfig({ link, URL: this.configService.get('HOSTNAME') })[method]
     })
   }
 
@@ -100,25 +100,26 @@ export class EmailConfirmerService {
 
     return await this._emailSend({
       email,
-      ...emailSendConfig({ link })[method]
+      ...emailSendConfig({ link, URL: this.configService.get('HOSTNAME') })[method]
     })
 
   }
 
-  async emailSend({ email, subject, html }) {
+  async emailSend({ email, subject, template, context }) {
 
-    return await this._emailSend({ email, subject, html });
+    return await this._emailSend({ email, subject, template, context });
 
   }
 
-  private async _emailSend({ email, subject, html }) {
+  private async _emailSend({ email, subject, template, context }) {
 
       try {
         return await this.mailerService.sendMail({
           from: `${this.mail}`,
           to: email,
           subject,
-          html,
+          template, // `.hbs` extension is appended automatically
+          context,
         });
       } catch (error) {
         Logger.error(error);
@@ -154,13 +155,22 @@ export class EmailConfirmerService {
       case RoleTypes.Partner:
         await this._emailSend({
           ...sendOpts,
-          html: this.confirmHtml[RoleTypes.Partner]
+          //html: this.confirmHtml[RoleTypes.Partner],
+          template: 'request-company-receive',
+          context: {
+            link: 'https://partner.trinity.ru/',
+            URL: this.configService.get('HOSTNAME')
+          }
         })
         break;
       case RoleTypes.Employee:
         await this._emailSend({
           ...sendOpts,
-          html: this.confirmHtml[RoleTypes.Employee]
+          template: 'registration-employee',
+          context: {
+            link: 'https://partner.trinity.ru/',
+            URL: this.configService.get('HOSTNAME')
+          }
         })
         break;
       default:

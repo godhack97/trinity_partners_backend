@@ -4,10 +4,12 @@ import { NotificationModule } from "@api/notification/notification.module";
 import { ProfileModule } from "@api/profile/profile.module";
 import { RoleGuard } from "@app/guards/role.guard";
 import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handlebars.adapter";
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import * as path from "node:path";
 import { DataSource } from 'typeorm';
 import { AuthModule } from './api/auth/auth.module';
 import { ConfiguratorModule } from './api/configurator/configurator.module';
@@ -66,6 +68,9 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
           EMAIL_SECURE: configService.get('EMAIL_SECURE')
         })
         return ({
+          defaults: {
+            from: configService.get('EMAIL_USERNAME'),
+          },
           transport: {
             host: configService.get('EMAIL_HOST'),
             port: configService.get('EMAIL_PORT') || 465,
@@ -77,7 +82,17 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
             debug: configService.get('EMAIL_DEBUG') || false, // show debug output
             logger: true
           },
-
+          //preview: true,
+          template: {
+            dir: path.join(process.env.PWD, 'templates'),
+            adapter: new HandlebarsAdapter(
+              { url: () => configService.get('HOSTNAME') },
+              { inlineCssEnabled: true }
+            ),
+            options: {
+              strict: true,
+            },
+          },
         })
       },
       inject: [ConfigService],
