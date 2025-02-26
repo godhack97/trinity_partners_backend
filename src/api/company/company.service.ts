@@ -93,7 +93,7 @@ export class CompanyService {
       template: 'employee-add-to-company',
       context: {
         link: 'https://partner.trinity.ru/',
-        URL: this.configService.get('HOSTNAME')
+        URL: this.configService.get('FRONTEND_HOSTNAME')
       }
       //html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
     })

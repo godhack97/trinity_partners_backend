@@ -84,7 +84,7 @@ export default class AdminPartnerService {
       template: 'request-company-approve',
       context: {
         link: 'https://partner.trinity.ru/',
-        URL: this.configService.get('HOSTNAME')
+        URL: this.configService.get('FRONTEND_HOSTNAME')
       }
     })
   }
@@ -118,7 +118,7 @@ export default class AdminPartnerService {
       template: 'request-company-reject',
       context: {
         link: 'https://partner.trinity.ru/',
-        URL: this.configService.get('HOSTNAME')
+        URL: this.configService.get('FRONTEND_HOSTNAME')
       }
       //html: 'К сожалению, на данный момент доступ не одобрен. Если Вы не согласны с решением администратора или считаете. что произошла ошибка, свяжитесь с нами по почте: <a href="mailto:support@trinity.ru">support@trinity.ru</a>'
     })

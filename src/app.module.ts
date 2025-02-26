@@ -86,7 +86,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
           template: {
             dir: path.join(process.env.PWD, 'templates'),
             adapter: new HandlebarsAdapter(
-              { url: () => configService.get('HOSTNAME') },
+              { url: () => configService.get('FRONTEND_HOSTNAME') },
               { inlineCssEnabled: true }
             ),
             options: {
