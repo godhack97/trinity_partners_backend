@@ -76,7 +76,7 @@ export class EmailConfirmerService {
 
     return await this._emailSend({
       email,
-      ...emailSendConfig({ link, URL: this.configService.get('HOSTNAME') })[method]
+      ...emailSendConfig({ link, URL: this.configService.get('FRONTEND_HOSTNAME') })[method]
     })
   }
 
@@ -100,7 +100,7 @@ export class EmailConfirmerService {
 
     return await this._emailSend({
       email,
-      ...emailSendConfig({ link, URL: this.configService.get('HOSTNAME') })[method]
+      ...emailSendConfig({ link, URL: this.configService.get('FRONTEND_HOSTNAME') })[method]
     })
 
   }
@@ -159,7 +159,7 @@ export class EmailConfirmerService {
           template: 'request-company-receive',
           context: {
             link: 'https://partner.trinity.ru/',
-            URL: this.configService.get('HOSTNAME')
+            URL: this.configService.get('FRONTEND_HOSTNAME')
           }
         })
         break;
@@ -169,7 +169,7 @@ export class EmailConfirmerService {
           template: 'registration-employee',
           context: {
             link: 'https://partner.trinity.ru/',
-            URL: this.configService.get('HOSTNAME')
+            URL: this.configService.get('FRONTEND_HOSTNAME')
           }
         })
         break;
