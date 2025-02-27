@@ -1,4 +1,4 @@
-export const emailSendConfig = ({ link, URL }: { link: string, URL: string }) => ({
+export const emailSendConfig = ({ link }: { link: string}) => ({
   'email.confirmation': {
     subject: 'Регистрация пользователя',
     //text: `Подтвердите почту по ссылке: ${ link }`,
@@ -6,8 +6,7 @@ export const emailSendConfig = ({ link, URL }: { link: string, URL: string }) =>
     link,
     template: 'registration-start',
     context: {
-      link,
-      URL,
+      link
     }
   },
   recovery: {
@@ -18,7 +17,6 @@ export const emailSendConfig = ({ link, URL }: { link: string, URL: string }) =>
     template: 'recover',
     context: {
       link,
-      URL,
     }
   }
 })
