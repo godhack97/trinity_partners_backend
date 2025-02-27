@@ -9,7 +9,6 @@ import {
   Injectable
 } from '@nestjs/common';
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
-import { ConfigService } from "@nestjs/config";
 import {
   CompanyEmployeeStatus,
   UserEntity
@@ -35,8 +34,6 @@ export class CompanyService {
     private readonly userInfoRepository: UserInfoRepository,
     private readonly roleRepository: RoleRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
-    private readonly configService: ConfigService,
-
   ) {
   }
 
@@ -92,8 +89,7 @@ export class CompanyService {
       subject: 'Вас добавили к списку сотрудников!',
       template: 'employee-add-to-company',
       context: {
-        link: 'https://partner.trinity.ru/',
-        URL: this.configService.get('FRONTEND_HOSTNAME')
+        link: 'https://partner.trinity.ru/'
       }
       //html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
     })
