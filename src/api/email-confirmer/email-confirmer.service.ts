@@ -123,7 +123,12 @@ export class EmailConfirmerService {
           to: email,
           subject,
           template: templateVariation, // `.hbs` extension is appended automatically
-          context,
+          context: {
+            
+            ...context,
+            URL: this.configService.get('FRONTEND_HOSTNAME')
+
+          },
         });
          
       } catch (error) {
