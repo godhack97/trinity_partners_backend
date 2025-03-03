@@ -116,13 +116,13 @@ export class EmailConfirmerService {
       try {
 
         const isGmail = email.includes('gmail');
-        const templateVariation = isGmail ? `${ template }--img-as-url` : `${ template }--img-as-base64`;
+        const templateVariation = isGmail ? `${ template }--img-as-url.hbs` : `${ template }--img-as-base64.hbs`;
 
         return await this.mailerService.sendMail({
-          from: `${this.mail}`,
+          //from: `${this.mail}`,
           to: email,
           subject,
-          template: templateVariation, // `.hbs` extension is appended automatically
+          template: templateVariation,
           context: {
             
             ...context,
