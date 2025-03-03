@@ -3,6 +3,8 @@ import { NewsModule } from "@api/news/news.module";
 import { NotificationModule } from "@api/notification/notification.module";
 import { ProfileModule } from "@api/profile/profile.module";
 import { RoleGuard } from "@app/guards/role.guard";
+import { HbsViewModule } from "@app/hbs-view/hbs-view.module";
+import { SendsayModule } from "@app/sendsay/sendsay.module";
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handlebars.adapter";
 import { Module } from '@nestjs/common';
@@ -62,6 +64,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       }),
       inject: [ConfigService],
     }),
+    HbsViewModule,
+    SendsayModule,
     MailerModule.forRootAsync({
       useFactory: async(configService: ConfigService) => {
         console.log({
