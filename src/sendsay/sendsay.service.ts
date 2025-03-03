@@ -8,7 +8,7 @@ type SendMail = {
   subject: string,
   html?: string,
   template?: string,
-  context?: string,
+  context?: object,
 }
 
 @Injectable()
@@ -17,9 +17,9 @@ export class SendsayService {
     private readonly hbsViewService: HbsViewService,
   ) {}
 
-  senderlogin = 'trinity.trinity@smtpgate'
+  senderlogin = 'trinity'
 
-  apikey = ''
+  apikey = '1_Hu8bVe4JYXgUAIOL985_PERxfp_oS_ykxkpwjfPA9i50Zq-mOrW'
 
   URL = 'https://api.sendsay.ru/general/api/v100/json/'
 
@@ -42,15 +42,15 @@ export class SendsayService {
 
     return {
       action: "issue.send",
-      letter: {
-        message,
-        subject,
-        "from.email": this.from
-      },
       group: 'personal',
       email: to,
       sendwhen: 'now',
-      apikey: this.apikey
+      apikey: this.apikey,
+      letter: {
+        "from.email": 'partners@trinity.ru',
+        subject,
+        message
+      }
     }
   }
 
