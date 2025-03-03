@@ -1,5 +1,5 @@
 import { NotificationsReadDto } from "@api/notification/dto/notifications-read.dto";
-import { SendsayService } from "@app/sendsay/sendsay.service";
+import { MailerService } from "@nestjs-modules/mailer";
 import {
   Injectable,
   Logger
@@ -43,7 +43,7 @@ export class NotificationService {
     private readonly userRepository: UserRepository,
     private readonly userSettingRepository: UserSettingRepository,
     private readonly notificationRepository: NotificationRepository,
-    private readonly sendsayService: SendsayService,
+    private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -81,8 +81,8 @@ export class NotificationService {
       email_from = this.configService.get('EMAIL_USERNAME');
 
     try {
-      return await this.sendsayService.sendMail({
-        from: `${email_from}`,
+      return await this.mailerService.sendMail({
+        //from: `${email_from}`,
         to: email,
         subject: title,
         html: `${text}`,

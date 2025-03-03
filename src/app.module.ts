@@ -73,7 +73,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
         })
         return ({
           defaults: {
-            from: configService.get('EMAIL_USERNAME'),
+            from: 'partners@trinity.ru',
           },
           transport: {
             host: configService.get('EMAIL_HOST'),

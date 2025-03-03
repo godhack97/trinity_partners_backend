@@ -11,19 +11,13 @@ export class AppController {
     private readonly appService: AppService,
     private readonly configService: ConfigService,
     private readonly hbsViewService: HbsViewService,
+    private readonly mailerService: MailerService,
 
   ) {}
 
   @Public()
   @Get()
-  getHello(): string {
-    return this.hbsViewService.createHtml({
-      template: 'registration-employee--img-as-base64.hbs',
-      context: {
-        link: 'asdasda',
-        URL: 'asddas'
-      }
-    })
+  async getHello() {
     return 'Hello server!';
   }
 }
