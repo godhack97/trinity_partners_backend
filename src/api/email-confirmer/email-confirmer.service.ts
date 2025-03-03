@@ -4,9 +4,9 @@ import {
   ConfirmParams,
   SendParams
 } from "@api/email-confirmer/types";
+import { SendsayService } from "@app/sendsay/sendsay.service";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { createHash } from "@app/utils/password";
-import { MailerService } from "@nestjs-modules/mailer";
 import {
   BadRequestException,
   HttpException,
@@ -25,7 +25,7 @@ import * as querystring from "node:querystring";
 @Injectable()
 export class EmailConfirmerService {
   constructor(
-    private readonly mailerService: MailerService,
+    private readonly sendsayService: SendsayService,
     private readonly configService: ConfigService,
     private readonly resetHashRepository: ResetHashRepository,
     private readonly userRepository: UserRepository,
@@ -116,13 +116,13 @@ export class EmailConfirmerService {
       try {
 
         const isGmail = email.includes('gmail');
-        const templateVariation = isGmail ? `${ template }--img-as-url` : `${ template }--img-as-base64`;
+        const templateVariation = isGmail ? `${ template }--img-as-url.hbs` : `${ template }--img-as-base64.hbs`;
 
-        return await this.mailerService.sendMail({
+        return await this.sendsayService.sendMail({
           from: `${this.mail}`,
           to: email,
           subject,
-          template: templateVariation, // `.hbs` extension is appended automatically
+          template: templateVariation,
           context: {
             
             ...context,
