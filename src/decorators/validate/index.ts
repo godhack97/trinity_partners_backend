@@ -447,8 +447,8 @@ export const IsLocaleRu = (validationOptions?: ValidationOptions): PropertyDecor
 };
 export const MinLengthRu = (min: number, validationOptions?: ValidationOptions): PropertyDecorator => {
   return MinLength(min, {
-    ...validationOptions,
-    message: message.MinLength
+    message: message.MinLength,
+    ...validationOptions
   });
 };
 export const IsMagnetURIRu = (validationOptions?: ValidationOptions): PropertyDecorator => {

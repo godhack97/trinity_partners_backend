@@ -4,6 +4,7 @@ export const allowedMimeTypes = [
   'image/png',
   'image/gif',
   'image/webp',
+  'image/heic',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/pdf'
