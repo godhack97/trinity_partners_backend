@@ -106,7 +106,7 @@ export class AuthService {
 
   async forgotPassword({ email }) {
     const user = await this.userRepository.findByEmail(email);
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw new UnauthorizedException('Пользователь c таким емайл не найден!');
 
     await this.emailConfirmerService.send({
       user_id: user.id,
