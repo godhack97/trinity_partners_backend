@@ -12,7 +12,9 @@ export class CreateCustomerDto {
   last_name: string;
 
   @ApiProperty()
-  @MinLengthRu(10)
+  @MinLengthRu(10, {
+    message: 'ИНН должен быть длиннее или равен $constraint1 символам'
+  })
   inn: string;
 
   @ApiProperty()
