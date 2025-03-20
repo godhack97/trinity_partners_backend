@@ -20,7 +20,7 @@ import {
   UserSettingRepository
 } from "@orm/repositories";
 
-const USER_EXISTS = 'Пользователь с такой почтой уже существует'
+const USER_EXISTS = 'Пользователь с таким E-mail уже существует'
 
 export enum SearchRoleAdminTypes {
   SuperAdmin = RoleTypes.SuperAdmin,
@@ -77,6 +77,8 @@ export class AdminUserAdminService {
       email,
       password,
       role: roleSuperAdmin,
+      is_activated: true,
+      email_confirmed: true,
     });
 
     await this._createNotificationSettings(user.id)

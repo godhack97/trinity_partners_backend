@@ -6,6 +6,8 @@ export const allowedMimeTypes = [
   'image/webp',
   'image/heic',
   'application/msword',
+  'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/pdf'
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/pdf',
 ];

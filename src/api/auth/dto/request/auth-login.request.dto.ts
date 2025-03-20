@@ -8,7 +8,7 @@ export class AuthLoginRequestDto {
 
   @ApiProperty()
   @MinLengthRu(6, {
-    message: 'Пароль должен быть длиннее или равен $constraint1 символов'
+    message: 'Пароль должен быть длиннее или равен $constraint1 символам'
   })
   password: string;
 }

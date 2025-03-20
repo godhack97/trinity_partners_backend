@@ -32,7 +32,7 @@ import {
 } from "../registration/dto/request/registration-super-admin.request.dto";
 
 const USER_SECRET = 'Неправильно введен СЕКРЕТ';
-const USER_EXISTS = 'Пользователь с такой электронной почтой уже существует';
+const USER_EXISTS = 'Пользователь с таким E-mail уже существует';
 const USER_PHONE_EXISTS = 'Пользователь с таким телефоном уже существует';
 const INN_EXISTS = 'Пользователь с таким ИНН уже существует';
 //Можно перенести в .env
