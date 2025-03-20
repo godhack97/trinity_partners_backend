@@ -1,6 +1,6 @@
+import { CustomValidationPipeFabric } from "@app/pipes/custom-validation-pipe-fabric";
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
 import {
   SwaggerModule,
   DocumentBuilder,
@@ -18,8 +18,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.enableCors();
-  app.useGlobalPipes(new ValidationPipe());
 
+  app.useGlobalPipes(CustomValidationPipeFabric());
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 9131;
 
