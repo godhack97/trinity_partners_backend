@@ -20,7 +20,7 @@ import {
   UserSettingRepository
 } from "@orm/repositories";
 
-const USER_EXISTS = 'Пользователь с такой почтой уже существует'
+const USER_EXISTS = 'Пользователь с таким E-mail уже существует'
 
 export enum SearchRoleAdminTypes {
   SuperAdmin = RoleTypes.SuperAdmin,

@@ -345,7 +345,7 @@ export const IsEANRu = (validationOptions?: ValidationOptions): PropertyDecorato
 };
 export const IsEmailRu = (options?: ValidatorJS.IsEmailOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
   return IsEmail(options, {
-    message: 'Некорректный адрес электронной почты',
+    message: 'Некорректный адрес E-mail почты',
     ...validationOptions
   });
 };
