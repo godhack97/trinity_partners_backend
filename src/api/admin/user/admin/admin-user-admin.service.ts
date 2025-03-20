@@ -77,6 +77,8 @@ export class AdminUserAdminService {
       email,
       password,
       role: roleSuperAdmin,
+      is_activated: true,
+      email_confirmed: true,
     });
 
     await this._createNotificationSettings(user.id)
