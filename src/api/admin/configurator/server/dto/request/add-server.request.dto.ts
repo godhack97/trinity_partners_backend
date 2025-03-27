@@ -63,6 +63,11 @@ export class AddServerRequestDto {
   @IsStringRu()
   cert: string;
 
+  @ApiProperty()
+  @IsOptional()
+  @IsStringRu()
+  gisp: string;
+
   @ApiProperty({type: [ServerSlotDto]})
   @IsOptional()
   @IsArray()

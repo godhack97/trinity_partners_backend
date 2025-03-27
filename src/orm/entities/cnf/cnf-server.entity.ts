@@ -58,6 +58,9 @@ export class CnfServerEntity {
   @Column({nullable: true})
   cert: string;
 
+  @Column({nullable: true})
+  gisp: string;
+
   @CreateDateColumn()
   created_at: Timestamp;
 
