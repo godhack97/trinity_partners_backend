@@ -4,15 +4,15 @@ import { Type } from "class-transformer";
 import { IsArray, IsOptional, ValidateNested } from "class-validator";
 
 class BaseServerSlotDto {
-    @ApiProperty()
-    @IsNotEmptyRu()
-    @IsNumberRu()
-    amount: number;
+  @ApiProperty()
+  @IsNotEmptyRu()
+  @IsNumberRu()
+  amount: number;
 
-    @ApiProperty()
-    @IsOptional()
-    @IsBooleanRu()
-    on_back_panel: boolean;
+  @ApiProperty()
+  @IsOptional()
+  @IsBooleanRu()
+  on_back_panel: boolean;
 }
 
 export class ServerSlotDto extends BaseServerSlotDto {
@@ -26,11 +26,16 @@ export class ServerMultislotDto extends BaseServerSlotDto {
   @IsStringRu()
   multislot_id: string;
 }
+
 export class AddServerRequestDto {
   @ApiProperty()
+  @IsNotEmptyRu()
+  @IsStringRu()
   name: string;
 
   @ApiProperty()
+  @IsNotEmptyRu()
+  @IsStringRu()
   description: string;
 
   @ApiProperty()
@@ -68,14 +73,19 @@ export class AddServerRequestDto {
   @IsStringRu()
   gisp: string;
 
-  @ApiProperty({type: [ServerSlotDto]})
+  @ApiProperty()
+  @IsOptional()
+  @IsNumberRu()
+  sort: number; // Добавляем sort
+
+  @ApiProperty({ type: [ServerSlotDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested()
   @Type(() => ServerSlotDto)
   slots: ServerSlotDto[];
 
-  @ApiProperty({ type: [ServerMultislotDto]})
+  @ApiProperty({ type: [ServerMultislotDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested()

@@ -90,6 +90,7 @@ export class ConfiguratorService {
         "css",
         "cssr.slot_id = css.id",
       )
+      .orderBy('srv.sort', 'ASC')
       .getMany();
 
     function transformData( data = [] ) {

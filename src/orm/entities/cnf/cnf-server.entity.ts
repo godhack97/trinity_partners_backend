@@ -23,6 +23,9 @@ export class CnfServerEntity {
   @Column()
   name: string;
 
+  @Column({ type: 'int', default: 100 })
+  sort: number;
+
   @Column()
   description: string;
 
