@@ -14,10 +14,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import * as path from "node:path";
 import { DataSource } from 'typeorm';
 import { AuthModule } from './api/auth/auth.module';
+import { UsersModule } from './api/users/users.module';
 import { ConfiguratorModule } from './api/configurator/configurator.module';
 import { RegistrationModule } from './api/registration/registration.module';
 import { RoleModule } from './api/role/role.module';
 import { UserModule } from './api/user/user.module';
+import { UserTableSettingsModule } from './api/user-table-settings/user-table-settings.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthGuard } from './guards/auth.guard';
@@ -60,7 +62,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
         entities: ['dist/**/*.entity{.ts,.js}'],
         synchronize: false,
         driver: require('mysql2') ,
-        logging: is_development ? ["query", "error"] : [],
+        // logging: is_development ? ["query", "error"] : [],
+        logging: false,
       }),
       inject: [ConfigService],
     }),
@@ -102,7 +105,9 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       inject: [ConfigService],
     }),
     UserModule,
+    UserTableSettingsModule,
     AuthModule,
+    UsersModule,
     RoleModule,
     RegistrationModule,
     OrmModule,

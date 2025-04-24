@@ -109,7 +109,7 @@ export class NewsService {
       image_big,
       url
     });
-    console.log({updateResult})
+    // console.log({updateResult})
     if (updateResult.affected === 0) {
       throw new HttpException('Не удалось обновить', HttpStatus.INTERNAL_SERVER_ERROR);
     }
