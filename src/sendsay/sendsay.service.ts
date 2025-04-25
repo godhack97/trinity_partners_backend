@@ -23,7 +23,7 @@ export class SendsayService {
 
   URL = 'https://api.sendsay.ru/general/api/v100/json/'
 
-  from: 'partners@trinity.ru'
+  from: 'partner@trinity.ru'
 
   async sendMail(data: SendMail) {
     const body = this.createData(data)
@@ -47,7 +47,7 @@ export class SendsayService {
       sendwhen: 'now',
       apikey: this.apikey,
       letter: {
-        "from.email": 'partners@trinity.ru',
+        "from.email": 'partner@trinity.ru',
         subject,
         message
       }
