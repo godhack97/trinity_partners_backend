@@ -21,8 +21,6 @@ export class DealService {
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.save(createDealDto.customer);
 
-    //return customer;
-
     if(!distributor) {
       throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
     }
@@ -53,6 +51,9 @@ export class DealService {
   async findAll(auth_user: UserEntity, entry?: SearchDealDto) {
     let deals: any[];
 
+    console.log('auth_user', auth_user);
+
+
     switch (auth_user.role.name) {
       case RoleTypes.SuperAdmin:
         deals = await this.dealRepository.findDealsWithFilters(entry);
@@ -70,7 +71,7 @@ export class DealService {
         break;
       }
 
-    return deals;
+    return []; //deals;
   }
 
   async findOne(id: number, auth_user: UserEntity) {
