@@ -1,70 +1,62 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Post,
-  UseInterceptors,
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Public } from 'src/decorators/Public';
-import { TransformResponse } from 'src/interceptors/transform-response.interceptor';
+import { Body, Controller, Get, Headers, Post, Query, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthLoginRequestDto } from './dto/request/auth-login.request.dto';
-import { ChangeForgotPasswordDto } from './dto/request/change-forgot-password.request.dto';
-import { ForgotPasswordRequestDto } from './dto/request/forgot-password.request.dto';
-import { UpdatePasswordRequestDto } from './dto/request/update-password.request.dto';
-import { AuthLoginResponseDto } from './dto/response/auth-login.response.dto';
-import { AuthCheckResponseDto } from './dto/response/auth-check.response.dto';
+import { Request } from 'express';
+import { Public } from 'src/decorators/Public';
 
-@ApiTags('auth')
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Public()
-  @Post('login')
-  @UseInterceptors(new TransformResponse(AuthLoginResponseDto))
-  @ApiResponse({ type: AuthLoginResponseDto })
-  @ApiBody({ type: () => AuthLoginRequestDto })
-  login(@Body() createAuthDto: AuthLoginRequestDto) {
-    return this.authService.login(createAuthDto);
+  private extractClientId(query: any, body: any, headers: any): string {
+    // Если client_id не передан в query, body, или headers, берем origin из заголовков
+    return (
+      headers['origin'] ||
+      query.client_id ||
+      body.client_id ||
+      headers['client-id'] ||
+      headers['Client-Id']
+    );
   }
 
+  @Post('login')
   @Public()
-  @Get('check')
-  @UseInterceptors(new TransformResponse(AuthCheckResponseDto))
-  @ApiResponse({ type: AuthCheckResponseDto })
-  check(@Headers('authorization') authorization: string) {
-    return this.authService.check(authorization);
+  async login(@Body() dto: AuthLoginRequestDto, @Query() query, @Headers() headers) {
+    const clientId = this.extractClientId(query, dto, headers);
+    return this.authService.login(dto, clientId);
   }
 
   @Post('logout')
-  logout(@Headers('authorization') authorization: string) {
-    return this.authService.logout(authorization)
+  async logout(@Headers() headers, @Query() query, @Req() req: Request) {
+    const authorization = headers.authorization;
+    const clientId = this.extractClientId(query, {}, headers);
+    return this.authService.logout(authorization, clientId);
+  }
+
+  @Get('check')
+  async check(@Headers() headers, @Query() query) {
+    const authorization = headers.authorization;
+    const clientId = this.extractClientId(query, {}, headers);
+    return this.authService.check(authorization, clientId);
   }
 
   @Post('update-password')
-  @ApiBearerAuth()
-  @ApiBody({ type: () => UpdatePasswordRequestDto })
-  updatePassword(
-    @Body() updatePassword: UpdatePasswordRequestDto,
-    @Headers('authorization') authorization: string,
-  ) {
-    return this.authService.updatePassword(authorization, updatePassword);
+  async updatePassword(@Body() body, @Headers() headers, @Query() query, @Req() req: Request) {
+    const authorization = headers.authorization;
+    const clientId = this.extractClientId(query, body, headers);
+    return this.authService.updatePassword(authorization, clientId, body);
   }
 
-  @Public()
   @Post('forgot-password')
-  @ApiBody({ type: () => ForgotPasswordRequestDto })
-  forgotPassword(@Body() forgotPasswordDto: ForgotPasswordRequestDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+  @Public()
+  async forgotPassword(@Body() body) {
+    return this.authService.forgotPassword(body);
   }
 
+  @Post('recovery-password')
   @Public()
-  @Post('change-forgot-password')
-  @ApiBody({ type: () => ChangeForgotPasswordDto })
-  changeForgotPassword(@Body() changeForgot: ChangeForgotPasswordDto) {
-    return this.authService.recoveryPassword(changeForgot);
+  async recoveryPassword(@Body() body) {
+    return this.authService.recoveryPassword(body);
   }
 }

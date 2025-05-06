@@ -1,6 +1,10 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
+import { UserToken } from 'src/orm/entities/user-token.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+
 
 import {
   HttpException,
@@ -48,6 +52,8 @@ export class UserService {
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userSettingRepository: UserSettingRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
+    @InjectRepository(UserToken)
+    private readonly userTokenRepository: Repository<UserToken>,
   ) {}
 
   async createEmployee(
@@ -68,10 +74,8 @@ export class UserService {
     const roleEmployee = await this.roleRepository.getEmployee();
     const { email, password: _password } = registrationEmployeeDto;
     const { salt, password } = await createCredentials(_password);
-    const token = await createToken(salt);
 
     const newUser = await this.userRepository.save({
-      token,
       salt,
       email,
       password,
@@ -127,10 +131,8 @@ export class UserService {
     const rolePartner = await this.roleRepository.getPartner();
 
     const { salt, password } = await createCredentials(_password);
-    const token = await createToken(salt);
 
     const newUser = await this.userRepository.save({
-      token,
       salt,
       email,
       password,
@@ -190,10 +192,8 @@ export class UserService {
     const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
 
     const { salt, password } = await createCredentials(_password);
-    const token = await createToken(salt);
 
     const user = await this.userRepository.save({
-      token,
       salt,
       email,
       password,

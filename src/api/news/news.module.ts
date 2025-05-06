@@ -5,5 +5,6 @@ import { Module } from "@nestjs/common";
 @Module({
   controllers: [NewsController],
   providers: [NewsService],
+  exports: [NewsService],
 })
 export class NewsModule {}

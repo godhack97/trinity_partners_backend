@@ -46,9 +46,6 @@ export class UserEntity extends BasisEntity {
   @Column({ default: false })
   email_confirmed: boolean;
 
-  @Column()
-  token: string;
-
   @DeleteDateColumn()
   deleted_at: Date;
 

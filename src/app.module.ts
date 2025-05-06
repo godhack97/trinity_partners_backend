@@ -33,6 +33,8 @@ import { DistributorModule } from './api/distributor/distributor.module';
 import { CompanyModule } from './api/company/company.module';
 import { AuthTokenModule } from './services/auth-token/auth-token.module';
 import { UploadFileModule } from './api/upload-file/upload-file.module';
+import { UserEntity } from './orm/entities/user.entity';
+import { UserToken } from './orm/entities/user-token.entity';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -123,6 +125,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     NotificationModule,
     EmailConfirmModule,
     NewsModule,
+    UserToken,
+    UserEntity
   ],
   controllers: [AppController],
   providers: [

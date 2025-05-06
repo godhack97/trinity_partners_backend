@@ -8,8 +8,11 @@ import {
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ResetHashRepository } from '@orm/repositories/reset-hash.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
+import { UserToken } from 'src/orm/entities/user-token.entity';
 import {
   createCredentials,
   createPassword,
@@ -27,54 +30,76 @@ export class AuthService {
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly notificationService: NotificationService,
     private readonly newsService: NewsService,
+
+    @InjectRepository(UserToken)
+    private readonly userTokenRepository: Repository<UserToken>,
   ) {}
-  async login(authLoginDto: AuthLoginRequestDto) {
+
+  async login(authLoginDto: AuthLoginRequestDto, clientId: string) {
     let user = await this.userRepository.findByEmail(authLoginDto.email);
     if (!user) throw new UnauthorizedException();
-
+  
     const isVerify = await verifyPassword({
       user_password: user.password,
       password: authLoginDto.password,
       salt: user.salt,
     });
-
     if (!isVerify) throw new UnauthorizedException();
-
+  
+    // Ищем запись user_id + client_id
+    let userToken = await this.userTokenRepository.findOneBy({
+      user_id: user.id,
+      client_id: clientId,
+    });
+  
+    if (userToken) {
+      // Если токен уже есть — просто возвращаем его, не трогаем
+      const token = userToken.token;
+      if (user.role.name === RoleTypes.Partner) {
+        user.owner_company = await user.lazy_owner_company;
+      }
+      return { token, user };
+    }
+  
+    // Если нет — создаём новый токен
     const token = await createToken(user.salt);
-    await this.userRepository.update(user.id, { token });
-    user = await this.userRepository.findByEmail(authLoginDto.email);
-
-    if(user.role.name === RoleTypes.Partner) {
+  
+    userToken = this.userTokenRepository.create({
+      user_id: user.id,
+      token,
+      client_id: clientId,
+    });
+    await this.userTokenRepository.save(userToken);
+  
+    if (user.role.name === RoleTypes.Partner) {
       user.owner_company = await user.lazy_owner_company;
     }
-    return {
-      token,
-      user,
-    };
+  
+    return { token, user };
   }
 
-  async logout(authorization: string) {
+  async logout(authorization: string, clientId: string) {
     const token = authorization.substring(7);
-    const user = await this.userRepository.findByToken(token);
 
-    if (!user) throw new UnauthorizedException();
+    const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
+    if (!tokenEntity) throw new UnauthorizedException();
 
-    await this.userRepository.update(user.id, { token: null });
+    await this.userTokenRepository.delete({ token, client_id: clientId });
   }
 
-  async check(authorization: string) {
+  async check(authorization: string, clientId: string) {
     const token = authorization.substring(7);
-    const user = await this.userRepository.findOne({
-      where: {token},
-      relations: ['company_employee.company', 'user_info', 'user_settings']
-    });
-    console.log('user',user)
-    if (!user) throw new HttpException(`Пользователь не найден по токену: ${token}`, HttpStatus.NOT_FOUND);
-    console.warn('AuthService:check')
 
-    const notifications = await this.notificationService.check(user.id)
-    const notifications_unread = await this.notificationService.countUnread(user.id)
-    const news = await this.newsService.check()
+    const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
+    if (!tokenEntity) throw new UnauthorizedException();
+
+    const user = await this.userRepository.findByIdWithCompanyEmployees(tokenEntity.user_id);
+    if (!user) throw new HttpException(`Пользователь не найден`, HttpStatus.NOT_FOUND);
+
+    const notifications = await this.notificationService.check(user.id);
+    const notifications_unread = await this.notificationService.countUnread(user.id);
+    const news = await this.newsService.check();
+
     return {
       ...user,
       notifications,
@@ -82,10 +107,14 @@ export class AuthService {
       news
     };
   }
-  async updatePassword(authorization, { password, newPassword }) {
-    const token = authorization.substring(7);
-    const user = await this.userRepository.findByToken(token);
 
+  async updatePassword(authorization: string, clientId: string, { password, newPassword }) {
+    const token = authorization.substring(7);
+
+    const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
+    if (!tokenEntity) throw new UnauthorizedException();
+
+    const user = await this.userRepository.findById(tokenEntity.user_id);
     if (!user) throw new UnauthorizedException();
 
     const isVerify = await verifyPassword({
@@ -93,7 +122,6 @@ export class AuthService {
       password,
       salt: user.salt,
     });
-
     if (!isVerify) throw new UnauthorizedException();
 
     const passwordHashed = await createPassword({
@@ -101,7 +129,7 @@ export class AuthService {
       salt: user.salt,
     });
 
-    await this.userRepository.update(user.id, { password: passwordHashed });
+    await this.userRepository.updateUser(user.id, { password: passwordHashed });
   }
 
   async forgotPassword({ email }) {
@@ -112,11 +140,11 @@ export class AuthService {
       user_id: user.id,
       email,
       method: EmailConfirmerMethod.Recovery
-    })
+    });
   }
 
   async recoveryPassword({ hash, email, password, repeat }) {
-    const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email});
+    const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email });
     if (!resetHashEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findById(resetHashEntity.user_id);
@@ -124,14 +152,14 @@ export class AuthService {
 
     if (password !== repeat) throw new UnauthorizedException();
 
-    const { password: passwordHashed, salt } = await createCredentials(password)
+    const { password: passwordHashed, salt } = await createCredentials(password);
 
-    await this.userRepository.update(user.id, { password: passwordHashed, salt });
+    await this.userRepository.updateUser(user.id, { password: passwordHashed, salt });
 
     await this.emailConfirmerService.confirm({
       hash,
       email,
       method: EmailConfirmerMethod.Recovery
-    })
+    });
   }
 }

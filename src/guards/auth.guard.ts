@@ -2,6 +2,9 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { IS_PUBLIC_KEY } from '@decorators/Public';
 import { Reflector } from '@nestjs/core';
 import { UserRepository } from 'src/orm/repositories/user.repository';
+import { UserToken } from 'src/orm/entities/user-token.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 const ERROR_MSG = `Пользователь не прошел аутентификацию!`;
 
@@ -9,7 +12,10 @@ const ERROR_MSG = `Пользователь не прошел аутентифи
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly userRepository: UserRepository,
-    private reflector: Reflector,
+    private readonly reflector: Reflector,
+
+    @InjectRepository(UserToken)
+    private readonly userTokenRepository: Repository<UserToken>,
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -17,21 +23,37 @@ export class AuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-
     if (isPublic) return true;
-    const request = context.switchToHttp().getRequest();
-    const _token: string = request.headers.authorization || '';
 
-    if (_token.length == 0) throw new UnauthorizedException(ERROR_MSG);
+    const request = context.switchToHttp().getRequest();
+    const headers = request.headers;
+    const body = request.body || {};
+    const query = request.query || {};
+
+    const _token: string = headers.authorization || '';
+
+    // Собираем client_id
+    const clientId = headers['origin'];
+
+    if (!_token || _token.length === 0) throw new UnauthorizedException(ERROR_MSG);
+    if (!clientId) throw new UnauthorizedException(`Client ID отсутствует!`);
 
     const token = _token.substring(7);
 
-    const user = await this.userRepository.findOneBy({ token });
+    console.log('token:', token);
+    console.log('clientId:', clientId);
 
-    if(!user) throw new UnauthorizedException(ERROR_MSG);
+    // Ищем токен в таблице user_tokens по token + client_id
+    const userToken = await this.userTokenRepository.findOne({ 
+      where: { token, client_id: clientId },
+      relations: ['user'],
+    });
 
-    request['auth_user'] = user
-    console.log('auth_user set',  request['auth_user'] )
-    return Promise.resolve(!!user);
+    if (!userToken || !userToken.user) throw new UnauthorizedException(ERROR_MSG);
+
+    // Устанавливаем пользователя в запрос
+    request['auth_user'] = userToken.user;
+    
+    return true;
   }
 }

@@ -49,7 +49,6 @@ export class ProfileService {
     }
 
     async getProfile(auth_user: Partial<UserEntity>) {
-        console.log('auth_user', auth_user)
         const user = await this.userRepository.findById(auth_user.id);
 
         return user;

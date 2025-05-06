@@ -63,7 +63,7 @@ export default class AdminPartnerService {
       status: CompanyStatus.Accept,
     })
 
-    await this.userRepository.update(companyEntity.owner_id, {
+    await this.userRepository.updateUser(companyEntity.owner_id, {
       is_activated: true,
     })
 

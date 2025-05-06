@@ -5,5 +5,6 @@ import { Module } from "@nestjs/common";
 @Module({
   controllers: [EmailConfirmController],
   providers: [EmailConfirmerService],
+  exports: [EmailConfirmerService]
 })
 export class EmailConfirmModule {}

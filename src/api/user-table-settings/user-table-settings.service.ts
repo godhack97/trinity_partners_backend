@@ -18,7 +18,6 @@ export class UserTableSettingsService {
   }
 
   async save(settings: UserTableSettingsEntity): Promise<UserTableSettingsEntity> {
-    console.log('Сохраняемые данные:', JSON.stringify(settings, null, 2));
     try {
       return await this.userSettingsRepository.save(settings);
     } catch (error) {

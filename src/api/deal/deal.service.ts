@@ -71,7 +71,7 @@ export class DealService {
         break;
       }
 
-    return []; //deals;
+    return deals;
   }
 
   async findOne(id: number, auth_user: UserEntity) {
