@@ -21,6 +21,14 @@ export class UserRepository {
     return await this.repo.find(options);
   }
 
+  public async softDelete(id: number) {
+    return await this.repo.softDelete(id);
+  }
+
+  public async restore(id: number) {
+    return await this.repo.restore(id);
+  }
+
   public async delete(id: number) {
     return await this.repo.delete(id);
   }

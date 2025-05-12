@@ -110,14 +110,24 @@ export class AdminUserAdminService {
     return await this.userRepository.findById(id);
   }
 
-  async delete(id: number) {
-    const deleteResult =  await this.userRepository.delete(id);
+  // фиктивно удаляем (soft-delete)
+  async delete(id: number): Promise<void> {
+    const result = await this.userRepository.softDelete(id);
 
-    if (deleteResult.affected === 0) {
-      throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
+    if (result.affected === 0) {
+      throw new HttpException('Пользователь не найден или не был удален', HttpStatus.NOT_FOUND);
     }
-
   }
+
+  // восстанавливаем, если фиктивно удалили
+  async restore(id: number): Promise<void> {
+    const result = await this.userRepository.restore(id);
+  
+    if (result.affected === 0) {
+      throw new HttpException('Пользователь не найден или уже восстановлен', HttpStatus.NOT_FOUND);
+    }
+  }
+
   private async _createNotificationSettings(id: number) {
     await this.userSettingRepository.save([
       {
