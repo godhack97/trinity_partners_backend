@@ -45,6 +45,9 @@ export class ProfileService {
         update: {
             [RoleTypes.Partner]: this.updatePartner.bind(this),
             [RoleTypes.Employee]: this.updateEmployee.bind(this),
+            [RoleTypes.SuperAdmin]: this.updateEmployee.bind(this),
+            [RoleTypes.EmployeeAdmin]: this.updateEmployee.bind(this),
+            [RoleTypes.ContentManager]: this.updateEmployee.bind(this),
         }
     }
 

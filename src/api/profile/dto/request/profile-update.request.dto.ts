@@ -10,7 +10,7 @@ import { Expose } from "class-transformer";
 import { IsOptional } from "class-validator";
 
 const opts = {
-    first: { groups: [RoleTypes.Employee, RoleTypes.Partner] },
+    first: { groups: [RoleTypes.Employee, RoleTypes.Partner, RoleTypes.SuperAdmin, RoleTypes.EmployeeAdmin, RoleTypes.ContentManager] },
     second: { groups: [RoleTypes.Partner] },
 }
 
