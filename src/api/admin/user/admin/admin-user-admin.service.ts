@@ -48,9 +48,9 @@ export class AdminUserAdminService {
 
   async findAll(entry?: SearchAdminDto) {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r',  'u.role_id = r.id')
-
-    switch (entry.role) {
+    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
+  
+    switch (entry?.role) {
       case SearchRoleAdminTypes.SuperAdmin:
       case SearchRoleAdminTypes.ContentManager:
         queryBuilder.andWhere("r.name = :name", { name: entry.role });
@@ -59,8 +59,14 @@ export class AdminUserAdminService {
       default:
         queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
     }
+  
+    // Фильтрация по archive (deleted_at)
+    if (entry?.archive === true) {
+      queryBuilder.withDeleted();
+      queryBuilder.andWhere("u.deleted_at IS NOT NULL");
+    }
 
-    return queryBuilder.getMany()
+    return queryBuilder.getMany();
   }
 
   async create(data: CreateAdminRequestDto)  {
@@ -120,12 +126,14 @@ export class AdminUserAdminService {
   }
 
   // восстанавливаем, если фиктивно удалили
-  async restore(id: number): Promise<void> {
+  async restore(id: number): Promise<object> {
     const result = await this.userRepository.restore(id);
-  
+
     if (result.affected === 0) {
       throw new HttpException('Пользователь не найден или уже восстановлен', HttpStatus.NOT_FOUND);
     }
+
+    return { success: true };
   }
 
   private async _createNotificationSettings(id: number) {

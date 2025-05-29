@@ -13,7 +13,7 @@ export class UserTableSettingsService {
   async findByUserAndTable(userId: number, tableId: string): Promise<UserTableSettingsEntity | undefined> {
     console.log(`Поиск: userId=${userId}, tableId=${tableId}`);
     const result = await this.userSettingsRepository.findOne({ where: { userId, tableId } });
-    console.log('Результат поиска:', result);
+    // console.log('Результат поиска:', result);
     return result;
   }
 

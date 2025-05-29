@@ -9,7 +9,7 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam } from "@nestjs/swagger";
 import { AdminUserAdminService } from "./admin-user-admin.service";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
@@ -39,5 +39,12 @@ export class AdminUserAdminController {
   @Post(':id/delete')
   async delete(@Param('id') id: string) {
     return await this.adminUserAdminService.delete(+id);
+  }
+
+  @ApiOperation({ summary: 'Восстановить пользователя (снять soft-delete)' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID пользователя' })
+  @Post(':id/restore')
+  async restore(@Param('id') id: string) {
+    return this.adminUserAdminService.restore(+id);
   }
 }

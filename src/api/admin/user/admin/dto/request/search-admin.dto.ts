@@ -2,14 +2,27 @@ import { SearchRoleAdminTypes } from "@api/admin/user/admin/admin-user-admin.ser
 import { ApiProperty } from "@nestjs/swagger";
 import {
   IsEnum,
-  IsOptional
+  IsOptional,
+  IsBoolean,
+  
 } from "class-validator";
 
-export class SearchAdminDto {
+import { Transform } from "class-transformer";
 
-  @ApiProperty({ enum: SearchRoleAdminTypes})
+export class SearchAdminDto {
+  @ApiProperty({ enum: SearchRoleAdminTypes })
   @IsEnum(SearchRoleAdminTypes)
   @IsOptional()
-  role: SearchRoleAdminTypes;
+  role?: SearchRoleAdminTypes;
 
+  @ApiProperty({
+    description: 'Архивные записи (deleted_at != null): true — только архивные, false или не указано — только активные',
+    type: Boolean,
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  archive?: boolean;
 }

@@ -33,7 +33,7 @@ export class UserTableSettingsController {
       settings.tableId = tableId;
     }
     settings.data = body.data;
-    console.log('Сохраняемые настройки:', JSON.stringify(settings, null, 2));
+    // console.log('Сохраняемые настройки:', JSON.stringify(settings, null, 2));
     return this.userTableSettingsService.save(settings);
   }
 }

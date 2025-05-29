@@ -40,8 +40,8 @@ export class AuthGuard implements CanActivate {
 
     const token = _token.substring(7);
 
-    console.log('token:', token);
-    console.log('clientId:', clientId);
+    // console.log('token:', token);
+    // console.log('clientId:', clientId);
 
     // Ищем токен в таблице user_tokens по token + client_id
     const userToken = await this.userTokenRepository.findOne({ 
