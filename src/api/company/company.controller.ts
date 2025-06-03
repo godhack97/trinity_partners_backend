@@ -9,6 +9,7 @@ import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
 import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
 import { TransformResponse } from '@interceptors/transform-response.interceptor';
 import { CompanyEmployeesWithEmpoloyeeResponseDto } from './dto/response/company-employees-response.dto';
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('company')
 @ApiBearerAuth()
@@ -17,6 +18,7 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Post('add-employee')
+  @LogAction('employee_add')
   @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin])
   addEmployee(@AuthUser() auth_user: UserEntity, @Body() addEmployeeDto: AddEmployeeRequestDto) {
     return this.companyService.addEmployee(auth_user, addEmployeeDto);
@@ -35,6 +37,7 @@ export class CompanyController {
   }
 
   @Patch('remove-employee/:id')
+  @LogAction('employee_archive')
   removeEmployee(@Req() request: Request, @Param('id') id: string) {
     return this.companyService.removeEmployee(request, +id, );
   }

@@ -9,6 +9,7 @@ import { DealResponseDto } from './dto/response/deal-response.dto';
 import { SearchDealDto } from './dto/request/search-deal.dto';
 import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
 import { CheckUserOrCompanyStatusGuard } from '@app/guards/check-user-or-company-status.guard';
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('deal')
 @ApiBearerAuth()
@@ -18,6 +19,7 @@ export class DealController {
   constructor(private readonly dealService: DealService) {}
 
   @Post()
+  @LogAction('deal_add')
   @ApiBody({ type: () => CreateDealDto })
   create(@AuthUser() auth_user: UserEntity, @Body() createDealDto: CreateDealDto) {
     return this.dealService.create(auth_user, createDealDto);

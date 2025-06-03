@@ -24,6 +24,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 import { UserEntity } from "@orm/entities";
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('news')
 @ApiBearerAuth()
@@ -47,6 +48,7 @@ export class NewsController {
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
   @Post()
+  @LogAction('news_add')
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async create(@Body() data: NewsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
@@ -55,6 +57,7 @@ export class NewsController {
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
   @Post('/:slug')
+  @LogAction('news_update')
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async update(@Param('slug') slug: string, @Body() data: NewsRequestDto) {
@@ -63,6 +66,7 @@ export class NewsController {
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
   @Post('/:slug/delete')
+  @LogAction('news_delete')
   async delete(@Param('slug') slug: string) {
     return this.newsService.delete(slug);
   }

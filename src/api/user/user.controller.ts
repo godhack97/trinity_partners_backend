@@ -9,6 +9,7 @@ import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TransformResponse } from 'src/interceptors/transform-response.interceptor';
 import { UserResponseDto } from './dto/response/user.response.dto';
 import { UserService } from './user.service';
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -31,6 +32,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @LogAction('user_archive')
   remove(@Param('id') id: string) {
     return this.userService.remove(+id);
   }

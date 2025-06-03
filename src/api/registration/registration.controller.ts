@@ -14,6 +14,7 @@ import { RegistrationService } from './registration.service';
 import {
   RegistrationSuperAdminWithSecretDto
 } from "./dto/request/registration-super-admin.request.dto";
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('registration')
 @Controller('registration')
@@ -22,6 +23,7 @@ export class RegistrationController {
 
   @Public()
   @Post('/employee')
+  @LogAction('registration_employee')
   @ApiBody({ type: () => RegistrationEmployeeRequestDto })
   createEmployee(
     @Body() createRegistrationEmployeeDto: RegistrationEmployeeRequestDto,
@@ -32,6 +34,7 @@ export class RegistrationController {
   }
   @Public()
   @Post('/partner')
+  @LogAction('registration_partner')
   @HttpCode(200)
   @ApiBody({ type: () => RegistrationCompanyRequestDto })
   createCompany(@Body() registrationCompanyDto: RegistrationCompanyRequestDto) {
@@ -40,6 +43,7 @@ export class RegistrationController {
 
   @Public()
   @Post('/super-admin')
+  @LogAction('registration_superAdmin')
   createSuperAdmin(@Body() registrationSuperAdminDto: RegistrationSuperAdminWithSecretDto) {
     return this.registrationService.createSuperAdminWithSecret(registrationSuperAdminDto);
   }

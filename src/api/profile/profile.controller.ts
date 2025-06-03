@@ -24,6 +24,7 @@ import {
 import { UserEntity } from "@orm/entities";
 import { plainToInstance } from "class-transformer";
 import { validateOrReject } from "class-validator";
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('profile')
 @Controller('profile')
@@ -38,6 +39,7 @@ export class ProfileController {
 
     @Post()
     @ApiBearerAuth()
+    @LogAction('profile_update')
     @UseInterceptors(new TransformResponse(ProfileUpdateRequestDto))
     @ApiResponse({ type: ProfileUpdateRequestDto })
     async update(@Req() req: Request, @AuthUser() auth_user: Partial<UserEntity>) {
@@ -55,6 +57,7 @@ export class ProfileController {
 
     @Post('/settings')
     @ApiBearerAuth()
+    @LogAction('profile_update_settings')
     @UseInterceptors(new TransformResponse(ProfileUpdateSettingsRequestDto))
     @ApiResponse({ type: ProfileUpdateSettingsRequestDto })
     updateNotifications(@Body() data: ProfileUpdateSettingsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
@@ -62,6 +65,7 @@ export class ProfileController {
     }
 
     @Post('/updateEmail')
+    @LogAction('profile_update_email')
     @UseInterceptors(new TransformResponse(ProfileUpdateEmailRequestDto))
     @ApiResponse({ type: ProfileUpdateEmailRequestDto })
     async updateEmail(@AuthUser() auth_user: Partial<UserEntity>, @Body() data: ProfileUpdateEmailRequestDto) {
@@ -76,6 +80,7 @@ export class ProfileController {
     }
 
     @Post('/updatePassword')
+    @LogAction('profile_update_password')
     @UseInterceptors(new TransformResponse(ProfileUpdatePasswordRequestDto))
     @ApiResponse({ type: ProfileUpdatePasswordRequestDto })
     async updatePassword(@AuthUser() auth_user: Partial<UserEntity>, @Body() data: ProfileUpdatePasswordRequestDto) {

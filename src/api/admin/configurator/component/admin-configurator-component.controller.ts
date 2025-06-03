@@ -4,6 +4,7 @@ import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AdminConfiguratorComponentService } from "./admin-configurator-component.service";
 import { CreateConfigurationComponentRequestDto } from "./dto/request/create-configurator-component.request.dto";
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags("admin/configurator/component")
 @ApiBearerAuth()
@@ -14,15 +15,19 @@ export class AdminConfiguratorComponentController {
   }
 
   @Post()
+  @LogAction('configurator_component_add')
   createComponent(@Body() data: CreateConfigurationComponentRequestDto) {
     return this.adminConfiguratorComponentService.createComponent(data)
   }
 
   @Post(':id/update')
+  @LogAction('configurator_component_update')
   update(@Param('id') id: string, @Body() data: any) {
     return this.adminConfiguratorComponentService.updateComponent(id, data)
   }
+
   @Post(':id/delete')
+  @LogAction('configurator_component_delete')
   deleteComponent(@Param('id') id: string) {
     return this.adminConfiguratorComponentService.deleteComponent(id)
   }

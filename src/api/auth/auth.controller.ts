@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { AuthLoginRequestDto } from './dto/request/auth-login.request.dto';
 import { Request } from 'express';
 import { Public } from 'src/decorators/Public';
-
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -42,6 +42,7 @@ export class AuthController {
   }
 
   @Post('update-password')
+  @LogAction('auth_update_password')
   async updatePassword(@Body() body, @Headers() headers, @Query() query, @Req() req: Request) {
     const authorization = headers.authorization;
     const clientId = this.extractClientId(query, body, headers);
@@ -55,6 +56,7 @@ export class AuthController {
   }
 
   @Post('recovery-password')
+  @LogAction('auth_recovery_password')
   @Public()
   async recoveryPassword(@Body() body) {
     return this.authService.recoveryPassword(body);
