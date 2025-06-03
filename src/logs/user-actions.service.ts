@@ -10,8 +10,8 @@ export class UserActionsService {
     private readonly userActionRepo: Repository<UserAction>,
   ) {}
 
-  async log(userId: number, action: string, details: object = {}) {
-    const log = this.userActionRepo.create({ userId, action, details });
+  async log(user_id: number, action: string, details: object = {}) {
+    const log = this.userActionRepo.create({ user_id, action, details });
     await this.userActionRepo.save(log);
   }
 }

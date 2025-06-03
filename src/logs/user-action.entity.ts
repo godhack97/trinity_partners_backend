@@ -1,20 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { UserEntity } from '@orm/entities';
 
 @Entity('user_actions')
 export class UserAction {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @ManyToOne(() => UserEntity)
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
+
   @Column({ name: 'user_id', nullable: true })
-  userId: number;
+  user_id: number;
 
   @Column()
   action: string;
 
-  // Исправь здесь:
   @Column({ type: 'json', default: {} })
   details: object;
 
   @CreateDateColumn({ name: 'created_at', nullable: false})
-  createdAt: Date;
+  created_at: Date;
 }

@@ -20,6 +20,7 @@ import { RegistrationModule } from './api/registration/registration.module';
 import { RoleModule } from './api/role/role.module';
 import { UserModule } from './api/user/user.module';
 import { UserTableSettingsModule } from './api/user-table-settings/user-table-settings.module';
+import { LogsListModule } from './api/logs-list/logs.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthGuard } from './guards/auth.guard';
@@ -113,6 +114,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
       inject: [ConfigService],
     }),
     UserModule,
+    LogsListModule,
     UserTableSettingsModule,
     AuthModule,
     UsersModule,
