@@ -4,6 +4,7 @@ import { UserSettingRepository } from "@orm/repositories/user-setting.repository
 import { UserToken } from 'src/orm/entities/user-token.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { emailSendConfig } from "@api/email-confirmer/config";
 
 
 import {
@@ -106,6 +107,41 @@ export class UserService {
     return newUser;
   }
 
+  private async notifySuperAdminsAboutNewPartner({
+    company_name,
+    first_name,
+    last_name,
+    email,
+  }: {
+    company_name?: string,
+    first_name?: string,
+    last_name?: string,
+    email: string,
+  }) {
+    const superAdmins = await this.userRepository.find({
+      where: { role_id: 1 },
+    });
+  
+    // Автоматически определяем имя партнёра
+    const partnerName = company_name
+      || [first_name, last_name].filter(Boolean).join(' ')
+      || 'Партнёр';
+    const partnerEmail = email;
+  
+    for (const admin of superAdmins) {
+      await this.emailConfirmerService.emailSend({
+        email: admin.email,
+        subject: emailSendConfig({ partnerName, partnerEmail })['notify.new.partner'].subject,
+        template: emailSendConfig({ partnerName, partnerEmail })['notify.new.partner'].template,
+        context: {
+          partnerName,
+          partnerEmail,
+          link: 'https://partner.trinity.ru/',
+        }
+      });
+    }
+  }
+
   async createCompany(
     registrationCompanyDto: RegistrationCompanyRequestDto,
   ) {
@@ -166,12 +202,23 @@ export class UserService {
       company_id: company.id,
       employee_id: newUser.id,
       status: CompanyEmployeeStatus.Accept,
-    })
+    });
+
     await this.emailConfirmerService.send({
       user_id: newUser.id,
       email: newUser.email,
       method: EmailConfirmerMethod.EmailConfirmation
-    })
+    });
+
+    // ===== ВСТРОЕННЫЙ ВЫЗОВ РАССЫЛКИ АДМИНАМ =====
+    await this.notifySuperAdminsAboutNewPartner({
+      company_name: registrationCompanyDto.company_name,
+      first_name: registrationCompanyDto.first_name,
+      last_name: registrationCompanyDto.last_name,
+      email: registrationCompanyDto.email,
+    });
+    // =============================================
+
     return newUser;
   }
 

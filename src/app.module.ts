@@ -35,6 +35,10 @@ import { AuthTokenModule } from './services/auth-token/auth-token.module';
 import { UploadFileModule } from './api/upload-file/upload-file.module';
 import { UserEntity } from './orm/entities/user.entity';
 import { UserToken } from './orm/entities/user-token.entity';
+import { UserAction } from "./logs/user-action.entity";
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { LogActionInterceptor } from './logs/log-action.interceptor';
+import { LogsModule } from './logs/logs.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -42,10 +46,12 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
 
 @Module({
   imports: [
+    LogsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: envFilePath,
     }),
+    TypeOrmModule.forFeature([UserAction]),
     TypeOrmModule.forRootAsync({
       imports: [
         ConfigModule,
@@ -82,13 +88,13 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
           },
           transport: {
             host: configService.get('EMAIL_HOST'),
-            port: configService.get('EMAIL_PORT') || 465,
-            secure: configService.get('EMAIL_SECURE'),
+            port: parseInt(configService.get('EMAIL_PORT'), 10) || 2525, // всегда число
+            secure: configService.get('EMAIL_SECURE') === 'true',        // всегда boolean
             auth: {
               user: configService.get('EMAIL_USERNAME'),
               pass: configService.get('EMAIL_PASSWORD'),
             },
-            debug: configService.get('EMAIL_DEBUG') || false, // show debug output
+            debug: configService.get('EMAIL_DEBUG') === 'true',          // всегда boolean
             logger: true
           },
           //preview: true,
@@ -138,7 +144,11 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     {
       provide: APP_GUARD,
       useClass: RoleGuard,
-    }
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LogActionInterceptor,
+    },
   ],
 })
 export class AppModule {

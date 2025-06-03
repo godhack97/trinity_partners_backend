@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam } from "@nestjs/swagger"
 import { AdminUserAdminService } from "./admin-user-admin.service";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { LogAction } from 'src/logs/log-action.decorator';
 
 @ApiTags('admin/user/admin')
 @ApiBearerAuth()
@@ -27,22 +28,26 @@ export class AdminUserAdminController {
   }
 
   @Post()
+  @LogAction('create_user')
   async create(@Body() data: CreateAdminRequestDto) {
     return await this.adminUserAdminService.create(data);
   }
 
   @Post(':id/update')
+  @LogAction('update_user')
   async update(@Param('id') id: string, @Body() data: UpdateAdminRequestDto) {
     return await this.adminUserAdminService.update(+id, data);
   }
 
   @Post(':id/delete')
+  @LogAction('archive_user')
   async delete(@Param('id') id: string) {
     return await this.adminUserAdminService.delete(+id);
   }
 
   @ApiOperation({ summary: 'Восстановить пользователя (снять soft-delete)' })
   @ApiParam({ name: 'id', type: Number, description: 'ID пользователя' })
+  @LogAction('restore_user')
   @Post(':id/restore')
   async restore(@Param('id') id: string) {
     return this.adminUserAdminService.restore(+id);

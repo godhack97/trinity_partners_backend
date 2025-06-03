@@ -19,4 +19,5 @@ export type ActionParams = {
 export enum EmailConfirmerMethod {
   Recovery = 'recovery',
   EmailConfirmation = 'email.confirmation',
+  NotifyAboutNewPartner = 'notify.new.partner',
 }

@@ -4,6 +4,7 @@ import { Roles } from "../../../decorators/Roles";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { RoleTypes } from "../../../types/RoleTypes";
 import { PartnerFilterRequestDto } from "./dto/partner-filters-request.dto";
+import { LogAction } from 'src/logs/log-action.decorator';
 
 
 @ApiTags("admin/partner")
@@ -19,11 +20,13 @@ export class AdminPartnerController {
   }
 
   @Post(':id/accept')
+  @LogAction('partner_accept')
   acceptPartner(@Param('id') id: number) {
     return this.adminPartnerService.accept(id);
   }
 
   @Post(':id/reject')
+  @LogAction('partner_reject')
   rejectPartner(@Param('id') id: number) {
     return this.adminPartnerService.reject(id);
   }
