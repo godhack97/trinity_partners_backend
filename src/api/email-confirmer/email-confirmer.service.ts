@@ -31,8 +31,14 @@ export class EmailConfirmerService {
     private readonly userRepository: UserRepository,
   ) {}
 
-  mail = this.configService.get('EMAIL_USERNAME');
-  hostname = this.configService.get('FRONTEND_HOSTNAME');
+  // Альтернатива: можно сделать геттеры
+  get mail() {
+    return this.configService.get('EMAIL_USERNAME');
+  }
+
+  get hostname() {
+    return this.configService.get('FRONTEND_HOSTNAME');
+  }
 
   confirmActions = {
     registration: this._registrationAction,
@@ -63,7 +69,9 @@ export class EmailConfirmerService {
       verify: hash
     })
 
-    const link = `https://${this.hostname}/${method}?${qs}`
+    // Получаем hostname всегда в методе или через геттер
+    const hostname = this.hostname;
+    const link = `https://${hostname}/${method}?${qs}`;
 
     const expire_date = this._createExpireDate();
 
@@ -77,11 +85,10 @@ export class EmailConfirmerService {
     return await this._emailSend({
       email,
       ...emailSendConfig({ link })[method]
-    })
+    });
   }
 
   async resend(data: SendParams) {
-
     const { user_id, email, method } = data;
 
     const resetHashEntity = await this.resetHashRepository.findOne({
@@ -94,83 +101,79 @@ export class EmailConfirmerService {
     const qs = querystring.stringify({
       email: resetHashEntity.email,
       verify: resetHashEntity.hash
-    })
+    });
 
-    const link = `https://${this.hostname}/${method}?${qs}`
+    const hostname = this.hostname;
+    const link = `https://${hostname}/${method}?${qs}`;
 
     return await this._emailSend({
       email,
       ...emailSendConfig({ link })[method]
-    })
+    });
 
   }
 
   async emailSend({ email, subject, template, context }) {
-
     return await this._emailSend({ email, subject, template, context });
-
   }
 
   private async _emailSend({ email, subject, template, context }) {
+    try {
+      const isGmail = email.includes('gmail');
+      const templateVariation = isGmail
+        ? `${template}--img-as-url.hbs`
+        : `${template}--img-as-base64.hbs`;
 
-      try {
+      // Получаем email отправителя всегда через геттер
+      return await this.mailerService.sendMail({
+        from: `${this.mail}`,
+        to: email,
+        subject,
+        template: templateVariation,
+        context: {
+          ...context,
+          URL: this.hostname
+        },
+      });
 
-        const isGmail = email.includes('gmail');
-        const templateVariation = isGmail ? `${ template }--img-as-url.hbs` : `${ template }--img-as-base64.hbs`;
-
-        return await this.mailerService.sendMail({
-          //from: `${this.mail}`,
-          to: email,
-          subject,
-          template: templateVariation,
-          context: {
-            
-            ...context,
-            URL: this.configService.get('FRONTEND_HOSTNAME')
-
-          },
-        });
-         
-      } catch (error) {
-        Logger.error(error);
-      }
-
+    } catch (error) {
+      Logger.error(error);
+    }
   }
 
   private async _restoreAction({ resetHashEntity }: ActionParams){
-    return await this._deleteResetHashEntity({ resetHashEntity })
+    return await this._deleteResetHashEntity({ resetHashEntity });
   }
 
   private async _registrationAction({ resetHashEntity }: ActionParams) {
-    await this._deleteResetHashEntity({ resetHashEntity })
+    await this._deleteResetHashEntity({ resetHashEntity });
 
     const updateUser = await this.userRepository.update(resetHashEntity.user_id, {
       email_confirmed: true,
-    })
+    });
 
     if (updateUser.affected === 0) {
       throw new InternalServerErrorException('Не удалось обновить пользователя');
     }
 
-    const user = await this.userRepository.findById(resetHashEntity.user_id)
+    const user = await this.userRepository.findById(resetHashEntity.user_id);
 
     if(!user) throw new InternalServerErrorException('Не удалось найти пользователя');
 
     const sendOpts = {
       email: user.email,
       subject: 'Подтверждение почты!',
-    }
+    };
 
     switch (user.role.name) {
       case RoleTypes.Partner:
         await this._emailSend({
           ...sendOpts,
-          //html: this.confirmHtml[RoleTypes.Partner],
           template: 'request-company-receive',
           context: {
             link: 'https://partner.trinity.ru/'
           }
-        })
+        });
         break;
       case RoleTypes.Employee:
         await this._emailSend({
@@ -179,15 +182,15 @@ export class EmailConfirmerService {
           context: {
             link: 'https://partner.trinity.ru/'
           }
-        })
+        });
         break;
       default:
         break;
     }
-
   }
+
   private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
-    const resetHashDelete = await this.resetHashRepository.delete(resetHashEntity.id)
+    const resetHashDelete = await this.resetHashRepository.delete(resetHashEntity.id);
 
     if (!resetHashDelete) {
       throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -198,8 +201,8 @@ export class EmailConfirmerService {
     const { addDays = 2 } = options;
     const d = new Date();
     d.setDate(d.getDate() + addDays);
-    const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
-    const timeString = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
-    return`${yearString} ${timeString}`;
+    const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    const timeString = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+    return `${yearString} ${timeString}`;
   }
 }

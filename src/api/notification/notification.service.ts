@@ -82,7 +82,7 @@ export class NotificationService {
 
     try {
       return await this.mailerService.sendMail({
-        //from: `${email_from}`,
+        from: `${email_from}`,
         to: email,
         subject: title,
         html: `${text}`,

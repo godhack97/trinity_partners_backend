@@ -44,13 +44,12 @@ import { LogsModule } from './logs/logs.module';
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
 
-
 @Module({
   imports: [
     LogsModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: envFilePath,
+      envFilePath: '.env',
     }),
     TypeOrmModule.forFeature([UserAction]),
     TypeOrmModule.forRootAsync({
