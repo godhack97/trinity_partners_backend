@@ -112,10 +112,16 @@ export class UserActionsService {
           entityName = typeof field === 'function' ? field(entity) : entity[field];
         } else if (details.deleted.name) {
           entityName = details.deleted.name;
-        } else if (details.body.company_name) {
-          entityName = details.body.company_name;
         } else {
           entityName = `ID: ${details.params.id}`;
+        }
+      }
+
+      if (!entityName) {
+        if (details?.body?.company_name) {
+          entityName = details.body.company_name;
+        } else if (details?.body?.name) {
+          entityName = details.body.name;
         }
       }
     } catch (e) {
