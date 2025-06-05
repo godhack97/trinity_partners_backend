@@ -110,8 +110,10 @@ export class UserActionsService {
         const entity = await repo.findOne({ where: { id: details.params.id } });
         if (entity) {
           entityName = typeof field === 'function' ? field(entity) : entity[field];
+        } else if (details.deleted.name) {
+          entityName = details.deleted.name;
         } else {
-          entityName = `ID:${details.params.id}`;
+          entityName = `ID: ${details.params.id}`;
         }
       }
     } catch (e) {
