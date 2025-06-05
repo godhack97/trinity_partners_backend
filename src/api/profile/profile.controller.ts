@@ -39,7 +39,7 @@ export class ProfileController {
 
     @Post()
     @ApiBearerAuth()
-    @LogAction('profile_update')
+    @LogAction('profile_update', 'users')
     @UseInterceptors(new TransformResponse(ProfileUpdateRequestDto))
     @ApiResponse({ type: ProfileUpdateRequestDto })
     async update(@Req() req: Request, @AuthUser() auth_user: Partial<UserEntity>) {
@@ -57,7 +57,7 @@ export class ProfileController {
 
     @Post('/settings')
     @ApiBearerAuth()
-    @LogAction('profile_update_settings')
+    @LogAction('profile_update_settings', 'users')
     @UseInterceptors(new TransformResponse(ProfileUpdateSettingsRequestDto))
     @ApiResponse({ type: ProfileUpdateSettingsRequestDto })
     updateNotifications(@Body() data: ProfileUpdateSettingsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
@@ -65,7 +65,7 @@ export class ProfileController {
     }
 
     @Post('/updateEmail')
-    @LogAction('profile_update_email')
+    @LogAction('profile_update_email', 'users')
     @UseInterceptors(new TransformResponse(ProfileUpdateEmailRequestDto))
     @ApiResponse({ type: ProfileUpdateEmailRequestDto })
     async updateEmail(@AuthUser() auth_user: Partial<UserEntity>, @Body() data: ProfileUpdateEmailRequestDto) {
@@ -80,7 +80,7 @@ export class ProfileController {
     }
 
     @Post('/updatePassword')
-    @LogAction('profile_update_password')
+    @LogAction('profile_update_password', 'users')
     @UseInterceptors(new TransformResponse(ProfileUpdatePasswordRequestDto))
     @ApiResponse({ type: ProfileUpdatePasswordRequestDto })
     async updatePassword(@AuthUser() auth_user: Partial<UserEntity>, @Body() data: ProfileUpdatePasswordRequestDto) {

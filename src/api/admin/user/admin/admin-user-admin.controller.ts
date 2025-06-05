@@ -28,26 +28,26 @@ export class AdminUserAdminController {
   }
 
   @Post()
-  @LogAction('create_user')
+  @LogAction('create_user', 'users')
   async create(@Body() data: CreateAdminRequestDto) {
     return await this.adminUserAdminService.create(data);
   }
 
   @Post(':id/update')
-  @LogAction('update_user')
+  @LogAction('update_user', 'users')
   async update(@Param('id') id: string, @Body() data: UpdateAdminRequestDto) {
     return await this.adminUserAdminService.update(+id, data);
   }
 
   @Post(':id/delete')
-  @LogAction('archive_user')
+  @LogAction('archive_user', 'users')
   async delete(@Param('id') id: string) {
     return await this.adminUserAdminService.delete(+id);
   }
 
   @ApiOperation({ summary: 'Восстановить пользователя (снять soft-delete)' })
   @ApiParam({ name: 'id', type: Number, description: 'ID пользователя' })
-  @LogAction('restore_user')
+  @LogAction('restore_user', 'users')
   @Post(':id/restore')
   async restore(@Param('id') id: string) {
     return this.adminUserAdminService.restore(+id);

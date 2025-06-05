@@ -18,7 +18,7 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Post('add-employee')
-  @LogAction('employee_add')
+  @LogAction('employee_add', 'company_employees')
   @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin])
   addEmployee(@AuthUser() auth_user: UserEntity, @Body() addEmployeeDto: AddEmployeeRequestDto) {
     return this.companyService.addEmployee(auth_user, addEmployeeDto);
@@ -37,7 +37,7 @@ export class CompanyController {
   }
 
   @Patch('remove-employee/:id')
-  @LogAction('employee_archive')
+  @LogAction('employee_archive', 'company_employees')
   removeEmployee(@Req() request: Request, @Param('id') id: string) {
     return this.companyService.removeEmployee(request, +id, );
   }

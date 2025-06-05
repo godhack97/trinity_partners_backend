@@ -19,7 +19,7 @@ export class DealController {
   constructor(private readonly dealService: DealService) {}
 
   @Post()
-  @LogAction('deal_add')
+  @LogAction('deal_add', 'deals')
   @ApiBody({ type: () => CreateDealDto })
   create(@AuthUser() auth_user: UserEntity, @Body() createDealDto: CreateDealDto) {
     return this.dealService.create(auth_user, createDealDto);

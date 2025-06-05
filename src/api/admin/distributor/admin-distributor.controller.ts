@@ -15,7 +15,7 @@ export class AdminDistributorController {
   constructor(private readonly adminDistributorService: AdminDistributorService) {}
 
   @Post('add')
-  @LogAction('distributor_add')
+  @LogAction('distributor_add', 'distributors')
   addDistributor(@Body() addDistributorDto: AddDistributorRequestDto) {
     return this.adminDistributorService.addDistributor(addDistributorDto);
   }
@@ -23,13 +23,13 @@ export class AdminDistributorController {
 
   
   @Post(':id/update')
-  @LogAction('distributor_update')
+  @LogAction('distributor_update', 'distributors')
   updateDistributor(@Param('id') id: string, @Body() data: AddDistributorRequestDto) {
     return this.adminDistributorService.updateDistributor(id, data)
   }
 
   @Post(':id/delete')
-  @LogAction('distributor_delete')
+  @LogAction('distributor_delete', 'distributors')
   deleteDistributor(@Param('id') id: string) {
     return this.adminDistributorService.deleteDistributor(id)
   }

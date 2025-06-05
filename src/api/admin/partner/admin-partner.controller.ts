@@ -20,13 +20,13 @@ export class AdminPartnerController {
   }
 
   @Post(':id/accept')
-  @LogAction('partner_accept')
+  @LogAction('partner_accept', 'companies')
   acceptPartner(@Param('id') id: number) {
     return this.adminPartnerService.accept(id);
   }
 
   @Post(':id/reject')
-  @LogAction('partner_reject')
+  @LogAction('partner_reject', 'companies')
   rejectPartner(@Param('id') id: number) {
     return this.adminPartnerService.reject(id);
   }

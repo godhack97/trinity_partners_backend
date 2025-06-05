@@ -14,21 +14,21 @@ export class AdminConfiguratorProcessorGenerationController {
   constructor(private readonly adminConfiguratorProcessorGenerationService: AdminConfiguratorProcessorGenerationService) {}
 
   @Post()
-  @LogAction('configurator_processorGeneration_add')
+  @LogAction('configurator_processorGeneration_add', 'cnf_processor_generation')
   @ApiBody({ type: () => AddProcessorGenerationRequestDto })
   addProcessorGeneration(@Body() addProcessorGenerationDto: AddProcessorGenerationRequestDto) {
     return this.adminConfiguratorProcessorGenerationService.addProcessorGeneration(addProcessorGenerationDto);
   }
 
   @Patch(':id')
-  @LogAction('configurator_processorGeneration_update')
+  @LogAction('configurator_processorGeneration_update', 'cnf_processor_generation')
   @ApiBody({ type: () => AddProcessorGenerationRequestDto })
   updateProcessorGeneration(@Param('id') id: string, @Body() updateProcessorGenerationDto: AddProcessorGenerationRequestDto) {
     return this.adminConfiguratorProcessorGenerationService.updateProcessorGeneration(id, updateProcessorGenerationDto);
   }
 
   @Delete(':id')
-  @LogAction('configurator_processorGeneration_delete')
+  @LogAction('configurator_processorGeneration_delete', 'cnf_processor_generation')
   removeProcessorGeneration(@Param('id') id: string) {
     return this.adminConfiguratorProcessorGenerationService.removeProcessorGeneration(id);
   }

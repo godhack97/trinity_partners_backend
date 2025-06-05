@@ -23,7 +23,7 @@ export class RegistrationController {
 
   @Public()
   @Post('/employee')
-  @LogAction('registration_employee')
+  @LogAction('registration_employee', 'company_employees')
   @ApiBody({ type: () => RegistrationEmployeeRequestDto })
   createEmployee(
     @Body() createRegistrationEmployeeDto: RegistrationEmployeeRequestDto,
@@ -34,7 +34,7 @@ export class RegistrationController {
   }
   @Public()
   @Post('/partner')
-  @LogAction('registration_partner')
+  @LogAction('registration_partner', 'companies')
   @HttpCode(200)
   @ApiBody({ type: () => RegistrationCompanyRequestDto })
   createCompany(@Body() registrationCompanyDto: RegistrationCompanyRequestDto) {
@@ -43,7 +43,7 @@ export class RegistrationController {
 
   @Public()
   @Post('/super-admin')
-  @LogAction('registration_superAdmin')
+  @LogAction('registration_superAdmin', 'users')
   createSuperAdmin(@Body() registrationSuperAdminDto: RegistrationSuperAdminWithSecretDto) {
     return this.registrationService.createSuperAdminWithSecret(registrationSuperAdminDto);
   }

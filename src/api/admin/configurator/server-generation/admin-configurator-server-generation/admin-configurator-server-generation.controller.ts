@@ -14,21 +14,21 @@ export class AdminConfiguratorServerGenerationController {
   constructor(private readonly adminConfiguratorServerGenerationService: AdminConfiguratorServerGenerationService) {}
 
   @Post()
-  @LogAction('configurator_serverGeneration_add')
+  @LogAction('configurator_serverGeneration_add', 'cnf_server_generation')
   @ApiBody({ type: () => AddServerGenerationRequestDto })
   addServerGeneration(@Body() addServerGenerationDto: AddServerGenerationRequestDto) {
     return this.adminConfiguratorServerGenerationService.addServerGeneration(addServerGenerationDto);
   }
 
   @Patch(':id')
-  @LogAction('configurator_serverGeneration_update')
+  @LogAction('configurator_serverGeneration_update', 'cnf_server_generation')
   @ApiBody({ type: () => AddServerGenerationRequestDto })
   updateServerGeneration(@Param('id') id: string, @Body() updateServerGenerationDto: AddServerGenerationRequestDto) {
     return this.adminConfiguratorServerGenerationService.updateServerGeneration(id, updateServerGenerationDto);
   }
 
   @Delete(':id')
-  @LogAction('configurator_serverGeneration_delete')
+  @LogAction('configurator_serverGeneration_delete', 'cnf_server_generation')
   removeServerGeneration(@Param('id') id: string) {
     return this.adminConfiguratorServerGenerationService.removeServerGeneration(id);
   }

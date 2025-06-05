@@ -48,7 +48,7 @@ export class NewsController {
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
   @Post()
-  @LogAction('news_add')
+  @LogAction('news_add', 'news')
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async create(@Body() data: NewsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
@@ -57,7 +57,7 @@ export class NewsController {
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
   @Post('/:slug')
-  @LogAction('news_update')
+  @LogAction('news_update', 'news')
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async update(@Param('slug') slug: string, @Body() data: NewsRequestDto) {
@@ -66,7 +66,7 @@ export class NewsController {
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
   @Post('/:slug/delete')
-  @LogAction('news_delete')
+  @LogAction('news_delete', 'news')
   async delete(@Param('slug') slug: string) {
     return this.newsService.delete(slug);
   }

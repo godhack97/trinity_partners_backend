@@ -14,19 +14,19 @@ export class AdminConfiguratorSlotController {
   constructor(private readonly adminConfiguratorSlotService: AdminConfiguratorSlotService) {}
 
   @Post('add')
-  @LogAction('configurator_slot_add')
+  @LogAction('configurator_slot_add', 'cnf_slots')
   create(@Body() data: CreateSlotRequestDto) {
     return this.adminConfiguratorSlotService.create(data)
   }
 
   @Post(':id/update')
-  @LogAction('configurator_slot_update')
+  @LogAction('configurator_slot_update', 'cnf_slots')
   updateSlot(@Param('id') id: string, @Body() data: CreateSlotRequestDto) {
     return this.adminConfiguratorSlotService.updateSlot(id, data)
   }
 
   @Post(':id/delete')
-  @LogAction('configurator_slot_delete')
+  @LogAction('configurator_slot_delete', 'cnf_slots')
   deleteSlot(@Param('id') id: string) {
     return this.adminConfiguratorSlotService.deleteSlot(id)
   }

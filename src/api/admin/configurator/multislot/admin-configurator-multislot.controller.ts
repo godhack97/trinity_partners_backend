@@ -20,19 +20,19 @@ export class AdminConfiguratorMultislotController {
   }
 
   @Post('create')
-  @LogAction('configurator_multislot_add')
+  @LogAction('configurator_multislot_add', 'cnf_multislots')
   createMultislot(@Body() data: CreateMultislotRequestDto) {
     return this.adminConfiguratorMultislotService.createMultislot(data);
   }
 
   @Post(':id/update')
-  @LogAction('configurator_multislot_update')
+  @LogAction('configurator_multislot_update', 'cnf_multislots')
   updateMultislot(@Param('id') id: string, @Body() data: UpdateMultislotRequestDto) {
     return this.adminConfiguratorMultislotService.updateMultislot(id, data);
   }
 
   @Post(':id/delete')
-  @LogAction('configurator_multislot_delete')
+  @LogAction('configurator_multislot_delete', 'cnf_multislots')
   deleteMultislot(@Param('id') id: string) {
     return this.adminConfiguratorMultislotService.deleteMultislot(id);
   }

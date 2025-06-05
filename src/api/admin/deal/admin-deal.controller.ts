@@ -16,7 +16,7 @@ export class AdminDealController {
 
   
   @Patch(':id/accept-deal')
-  @LogAction('deal_update')
+  @LogAction('deal_update', 'deals')
   acceptDeal(@Param('id') id: string, @Body() updateDealDto: UpdateDealDto) {
     return this.dealsService.update(+id, updateDealDto);
   }

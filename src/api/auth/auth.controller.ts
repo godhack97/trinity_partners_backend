@@ -42,7 +42,7 @@ export class AuthController {
   }
 
   @Post('update-password')
-  @LogAction('auth_update_password')
+  @LogAction('auth_update_password', 'users')
   async updatePassword(@Body() body, @Headers() headers, @Query() query, @Req() req: Request) {
     const authorization = headers.authorization;
     const clientId = this.extractClientId(query, body, headers);
@@ -56,7 +56,7 @@ export class AuthController {
   }
 
   @Post('recovery-password')
-  @LogAction('auth_recovery_password')
+  @LogAction('auth_recovery_password', 'users')
   @Public()
   async recoveryPassword(@Body() body) {
     return this.authService.recoveryPassword(body);

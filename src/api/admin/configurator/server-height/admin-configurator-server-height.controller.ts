@@ -15,19 +15,19 @@ export class AdminConfiguratorServerHeightController {
   constructor(private readonly adminConfiguratorServerHeightService: AdminConfiguratorServerHeightService){}
 
   @Post('add')
-  @LogAction('configurator_serverHeight_add')
+  @LogAction('configurator_serverHeight_add', 'cnf_serverbox_height')
   addServerHeight(@Body() data: AddServerHeightRequestDto) {
     return this.adminConfiguratorServerHeightService.addServerHeight(data)
   }
 
   @Post(':id/update')
-  @LogAction('configurator_serverHeight_update')
+  @LogAction('configurator_serverHeight_update', 'cnf_serverbox_height')
   updateServerHeight(@Param('id') id: string, @Body() data: UpdateServerHeightRequestDto) {
     return this.adminConfiguratorServerHeightService.updateServerHeight(id, data)
   }
 
   @Post(':id/delete')
-  @LogAction('configurator_serverHeight_delete')
+  @LogAction('configurator_serverHeight_delete', 'cnf_serverbox_height')
   deleteServerHeight(@Param('id') id: string) {
     return this.adminConfiguratorServerHeightService.deleteServerHeight(id)
   }

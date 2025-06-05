@@ -32,7 +32,7 @@ export class UserController {
   }
 
   @Delete(':id')
-  @LogAction('user_archive')
+  @LogAction('user_archive', 'users')
   remove(@Param('id') id: string) {
     return this.userService.remove(+id);
   }
