@@ -19,6 +19,10 @@ export class AdminConfiguratorSlotService {
   }
 
   async deleteSlot(id: string) {
-    return await this.cnfSlotRepository.delete(id);
+    try {
+      return await this.cnfSlotRepository.delete(id)
+    } catch {
+      throw new HttpException(`К слоту привязаны компоненты, удаление невозможно`, HttpStatus.CONFLICT)
+    }
   }
 }
