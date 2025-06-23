@@ -11,12 +11,13 @@ export class UserTableSettingsController {
     @Param('userId', ParseIntPipe) userId: number,
     @Param('tableId') tableId: string,
   ): Promise<UserTableSettingsEntity> {
-    console.log(`GET запрос: userId=${userId}, tableId=${tableId}`);
     const settings = await this.userTableSettingsService.findByUserAndTable(userId, tableId);
+
     if (!settings) {
       console.log('Настройки не найдены');
       throw new NotFoundException('Настройки не найдены');
     }
+
     return settings;
   }
 
@@ -24,16 +25,18 @@ export class UserTableSettingsController {
   async upsertUserTableSettings(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('tableId') tableId: string,
-    @Body() body: { data: string[] }, // Изменено на string[]
+    @Body() body: { data: string[] },
   ): Promise<UserTableSettingsEntity> {
     let settings = await this.userTableSettingsService.findByUserAndTable(userId, tableId);
+
     if (!settings) {
       settings = new UserTableSettingsEntity();
       settings.userId = userId;
       settings.tableId = tableId;
     }
+
     settings.data = body.data;
-    // console.log('Сохраняемые настройки:', JSON.stringify(settings, null, 2));
+
     return this.userTableSettingsService.save(settings);
   }
 }

@@ -17,7 +17,14 @@ export const DealStatusRu = {
   moderation: "на рассмотрении",
   win: 'выиграна',
   loose: 'проиграла'
+};
+
+export enum Bitrix24SyncStatus {
+  PENDING = 'pending',
+  SYNCED = 'synced', 
+  FAILED = 'failed'
 }
+
 @Entity({
   name: "deals",
   orderBy: {
@@ -28,6 +35,32 @@ export class DealEntity extends BasisEntity {
 
   @Column()
   deal_num: string;
+
+  @Column({ 
+    name: 'bitrix24_deal_id', 
+    type: 'int', 
+    unsigned: true, 
+    nullable: true,
+    comment: 'ID сделки в Bitrix24'
+  })
+  bitrix24_deal_id?: number;
+
+  @Column({ 
+    name: 'bitrix24_sync_status',
+    type: 'enum',
+    enum: Bitrix24SyncStatus,
+    default: Bitrix24SyncStatus.PENDING,
+    comment: 'Статус синхронизации с Bitrix24'
+  })
+  bitrix24_sync_status: Bitrix24SyncStatus
+
+  @Column({ 
+    name: 'bitrix24_synced_at',
+    type: 'timestamp',
+    nullable: true,
+    comment: 'Время последней синхронизации с Bitrix24'
+  })
+  bitrix24_synced_at?: Date;
 
   @Column()
   distributor_id: number;

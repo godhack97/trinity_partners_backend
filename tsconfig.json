@@ -25,6 +25,7 @@
       //"@types/*": ["src/types/*"],
       "@app/*": ["src/*"],
       "@config/*": ["config/*"],
+      "@integrations/*": ["src/integrations/*"],
     }
   }
 }

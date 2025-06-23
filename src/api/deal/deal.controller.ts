@@ -16,13 +16,37 @@ import { LogAction } from 'src/logs/log-action.decorator';
 @UseGuards(CheckUserOrCompanyStatusGuard)
 @Controller('deal')
 export class DealController {
-  constructor(private readonly dealService: DealService) {}
+  constructor(private readonly dealService: DealService) { }
 
   @Post()
   @LogAction('deal_add', 'deals')
   @ApiBody({ type: () => CreateDealDto })
   create(@AuthUser() auth_user: UserEntity, @Body() createDealDto: CreateDealDto) {
     return this.dealService.create(auth_user, createDealDto);
+  }
+
+  @Get('bitrix24/test')
+  @ApiResponse({
+    description: 'Проверка подключения к Bitrix24',
+    schema: {
+      type: 'object',
+      properties: {
+        connected: { type: 'boolean' },
+        message: { type: 'string' }
+      }
+    }
+  })
+
+  async testBitrix24Connection() {
+    const isConnected = await this.dealService.checkBitrix24Connection();
+    
+    console.log(isConnected);
+    return {
+      connected: isConnected,
+      message: isConnected 
+        ? 'Подключение к Bitrix24 работает корректно' 
+        : 'Ошибка подключения к Bitrix24. Проверьте настройки BITRIX24_WEBHOOK_URL'
+    };
   }
 
   @Get()
