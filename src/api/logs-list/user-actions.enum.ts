@@ -61,9 +61,38 @@ export enum UserActionType {
     REGISTRATION_EMPLOYEE = 'registration_employee',
     REGISTRATION_PARTNER = 'registration_partner',
     REGISTRATION_SUPERADMIN = 'registration_superAdmin',
+
+    BITRIX24_CONTACT_NOTFOUND = 'bitrix24_contact_notfound',
+    BITRIX24_CONTACT_CREATED = 'bitrix24_contact_created',
+    BITRIX24_CONTACT_CREATION_FAILED = 'bitrix24_contact_creation_failed',
+    BITRIX24_LEAD_SYNC_FAILED = 'bitrix24_lead_sync_failed',
+    BITRIX24_LEAD_SYNC_ERROR = 'bitrix24_lead_sync_error',
+    BITRIX24_FORCE_SYNC_STARTED = 'bitrix24_force_sync_started',
+    BITRIX24_LEAD_UPDATED = 'bitrix24_lead_updated',
+    BITRIX24_LEAD_UPDATE_FAILED = 'bitrix24_lead_update_failed',
+    BITRIX24_LEAD_CONVERTED = 'bitrix24_lead_converted',
+    BITRIX24_LEAD_CONVERSION_FAILED = 'bitrix24_lead_conversion_failed',
+    BITRIX24_LEAD_CONVERSION_ERROR = 'bitrix24_lead_conversion_error',
+    BITRIX24_SYNC_DATA_CLEANED = 'bitrix24_sync_data_cleaned',
+    BITRIX24_LEAD_NOT_FOUND = 'bitrix24_lead_not_found'
   }
   
   export const UserActionLabels: Record<UserActionType, string> = {
+    [UserActionType.BITRIX24_CONTACT_NOTFOUND]: 'Контакт не найден для сделки',
+    [UserActionType.BITRIX24_CONTACT_CREATED]: 'Контакт создан в Bitrix24',
+    [UserActionType.BITRIX24_CONTACT_CREATION_FAILED]: 'Ошибка создания контакта в Bitrix24',
+    [UserActionType.BITRIX24_LEAD_SYNC_FAILED]: 'Не удалось создать сделку в Bitrix24',
+    [UserActionType.BITRIX24_LEAD_SYNC_ERROR]: 'Ошибка синхронизации сделки в Bitrix24',
+    [UserActionType.BITRIX24_FORCE_SYNC_STARTED]: 'Ошибка принудительной синхронизации лида для сделки',
+    [UserActionType.BITRIX24_LEAD_UPDATED]: 'Сделка успешно обновлена',
+    [UserActionType.BITRIX24_LEAD_UPDATE_FAILED]: 'Ошибка обновления лида для сделки',
+    [UserActionType.BITRIX24_LEAD_CONVERTED]: 'Лид конвертирован в сделку',
+    [UserActionType.BITRIX24_LEAD_CONVERSION_FAILED]: 'Не удалось конвертировать лид в сделку',
+    [UserActionType.BITRIX24_LEAD_CONVERSION_ERROR]: 'Ошибка конвертации лида для сделки',
+    [UserActionType.BITRIX24_SYNC_DATA_CLEANED]: 'Очищены старые записи по сделкам failed -> pending',
+    [UserActionType.BITRIX24_LEAD_NOT_FOUND]: 'Лид не найден в Bitrix24',
+
+
     [UserActionType.CONFIGURATOR_COMPONENT_ADD]: 'Добавлен компонент конфигуратора',
     [UserActionType.CONFIGURATOR_COMPONENT_UPDATE]: 'Обновлён компонент конфигуратора',
     [UserActionType.CONFIGURATOR_COMPONENT_DELETE]: 'Удалён компонент конфигуратора',

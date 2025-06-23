@@ -5,6 +5,7 @@ import { Bitrix24Service } from './bitrix24.service';
 import { DealRepository, UserRepository } from '@orm/repositories';
 import { Bitrix24SyncStatus } from '@orm/entities';
 import { IsNull, Not } from 'typeorm';
+import { UserActionsService } from '../../logs/user-actions.service';
 
 @Injectable()
 export class Bitrix24QueueService {
@@ -14,6 +15,7 @@ export class Bitrix24QueueService {
     private readonly bitrix24Service: Bitrix24Service,
     private readonly dealRepository: DealRepository,
     private readonly userRepository: UserRepository,
+    private readonly userActionsService: UserActionsService,
   ) {}
 
   /**
@@ -62,6 +64,21 @@ export class Bitrix24QueueService {
       const user = await this.userRepository.findOneBy({ id: deal.creator_id });
       if (!user) {
         this.logger.error(`Пользователь не найден для сделки ${deal.id}`);
+
+        this.userActionsService.log(
+          0,
+          'bitrix24_contact_notfound',
+          {
+            entity: 'deals',
+            params: {
+              id: deal.id
+            },
+            bitrix24_contact_id: deal.creator_id,
+            deal_id: deal.id,
+            id: deal.id,
+          }
+        );
+
         return;
       }
 
@@ -76,16 +93,40 @@ export class Bitrix24QueueService {
             bitrix24_contact_id: contactId,
           });
           this.logger.log(`Контакт создан и сохранен для пользователя ${user.id} с ID: ${contactId}`);
+
+          this.userActionsService.log(
+            user.id,
+            'bitrix24_contact_created',
+            {
+              entity: 'users',
+              params: {
+                id: user.id
+              },
+              bitrix24_contact_id: contactId,
+              deal_id: deal.id
+            }
+          );
         } else {
           this.logger.error(`Не удалось создать контакт для пользователя ${user.id}`);
+
+          this.userActionsService.log(
+            user.id,
+            'bitrix24_contact_creation_failed',
+            {
+              entity: 'users',
+              params: {
+                id: user.id
+              },
+              deal_id: deal.id,
+              error: `Не удалось создать контакт Bitrix24 для пользователя ${user.id}`
+            }
+          );
         }
       }
 
       let distributorName: string | undefined;
       if (deal.distributor_id) {
-        // Здесь нужно будет добавить получение имени дистрибьютора
-        // distributorName = await this.getDistributorName(deal.distributor_id);
-        distributorName = `Distributor_${deal.distributor_id}`; // Временно
+        distributorName = `Distributor_${deal.distributor_id}`;
       }
 
       const bitrixLeadId = await this.bitrix24Service.createLead(deal, distributorName, contactId);
@@ -99,12 +140,24 @@ export class Bitrix24QueueService {
 
         this.logger.log(`Лид для сделки ${deal.id} успешно создан в Bitrix24 с ID: ${bitrixLeadId}`);
       } else {
-
         await this.dealRepository.update(deal.id, {
           bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
         });
 
         this.logger.error(`Не удалось создать лид для сделки ${deal.id}`);
+
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_lead_sync_failed',
+          {
+            entity: 'deals',
+            params: {
+              id: deal.id
+            },
+            deal_id: deal.id,
+            error: `Не удалось создать лид для сделки ${deal.id}`
+          }
+        );
       }
     } catch (error) {
       this.logger.error(`Ошибка синхронизации лида для сделки ${deal.id}:`, error);
@@ -112,6 +165,19 @@ export class Bitrix24QueueService {
       await this.dealRepository.update(deal.id, {
         bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
       });
+
+      this.userActionsService.log(
+        deal.creator_id,
+        'bitrix24_lead_sync_error',
+        {
+          entity: 'deals',
+          params: {
+            id: deal.id
+          },
+          deal_id: deal.id,
+          error: error.message || `Ошибка синхронизации лида для сделки ${deal.id}`
+        }
+      );
     }
   }
 
@@ -125,6 +191,18 @@ export class Bitrix24QueueService {
         this.logger.error(`Сделка ${dealId} не найдена`);
         return false;
       }
+
+      this.userActionsService.log(
+        deal.creator_id,
+        'bitrix24_force_sync_started',
+        {
+          entity: 'deals',
+          params: {
+            id: deal.id
+          },
+          deal_id: dealId
+        }
+      );
 
       await this.syncSingleLead(deal);
       return true;
@@ -160,6 +238,34 @@ export class Bitrix24QueueService {
 
       if (success) {
         this.logger.log(`Лид ${deal.bitrix24_deal_id} успешно обновлен`);
+
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_lead_updated',
+          {
+            entity: 'deals',
+            params: {
+              id: dealId
+            },
+            deal_id: dealId,
+            bitrix24_lead_id: deal.bitrix24_deal_id,
+            distributor_name: distributorName
+          }
+        );
+      } else {
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_lead_update_failed',
+          {
+            entity: 'deals',
+            params: {
+              id: dealId
+            },
+            deal_id: dealId,
+            bitrix24_lead_id: deal.bitrix24_deal_id,
+            error: `Ошибка обновления лида для сделки ${dealId}`,
+          }
+        );
       }
 
       return success;
@@ -203,11 +309,57 @@ export class Bitrix24QueueService {
         }
 
         this.logger.log(`Лид ${deal.bitrix24_deal_id} конвертирован в сделку ${result.dealId}`);
+
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_lead_converted',
+          {
+            entity: 'deals',
+            params: {
+              id: dealId
+            },
+            deal_id: dealId,
+            old_bitrix24_lead_id: deal.bitrix24_deal_id,
+            new_bitrix24_deal_id: result.dealId,
+            bitrix24_contact_id: result.contactId
+          }
+        );
+      } else {
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_lead_conversion_failed',
+          {
+            entity: 'deals',
+            params: {
+              id: dealId
+            },
+            deal_id: dealId,
+            bitrix24_lead_id: deal.bitrix24_deal_id,
+            error: 'Failed to convert lead to deal'
+          }
+        );
       }
 
       return result;
     } catch (error) {
       this.logger.error(`Ошибка конвертации лида для сделки ${dealId}:`, error);
+
+      const deal = await this.dealRepository.findOneBy({ id: dealId });
+      if (deal) {
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_lead_conversion_error',
+          {
+            entity: 'deals',
+            params: {
+              id: dealId
+            },
+            deal_id: dealId,
+            error: error.message || `Ошибка конвертации лида для сделки ${dealId}`,
+          }
+        );
+      }
+
       return null;
     }
   }
@@ -296,7 +448,6 @@ export class Bitrix24QueueService {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      // сделки которые были синхронизированы более 30 дней назад и имеют статус FAILED
       const oldFailedDeals = await this.dealRepository
         .createQueryBuilder('deal')
         .where('deal.bitrix24_sync_status = :status', { status: Bitrix24SyncStatus.FAILED })
@@ -305,12 +456,26 @@ export class Bitrix24QueueService {
 
       let cleanedCount = 0;
 
-      // Сбрасываем статус на PENDING для повторной попытки
       for (const deal of oldFailedDeals) {
         await this.dealRepository.update(deal.id, {
           bitrix24_sync_status: Bitrix24SyncStatus.PENDING,
           bitrix24_synced_at: null
         });
+
+        this.userActionsService.log(
+          deal.creator_id,
+          'bitrix24_sync_data_cleaned',
+          {
+            entity: 'deals',
+            params: {
+              id: deal.id
+            },
+            deal_id: deal.id,
+            previous_status: Bitrix24SyncStatus.FAILED,
+            new_status: Bitrix24SyncStatus.PENDING
+          }
+        );
+
         cleanedCount++;
       }
 
@@ -346,6 +511,19 @@ export class Bitrix24QueueService {
           } else {
             result.invalid++;
             this.logger.warn(`Лид ${deal.bitrix24_deal_id} не найден в Bitrix24`);
+
+            this.userActionsService.log(
+              deal.creator_id,
+              'bitrix24_lead_not_found',
+              {
+                entity: 'deals',
+                params: {
+                  id: deal.id
+                },
+                deal_id: deal.id,
+                bitrix24_lead_id: deal.bitrix24_deal_id
+              }
+            );
           }
 
           await this.delay(100);
@@ -365,9 +543,6 @@ export class Bitrix24QueueService {
    * TODO: Реализовать получение имени дистрибьютора из соответствующего репозитория
    */
   private async getDistributorName(distributorId: number): Promise<string | undefined> {
-    // Здесь должна быть логика получения имени дистрибьютора
-    // const distributor = await this.distributorRepository.findOneBy({ id: distributorId });
-    // return distributor?.name;
     return `Distributor_${distributorId}`;
   }
 
