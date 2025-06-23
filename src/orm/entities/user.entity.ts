@@ -39,7 +39,7 @@ export class UserEntity extends BasisEntity {
   @OneToOne(() => UserInfoEntity, (userInfo: UserInfoEntity) => userInfo.user) // Добавляем связь с UserInfoEntity
   user_info: UserInfoEntity;
 
-  @ManyToOne(() => RoleEntity, (role: RoleEntity) => role.id, {eager: true})
+  @ManyToOne(() => RoleEntity, (role: RoleEntity) => role.id, { eager: true })
   @JoinColumn({ name: "role_id" })
   role: RoleEntity;
 
@@ -52,10 +52,37 @@ export class UserEntity extends BasisEntity {
   @OneToOne(() => CompanyEntity, (company) => company.owner)
   lazy_owner_company: Promise<CompanyEntity>;
   owner_company: CompanyEntity;
-  
+
   @OneToOne(() => UserInfoEntity, (info) => info.user, { eager: true })
   info: UserInfoEntity
 
   @OneToMany(() => UserSettingEntity, (settings: UserSettingEntity) => settings.user)
   user_settings: UserSettingEntity[];
+
+
+  @Column({
+    name: 'bitrix24_contact_id',
+    type: 'int',
+    unsigned: true,
+    nullable: true,
+    comment: 'ID контакта в Bitrix24'
+  })
+  bitrix24_contact_id?: number;
+
+  @Column({
+    name: 'bitrix24_sync_status',
+    type: 'enum',
+    enum: ['pending', 'synced', 'failed'],
+    default: 'pending',
+    comment: 'Статус синхронизации контакта с Bitrix24'
+  })
+  bitrix24_sync_status?: string;
+
+  @Column({
+    name: 'bitrix24_synced_at',
+    type: 'timestamp',
+    nullable: true,
+    comment: 'Время последней синхронизации контакта с Bitrix24'
+  })
+  bitrix24_synced_at?: Date;
 }

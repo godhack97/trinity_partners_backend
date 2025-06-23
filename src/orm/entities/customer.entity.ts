@@ -24,4 +24,7 @@ export class CustomerEntity extends BasisEntity {
 
   @Column({ nullable: true })
   phone: string;
+
+  @Column({ nullable: true })
+  bitrix24_company_id: number;
 }

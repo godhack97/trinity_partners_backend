@@ -40,6 +40,7 @@ import { UserAction } from "./logs/user-action.entity";
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LogActionInterceptor } from './logs/log-action.interceptor';
 import { LogsModule } from './logs/logs.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
@@ -123,6 +124,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     ConfiguratorModule,
     AdminModule,
     DealModule,
+    IntegrationsModule,
     CustomerModule,
     DistributorModule,
     CompanyModule,
