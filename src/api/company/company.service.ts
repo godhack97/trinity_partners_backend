@@ -1,4 +1,4 @@
-import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
+import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.service';
 import { AuthTokenService } from '@app/services/auth-token/auth-token.service';
 import { RoleTypes } from '@app/types/RoleTypes';
 import {
@@ -6,80 +6,54 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
-  Injectable
+  Injectable,
 } from '@nestjs/common';
-import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
-import {
-  CompanyEmployeeStatus,
-  UserEntity
-} from '@orm/entities';
+import { InternalServerErrorException } from '@nestjs/common/exceptions/internal-server-error.exception';
+import { CompanyEmployeeStatus, UserEntity } from '@orm/entities';
 import {
   CompanyEmployeeRepository,
   CompanyRepository,
   RoleRepository,
   UserInfoRepository,
-  UserRepository
+  UserRepository,
 } from '@orm/repositories';
 import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
 import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
 
 @Injectable()
 export class CompanyService {
-
-  constructor(  
+  constructor(
     private readonly userRepository: UserRepository,
     private readonly authTokenService: AuthTokenService,
     private readonly companyRepository: CompanyRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private readonly userInfoRepository: UserInfoRepository,
     private readonly roleRepository: RoleRepository,
-    private readonly emailConfirmerService: EmailConfirmerService,
-  ) {
-  }
+    private readonly emailConfirmerService: EmailConfirmerService
+  ) { }
 
   async addEmployee(auth_user: UserEntity, addEmployeeDto: AddEmployeeRequestDto) {
     const user = await this.userRepository.findByEmailWithCompanyEmployees(addEmployeeDto.email);
 
-    if( user.role.name !== RoleTypes.Employee) {
-      throw new BadRequestException('Этот пользователь не может быть добавлен!')
+    if (user.role.name !== RoleTypes.Employee) {
+      throw new BadRequestException('Этот пользователь не может быть добавлен!');
     }
 
-    const hasEmployeeRelation = await this.companyEmployeeRepository.findOneBy({
-      employee_id: user.id
-    })
+    // Проверяем, что сотрудник уже привязан к нашей компании
+    const authUserCompany = await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(auth_user.id);
+    const employeeCompany = await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(user.id);
 
-    if(!hasEmployeeRelation) {
-      await this.companyEmployeeRepository.save({
-        company_id: null,
-        employee_id: user.id,
-        status: CompanyEmployeeStatus.Pending,
-      })
+    if (!employeeCompany || employeeCompany.company_id !== authUserCompany.company_id) {
+      throw new ForbiddenException('Этот сотрудник не принадлежит вашей компании');
     }
 
-    const hasEmployeeCompanyRelation = await this.companyEmployeeRepository.findOneBy({
-      employee_id: user.id
-    })
-
-    if(hasEmployeeCompanyRelation.company_id !== null) {
-      throw new ForbiddenException('Этот сотрудник уже присоединен к другой компании')
+    if (employeeCompany.status === CompanyEmployeeStatus.Accept) {
+      throw new BadRequestException('Этот сотрудник уже добавлен или отклонен');
     }
 
-    const companyId =  (await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(auth_user.id)).company_id;
-
-    const companyName = (await this.companyRepository.findById(companyId)).name;
-
-    await this.userInfoRepository.update(user.user_info.id, {
-      company_name: companyName,
-    });
-    
-    const employeRelationId = ( await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(user.id) ).id;
-    
-    await this.companyEmployeeRepository.update( employeRelationId, {
-
-      company_id: companyId,
-      employee_id: user.id,
+    // Одобряем сотрудника
+    await this.companyEmployeeRepository.update(employeeCompany.id, {
       status: CompanyEmployeeStatus.Accept
-
     });
 
     await this.userRepository.update(user.id, { is_activated: true });
@@ -91,71 +65,94 @@ export class CompanyService {
       context: {
         link: 'https://partner.trinity.ru/'
       }
-      //html: 'Спасибо за ожидание! Вы добавлены к списку сотрудников, доступ к порталу открыт. <a href="https://partner.trinity.ru/">https://partner.trinity.ru/</a>'
-    })
+    });
 
-    return { succes: true }
+    return { success: true };
   }
 
   async getCompanyEmployees(request: Request) {
     const token = this.authTokenService.extractToken(request);
-    const role =  await this.authTokenService.getUserRole(token);
+    const role = await this.authTokenService.getUserRole(token);
 
-    if(![RoleTypes.Partner, RoleTypes.EmployeeAdmin, RoleTypes.SuperAdmin].includes(role.role as RoleTypes)) {
-      throw new HttpException('У вас нет прав для данного действия', HttpStatus.FORBIDDEN);
+    if (
+      ![
+        RoleTypes.Partner,
+        RoleTypes.EmployeeAdmin,
+        RoleTypes.SuperAdmin,
+      ].includes(role.role as RoleTypes)
+    ) {
+      throw new HttpException(
+        'У вас нет прав для данного действия',
+        HttpStatus.FORBIDDEN
+      );
     }
 
-    if(role.role===RoleTypes.SuperAdmin){
-      return await this.companyEmployeeRepository.findAllCompanyEmployeesWithUsersAndInfo()
+    if (role.role === RoleTypes.SuperAdmin) {
+      return await this.companyEmployeeRepository.findAllCompanyEmployeesWithUsersAndInfo();
     }
 
-    if([RoleTypes.Partner, RoleTypes.EmployeeAdmin].includes(role.role as RoleTypes)) {
-      return await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(role.companyId);
+    if (
+      [RoleTypes.Partner, RoleTypes.EmployeeAdmin].includes(
+        role.role as RoleTypes
+      )
+    ) {
+      return await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+        role.companyId
+      );
     }
   }
 
-  async changeStatusEmployeeAdmin(request: Request, id: number, body: AddEmployeeAdminRequestDto) {
+  async changeStatusEmployeeAdmin(
+    request: Request,
+    id: number,
+    body: AddEmployeeAdminRequestDto
+  ) {
     const { user } = await this.checkUserPermissions(request, id);
-     
-    const newRoleName = body.isEmployeeAdmin ? RoleTypes.EmployeeAdmin : RoleTypes.Employee;
 
-    const newRole =  await this.roleRepository.findByRole(newRoleName);
-   
+    const newRoleName = body.isEmployeeAdmin
+      ? RoleTypes.EmployeeAdmin
+      : RoleTypes.Employee;
+
+    const newRole = await this.roleRepository.findByRole(newRoleName);
+
     const updateResult = await this.userRepository.update(user.id, {
       role: newRole,
-      });
-      
-    if (updateResult.affected === 0) {
-      throw new InternalServerErrorException('Не удалось обновить роль пользователя');
-    }
-      
-    return {
-      message: `Роль сотрудника ${user.id} была успешно заменена на ${newRoleName}`,
-      succes: true,
-    };  
-  }
-
-
-  async removeEmployee(request: Request, id: number) {
-
-    const { user } = await this.checkUserPermissions(request, id);
-
-    const role = await this.roleRepository.findByRole(RoleTypes.Employee);
-
-    const updateResult = await this.userRepository.update(user.id, {
-      role,
     });
 
     if (updateResult.affected === 0) {
-      throw new InternalServerErrorException('Не удалось обновить роль пользователя');
+      throw new InternalServerErrorException(
+        'Не удалось обновить роль пользователя'
+      );
     }
 
-    const deleteResult = await this.companyEmployeeRepository.delete(user.company_employee.id);
+    return {
+      message: `Роль сотрудника ${user.id} была успешно заменена на ${newRoleName}`,
+      succes: true,
+    };
+  }
 
-    if (deleteResult.affected === 0) {
+  async removeEmployee(request: Request, id: number) {
+    const { user } = await this.checkUserPermissions(request, id);
+    const role = await this.roleRepository.findByRole(RoleTypes.Employee);
+    const updateResult = await this.userRepository.update(user.id, {
+      role,
+    });
+  
+    if (updateResult.affected === 0) {
+      throw new InternalServerErrorException(
+        'Не удалось обновить роль пользователя'
+      );
+    }
+  
+    const updateStatusResult = await this.companyEmployeeRepository.update(
+      user.company_employee.id,
+      { status: CompanyEmployeeStatus.Deleted }
+    );
+  
+    if (updateStatusResult.affected === 0) {
       throw new InternalServerErrorException('Не удалось удалить пользователя');
     }
-
+  
     return {
       message: `Cотрудник c ${user.id} был успешно удален`,
       succes: true,
@@ -165,27 +162,35 @@ export class CompanyService {
   private async checkUserPermissions(request: Request, id: number) {
     const token = this.authTokenService.extractToken(request);
     const role = await this.authTokenService.getUserRole(token);
-    
-    if (![RoleTypes.Partner, RoleTypes.EmployeeAdmin].includes(role.role as RoleTypes)) {
-      throw new HttpException('У вас нет прав для данного действия', HttpStatus.FORBIDDEN);
+
+    if (
+      ![RoleTypes.Partner, RoleTypes.EmployeeAdmin].includes(
+        role.role as RoleTypes
+      )
+    ) {
+      throw new HttpException(
+        'У вас нет прав для данного действия',
+        HttpStatus.FORBIDDEN
+      );
     }
-    
+
     const user = await this.userRepository.findByIdWithCompanyEmployees(id);
-    
+
     if (!user) {
       throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
     }
-    
-    if (![RoleTypes.Employee, RoleTypes.EmployeeAdmin].includes(user.role.name as RoleTypes)) {
-      throw new HttpException('Только сотрудникам можно менять статус', HttpStatus.FORBIDDEN);
+
+    if (
+      ![RoleTypes.Employee, RoleTypes.EmployeeAdmin].includes(
+        user.role.name as RoleTypes
+      )
+    ) {
+      throw new HttpException(
+        'Только сотрудникам можно менять статус',
+        HttpStatus.FORBIDDEN
+      );
     }
-    
-    // if (!user.company_employee?.company_id 
-    //   || user.company_employee?.company_id !== role.companyId 
-    //   || user.company_employee?.status !== CompanyEmployeeStatus.Accept) {
-    //   throw new HttpException('Данный пользователь не является вашим сотрудником или его статус не подтвержден', HttpStatus.FORBIDDEN);
-    // }
-    
+
     return { user, role };
   }
 }

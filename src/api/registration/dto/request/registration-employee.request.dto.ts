@@ -14,7 +14,7 @@ export class RegistrationEmployeeRequestDto {
   email: string;
 
   @ApiProperty()
-  job_title: string; //должность
+  job_title: string;
 
   @ApiProperty()
   password: string;
@@ -22,5 +22,9 @@ export class RegistrationEmployeeRequestDto {
   @ApiProperty()
   @IsNotEmptyRu()
   phone: string;
+
+  @ApiProperty()
+  @IsNotEmptyRu()
+  company_inn: string;
 }
 
