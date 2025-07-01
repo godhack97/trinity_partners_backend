@@ -18,9 +18,26 @@ export class LogActionInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
     private readonly userActions: UserActionsService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+
+    function removePasswords(obj: any): any {
+      if (Array.isArray(obj)) {
+        return obj.map(removePasswords);
+      }
+      if (obj && typeof obj === 'object') {
+        const result: any = {};
+        for (const key of Object.keys(obj)) {
+          if (!key.toLowerCase().includes('password')) {
+            result[key] = removePasswords(obj[key]);
+          }
+        }
+        return result;
+      }
+      return obj;
+    }
+
     const logMeta = this.reflector.get<{ action: string; entity?: string }>(
       LOG_ACTION_KEY,
       context.getHandler(),
@@ -49,7 +66,7 @@ export class LogActionInterceptor implements NestInterceptor {
             const details: Record<string, any> = {
               entity: logMeta.entity,
               params: req.params,
-              body: req.body,
+              body: removePasswords(req.body),
               query: req.query,
             };
             if (entitySnapshot) {
