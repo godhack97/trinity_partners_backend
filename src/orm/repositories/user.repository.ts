@@ -58,6 +58,13 @@ export class UserRepository {
     return await this.repo.find();
   }
 
+  async findByIdWithUserInfo(id: number): Promise<UserEntity> {
+    return await this.findOne({
+      where: { id },
+      relations: ['user_info']
+    });
+  }
+
   public async findById(id: number): Promise<UserEntity> {
     return await this.repo.findOneBy({ id });
   }

@@ -26,7 +26,7 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
     return await this.repo.find({
       where: { 
         company_id,
-        status: Not(In([ CompanyEmployeeStatus.Deleted, CompanyEmployeeStatus.Reject ])),
+        // status: Not(In([ CompanyEmployeeStatus.Deleted, CompanyEmployeeStatus.Reject ])),
       },
       relations: ['employee', 'employee.user_info'],
     });

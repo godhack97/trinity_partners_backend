@@ -37,8 +37,8 @@ export class CompanyController {
   }
 
   @Patch('remove-employee/:id')
-  @LogAction('employee_archive', 'company_employees')
+  @LogAction('employee_archive', 'users')
   removeEmployee(@Req() request: Request, @Param('id') id: string) {
-    return this.companyService.removeEmployee(request, +id, );
+    return this.companyService.removeEmployee(request, +id);
   }
 }

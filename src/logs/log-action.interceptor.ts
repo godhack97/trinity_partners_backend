@@ -1,4 +1,3 @@
-// src/logs/log-action.interceptor.ts
 import {
   Injectable,
   NestInterceptor,
@@ -11,17 +10,34 @@ import { Observable, from } from 'rxjs';
 import { switchMap, tap } from 'rxjs/operators';
 import { UserActionsService } from './user-actions.service';
 import { LOG_ACTION_KEY } from './log-action.decorator';
-import { DataSource } from 'typeorm'; // TypeORM >= 0.3
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class LogActionInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
     private readonly userActions: UserActionsService,
-    private readonly dataSource: DataSource, // В AppModule зарегистрируй DataSource как провайдер
-  ) {}
+    private readonly dataSource: DataSource,
+  ) { }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+
+    function removePasswords(obj: any): any {
+      if (Array.isArray(obj)) {
+        return obj.map(removePasswords);
+      }
+      if (obj && typeof obj === 'object') {
+        const result: any = {};
+        for (const key of Object.keys(obj)) {
+          if (!key.toLowerCase().includes('password')) {
+            result[key] = removePasswords(obj[key]);
+          }
+        }
+        return result;
+      }
+      return obj;
+    }
+
     const logMeta = this.reflector.get<{ action: string; entity?: string }>(
       LOG_ACTION_KEY,
       context.getHandler(),
@@ -33,13 +49,13 @@ export class LogActionInterceptor implements NestInterceptor {
     const userId = req.auth_user?.id;
     let snapshotPromise: Promise<any> = Promise.resolve(null);
 
-    // Если в декораторе указан entity и есть req.params.id — делаем select до основного handler'а
-    if (logMeta.entity && req.params?.id) {
+    if (logMeta.entity && req.params?.id && req.params.id.trim() !== '') {
       try {
         const repository = this.dataSource.getRepository(logMeta.entity);
-        snapshotPromise = repository.findOne({ where: { id: req.params.id } });
+        const idValue = isNaN(+req.params.id) ? req.params.id : +req.params.id;
+        snapshotPromise = repository.findOne({ where: { id: idValue } });
       } catch (e) {
-        snapshotPromise = Promise.resolve(null); // entity не найдена или не зарегистрирована
+        snapshotPromise = Promise.resolve(null);
       }
     }
 
@@ -50,17 +66,14 @@ export class LogActionInterceptor implements NestInterceptor {
             const details: Record<string, any> = {
               entity: logMeta.entity,
               params: req.params,
-              body: req.body,
+              body: removePasswords(req.body),
               query: req.query,
             };
-            // Вставляем ключевые поля удалённой сущности (если есть)
             if (entitySnapshot) {
               details.deleted = {};
-              // Сохраняем только нужные поля, например:
               if ('id' in entitySnapshot) details.deleted.id = entitySnapshot.id;
               if ('name' in entitySnapshot) details.deleted.name = entitySnapshot.name;
               if ('email' in entitySnapshot) details.deleted.email = entitySnapshot.email;
-              // ...добавь другие поля, которые важны для твоей сущности
             }
             this.userActions.log(userId, logMeta.action, details);
           }),
