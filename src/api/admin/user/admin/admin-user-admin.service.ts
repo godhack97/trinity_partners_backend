@@ -46,6 +46,41 @@ export class AdminUserAdminService {
     RoleTypes.ContentManager
   ]
 
+  async getCount(): Promise<number> {
+    let queryBuilder = this.userRepository.createQueryBuilder("u");
+    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
+    queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
+    
+    return await queryBuilder.getCount();
+  }
+  
+  async getCountByRole(role: SearchRoleAdminTypes): Promise<number> {
+    let queryBuilder = this.userRepository.createQueryBuilder("u");
+    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
+    
+    switch (role) {
+      case SearchRoleAdminTypes.SuperAdmin:
+      case SearchRoleAdminTypes.ContentManager:
+        queryBuilder.andWhere("r.name = :name", { name: role });
+        break;
+      case SearchRoleAdminTypes.ALL:
+      default:
+        queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
+    }
+    
+    return await queryBuilder.getCount();
+  }
+  
+  async getArchivedCount(): Promise<number> {
+    let queryBuilder = this.userRepository.createQueryBuilder("u");
+    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
+    queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
+    queryBuilder.withDeleted();
+    queryBuilder.andWhere("u.deleted_at IS NOT NULL");
+    
+    return await queryBuilder.getCount();
+  }
+
   async findAll(entry?: SearchAdminDto) {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');

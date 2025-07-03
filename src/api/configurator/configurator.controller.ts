@@ -3,7 +3,7 @@ import {
   Get, Param,
   Query
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiResponse } from "@nestjs/swagger";
 import { ConfiguratorService } from './configurator.service';
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
 
@@ -13,6 +13,44 @@ import { SearchComponentsDto } from "./dto/request/search-components.request.dto
 export class ConfiguratorController {
   constructor(private readonly configuratorService: ConfiguratorService) {}
 
+  // Эндпоинты для подсчета
+  @Get('serverHeight/count')
+  @ApiResponse({ type: Number })
+  async getServerboxCount() {
+    return this.configuratorService.getServerboxCount();
+  }
+
+  @Get('slot/count')
+  @ApiResponse({ type: Number })
+  async getSlotsCount() {
+    return this.configuratorService.getSlotsCount();
+  }
+
+  @Get('serverGeneration/count')
+  @ApiResponse({ type: Number })
+  async getServerGenerationsCount() {
+    return this.configuratorService.getServerGenerationsCount();
+  }
+
+  @Get('server/count')
+  @ApiResponse({ type: Number })
+  async getServersCount() {
+    return this.configuratorService.getServersCount();
+  }
+
+  @Get('processorGeneration/count')
+  @ApiResponse({ type: Number })
+  async getProcessorGenerationsCount() {
+    return this.configuratorService.getProcessorGenerationsCount();
+  }
+
+  @Get('component/count')
+  @ApiResponse({ type: Number })
+  async getComponentsCount() {
+    return this.configuratorService.getComponentsCount();
+  }
+
+  // Существующие эндпоинты
   @Get('serverHeight')
   serverHeight() {
     return this.configuratorService.serverHeight()
@@ -27,7 +65,6 @@ export class ConfiguratorController {
   processorGeneration() {
     return this.configuratorService.processorGeneration()
   }
-
 
   @Get('slot')
   getSlot() {

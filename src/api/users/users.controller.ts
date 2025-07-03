@@ -18,6 +18,13 @@ import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get('/count')
+  @ApiBearerAuth()
+  @ApiResponse({ type: Number })
+  async getCount() {
+    return this.usersService.getCount();
+  }
+
   @Get()
   async find(): Promise<UserEntity[]> {
     try {

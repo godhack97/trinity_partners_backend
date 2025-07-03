@@ -18,6 +18,48 @@ import { LogAction } from 'src/logs/log-action.decorator';
 export class DealController {
   constructor(private readonly dealService: DealService) { }
 
+  @Get('/count')
+  @ApiResponse({ type: Number })
+  async getCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getCount();
+  }
+  
+  @Get('/count/all')
+  @ApiResponse({ type: Number })
+  async getAllCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getAllCount();
+  }
+  
+  @Get('/count/moderation')
+  @ApiResponse({ type: Number })
+  async getModerationCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getModerationCount();
+  }
+  
+  @Get('/count/registered')
+  @ApiResponse({ type: Number })
+  async getRegisteredCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getRegisteredCount();
+  }
+  
+  @Get('/count/canceled')
+  @ApiResponse({ type: Number })
+  async getCanceledCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getCanceledCount();
+  }
+  
+  @Get('/count/win')
+  @ApiResponse({ type: Number })
+  async getWinCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getWinCount();
+  }
+  
+  @Get('/count/loose')
+  @ApiResponse({ type: Number })
+  async getLooseCount(@AuthUser() auth_user: UserEntity) {
+   return this.dealService.getLooseCount();
+  }
+
   @Post()
   @LogAction('deal_add', 'deals')
   @ApiBody({ type: () => CreateDealDto })

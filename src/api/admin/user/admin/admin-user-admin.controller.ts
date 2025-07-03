@@ -2,15 +2,15 @@ import { CreateAdminRequestDto } from "@api/admin/user/admin/dto/request/create-
 import { SearchAdminDto } from "@api/admin/user/admin/dto/request/search-admin.dto";
 import { UpdateAdminRequestDto } from "@api/admin/user/admin/dto/request/update-admin-request.dto";
 import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
+ Body,
+ Controller,
+ Get,
+ Param,
+ Post,
+ Query,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam } from "@nestjs/swagger";
-import { AdminUserAdminService } from "./admin-user-admin.service";
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam, ApiResponse} from "@nestjs/swagger";
+import { AdminUserAdminService, SearchRoleAdminTypes } from "./admin-user-admin.service";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { LogAction } from 'src/logs/log-action.decorator';
@@ -20,36 +20,68 @@ import { LogAction } from 'src/logs/log-action.decorator';
 @Controller('admin/user/admin')
 @Roles([RoleTypes.SuperAdmin])
 export class AdminUserAdminController {
-  constructor(private readonly adminUserAdminService: AdminUserAdminService) {}
+ constructor(private readonly adminUserAdminService: AdminUserAdminService) {}
 
-  @Get()
-  findAll( @Query() entry?: SearchAdminDto) {
-    return this.adminUserAdminService.findAll(entry);
-  }
+ @Get('/count')
+ @ApiBearerAuth()
+ @ApiResponse({ type: Number })
+ async getCount() {
+   return this.adminUserAdminService.getCount();
+ }
 
-  @Post()
-  @LogAction('create_user', 'users')
-  async create(@Body() data: CreateAdminRequestDto) {
-    return await this.adminUserAdminService.create(data);
-  }
+ @Get('/count/super-admin')
+ @ApiBearerAuth()
+ @ApiResponse({ type: Number })
+ async getSuperAdminCount() {
+   return this.adminUserAdminService.getCountByRole(SearchRoleAdminTypes.SuperAdmin);
+ }
 
-  @Post(':id/update')
-  @LogAction('update_user', 'users')
-  async update(@Param('id') id: string, @Body() data: UpdateAdminRequestDto) {
-    return await this.adminUserAdminService.update(+id, data);
-  }
+ @Get('/count/content-manager')
+ @ApiBearerAuth()
+ @ApiResponse({ type: Number })
+ async getContentManagerCount() {
+   return this.adminUserAdminService.getCountByRole(SearchRoleAdminTypes.ContentManager);
+ }
 
-  @Post(':id/delete')
-  @LogAction('archive_user', 'users')
-  async delete(@Param('id') id: string) {
-    return await this.adminUserAdminService.delete(+id);
-  }
+ @Get('/count/archived')
+ @ApiBearerAuth()
+ @ApiResponse({ type: Number })
+ async getArchivedCount() {
+   return this.adminUserAdminService.getArchivedCount();
+ }
 
-  @ApiOperation({ summary: 'Восстановить пользователя (снять soft-delete)' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID пользователя' })
-  @LogAction('restore_user', 'users')
-  @Post(':id/restore')
-  async restore(@Param('id') id: string) {
-    return this.adminUserAdminService.restore(+id);
-  }
+ @Get()
+ @ApiBearerAuth()
+ findAll( @Query() entry?: SearchAdminDto) {
+   return this.adminUserAdminService.findAll(entry);
+ }
+
+ @Post()
+ @ApiBearerAuth()
+ @LogAction('create_user', 'users')
+ async create(@Body() data: CreateAdminRequestDto) {
+   return await this.adminUserAdminService.create(data);
+ }
+
+ @Post(':id/update')
+ @ApiBearerAuth()
+ @LogAction('update_user', 'users')
+ async update(@Param('id') id: string, @Body() data: UpdateAdminRequestDto) {
+   return await this.adminUserAdminService.update(+id, data);
+ }
+
+ @Post(':id/delete')
+ @ApiBearerAuth()
+ @LogAction('archive_user', 'users')
+ async delete(@Param('id') id: string) {
+   return await this.adminUserAdminService.delete(+id);
+ }
+
+ @ApiOperation({ summary: 'Восстановить пользователя (снять soft-delete)' })
+ @ApiParam({ name: 'id', type: Number, description: 'ID пользователя' })
+ @LogAction('restore_user', 'users')
+ @Post(':id/restore')
+ async restore(@Param('id') id: string) {
+   return this.adminUserAdminService.restore(+id);
+ }
 }

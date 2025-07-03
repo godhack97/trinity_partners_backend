@@ -95,6 +95,10 @@ export class UserActionsService {
     };
   }
 
+  async getCount(): Promise<number> {
+    return await this.userActionRepo.count();
+  }
+
   private async enrichLogWithEntity(log: UserAction) {
     let entityName = null;
 

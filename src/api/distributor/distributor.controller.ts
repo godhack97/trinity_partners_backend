@@ -12,6 +12,11 @@ import { DistributorResponseDto } from './dto/response/distributor.response.dto'
 export class DistributorController {
   constructor(private readonly distributorService: DistributorService) {}
 
+  @Get('/count')
+  @ApiResponse({ type: Number })
+  async getCount() {
+    return this.distributorService.getCount();
+  }
 
   @Get()
   @UseInterceptors(new TransformResponse(DistributorResponseDto))

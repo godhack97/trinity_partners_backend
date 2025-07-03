@@ -39,6 +39,12 @@ export class NewsController {
     return this.newsService.findAll(filters);
   }
 
+  @Get('/count')
+  @ApiResponse({ type: Number })
+  async getCount() {
+    return this.newsService.getCount();
+  }
+
   @Get('/:slug')
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })

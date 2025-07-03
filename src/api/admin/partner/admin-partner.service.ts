@@ -27,6 +27,37 @@ export default class AdminPartnerService {
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
 
+  async getCount(): Promise<number> {
+    const qb = this.companyRepository.createQueryBuilder('cmp');
+    
+    qb.leftJoinAndMapOne(
+      "cmp.owner",
+      "users",
+      "usr",
+      "usr.id = cmp.owner"
+    );
+  
+    qb.andWhere("usr.email_confirmed = 1");
+  
+    return await qb.getCount();
+  }
+
+  async getCountByStatus(status: CompanyStatus): Promise<number> {
+    const qb = this.companyRepository.createQueryBuilder('cmp');
+    
+    qb.leftJoinAndMapOne(
+      "cmp.owner",
+      "users",
+      "usr",
+      "usr.id = cmp.owner"
+    );
+  
+    qb.andWhere("usr.email_confirmed = 1");
+    qb.andWhere("cmp.status = :s", { s: status });
+  
+    return await qb.getCount();
+  }
+
   async getAll( filters: PartnerFilterRequestDto ) {
 
     const qb = this.companyRepository.createQueryBuilder('cmp');

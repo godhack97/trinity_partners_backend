@@ -9,7 +9,13 @@ import { Roles } from '@decorators/Roles';
 @ApiBearerAuth()
 @Roles([RoleTypes.SuperAdmin])
 export class UserActionsController {
-  constructor(private readonly userActionsService: UserActionsService) {}
+  constructor(private readonly userActionsService: UserActionsService) { }
+
+  @Get('/count')
+  @ApiResponse({ type: Number })
+  async getCount() {
+    return this.userActionsService.getCount();
+  }
 
   // Все логи
   @Get()

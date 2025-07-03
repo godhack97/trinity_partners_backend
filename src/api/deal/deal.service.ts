@@ -25,6 +25,38 @@ export class DealService {
     private readonly UserRepository: UserRepository,
   ) {}
 
+  async getCount(): Promise<number> {
+    return await this.dealRepository.count();
+  }
+  
+  async getCountByStatus(status: DealStatus): Promise<number> {
+    return await this.dealRepository.count({ where: { status } });
+  }
+  
+  async getAllCount(): Promise<number> {
+    return await this.dealRepository.count();
+  }
+  
+  async getModerationCount(): Promise<number> {
+    return await this.dealRepository.count({ where: { status: DealStatus.Moderation } });
+  }
+  
+  async getRegisteredCount(): Promise<number> {
+    return await this.dealRepository.count({ where: { status: DealStatus.Registered } });
+  }
+  
+  async getCanceledCount(): Promise<number> {
+    return await this.dealRepository.count({ where: { status: DealStatus.Canceled } });
+  }
+  
+  async getWinCount(): Promise<number> {
+    return await this.dealRepository.count({ where: { status: DealStatus.Win } });
+  }
+  
+  async getLooseCount(): Promise<number> {
+    return await this.dealRepository.count({ where: { status: DealStatus.Lose } });
+  }
+
   async create(auth_user: UserEntity, createDealDto: CreateDealDto) {
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.save(createDealDto.customer);

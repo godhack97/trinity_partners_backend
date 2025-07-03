@@ -18,6 +18,10 @@ export class UsersService {
     private readonly userRepository: UserRepository
   ) {}
 
+  async getCount(): Promise<number> {
+    return await this.usersRepository.createQueryBuilder().getCount();
+  }
+
   async findUsersByRoleIdGreaterThanOne(): Promise<UserEntity[]> {
     const users = await this.usersRepository.find({
       where: { role_id: MoreThan(1) },

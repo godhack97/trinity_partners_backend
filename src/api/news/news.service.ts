@@ -34,6 +34,10 @@ export class NewsService {
 
   constructor(private readonly newsRepository: NewsRepository) {}
 
+  async getCount(): Promise<number> {
+    return await this.newsRepository.createQueryBuilder().getCount();
+  }
+
   async findAll(filters: NewsPaginationDto) {
     const page = filters.page;
     const limit = filters.limit;

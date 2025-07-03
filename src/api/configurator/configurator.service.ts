@@ -21,6 +21,32 @@ export class ConfiguratorService {
     private readonly cnfProcessorGenerationRepository: CnfProcessorGenerationRepository
   ) {}
 
+  // Методы для подсчета
+  async getServerboxCount(): Promise<number> {
+    return await this.cnfServerboxHeightRepository.count();
+  }
+
+  async getSlotsCount(): Promise<number> {
+    return await this.cnfSlotRepository.count();
+  }
+
+  async getServerGenerationsCount(): Promise<number> {
+    return await this.cnfServerGenerationRepository.count();
+  }
+
+  async getServersCount(): Promise<number> {
+    return await this.cnfServerRepository.count();
+  }
+
+  async getProcessorGenerationsCount(): Promise<number> {
+    return await this.cnfProcessorGenerationRepository.count();
+  }
+
+  async getComponentsCount(): Promise<number> {
+    return await this.cnfComponentRepository.count();
+  }
+
+  // Существующие методы
   async serverHeight() {
     return this.cnfServerboxHeightRepository.find()
   }

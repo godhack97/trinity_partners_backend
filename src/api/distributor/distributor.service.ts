@@ -8,6 +8,10 @@ export class DistributorService {
   
   constructor(private readonly distributorRepository: DistributorRepository) {}
   
+  async getCount(): Promise<number> {
+    return await this.distributorRepository.count();
+  }
+
   async findAll() {
     return await this.distributorRepository.findAll();
   }
