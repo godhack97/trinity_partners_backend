@@ -69,11 +69,13 @@ export class ProfileService {
     async updateSettings(auth_user: Partial<UserEntity>, data: ProfileUpdateSettingsRequestDto){
         const user = await this.userRepository.findById(auth_user.id);
         const userSettingTypes = Object.entries(UserSettingType).map(([k, v]) => v);
-
+     
         for (const [k,v] of Object.entries(data)) {
             if(!(userSettingTypes.includes(k))) {
                 throw new HttpException(`Неверный параметр: ${k}`, HttpStatus.FORBIDDEN)
             }
+            if(v === undefined || v === null) continue;
+            
             const settingFind = await this.userSettingRepository.findOneBy({
                 user_id: user.id,
                 type: k,
@@ -89,7 +91,7 @@ export class ProfileService {
                 await this.userSettingRepository.save(partialEntity)
             }
         }
-    }
+     }
 
     private async _updateInfo(user: UserEntity, data: ProfileEmployeeRequestDto) {
 
