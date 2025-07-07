@@ -13,6 +13,7 @@ import {
 	BadRequestException,
 } from '@nestjs/common';
 
+import { ForbiddenInnRepository } from 'src/orm/repositories/forbidden-inn.repository';
 import { CompanyRepository } from 'src/orm/repositories/company.repository';
 import { RoleRepository } from 'src/orm/repositories/role.repository';
 import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
@@ -41,9 +42,12 @@ const INN_EXISTS = 'Пользователь с таким ИНН уже сущ�
 //Можно перенести в .env
 const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412';
 
+const INN_FORBIDDEN = 'ИНН запрещён к регистрации.';
+
 @Injectable()
 export class UserService {
 	constructor(
+		private readonly forbiddenInnRepository: ForbiddenInnRepository,
 		private readonly userRepository: UserRepository,
 		private readonly userInfoRepository: UserInfoRepository,
 		private readonly roleRepository: RoleRepository,
@@ -197,35 +201,41 @@ export class UserService {
 		const user = await this.userRepository.findByEmail(
 			registrationCompanyDto.email
 		);
-
+	
 		if (user) throw new BadRequestException(USER_EXISTS);
-
+	
 		const isUserPhone = await this.userInfoRepository.findOneBy({
 			phone: registrationCompanyDto.phone,
 		});
-
+	
 		if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
-
+	
 		const isExistInn = await this.companyRepository.findOneBy({
 			inn: registrationCompanyDto.inn,
 		});
-
+	
 		if (isExistInn) throw new BadRequestException(INN_EXISTS);
 
+		const isForbiddenInn = await this.forbiddenInnRepository.findByInn(
+			registrationCompanyDto.inn
+		);
+	
+		if (isForbiddenInn) throw new BadRequestException(INN_FORBIDDEN);
+	
 		const { email, password: _password } = registrationCompanyDto;
 		const rolePartner = await this.roleRepository.getPartner();
-
+	
 		const { salt, password } = await createCredentials(_password);
-
+	
 		const newUser = await this.userRepository.save({
 			salt,
 			email,
 			password,
 			role: rolePartner,
 		});
-
+	
 		await this._createNotificationSettings(newUser.id);
-
+	
 		await this.userInfoRepository.save({
 			first_name: registrationCompanyDto.first_name,
 			last_name: registrationCompanyDto.last_name,
@@ -234,6 +244,7 @@ export class UserService {
 			phone: registrationCompanyDto.phone,
 			user: newUser,
 		});
+	
 		const company = await this.companyRepository.save({
 			inn: registrationCompanyDto.inn,
 			name: registrationCompanyDto.company_name,
@@ -246,19 +257,19 @@ export class UserService {
 			owner: newUser,
 			status: CompanyStatus.Pending,
 		});
-
+	
 		await this.companyEmployeeRepository.save({
 			company_id: company.id,
 			employee_id: newUser.id,
 			status: CompanyEmployeeStatus.Accept,
 		});
-
+	
 		await this.emailConfirmerService.send({
 			user_id: newUser.id,
 			email: newUser.email,
 			method: EmailConfirmerMethod.EmailConfirmation,
 		});
-
+	
 		// ===== ВСТРОЕННЫЙ ВЫЗОВ РАССЫЛКИ АДМИНАМ =====
 		await this.notifySuperAdminsAboutNewPartner({
 			company_name: registrationCompanyDto.company_name,
@@ -267,7 +278,7 @@ export class UserService {
 			email: registrationCompanyDto.email,
 		});
 		// =============================================
-
+	
 		return newUser;
 	}
 
