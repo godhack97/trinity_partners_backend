@@ -41,12 +41,14 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LogActionInterceptor } from './logs/log-action.interceptor';
 import { LogsModule } from './logs/logs.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { ForbiddenInnModule } from './api/admin/forbidden-inns/forbidden-inns.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == 'prod');
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
 
 @Module({
   imports: [
+    ForbiddenInnModule,
     LogsModule,
     ConfigModule.forRoot({
       isGlobal: true,
