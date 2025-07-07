@@ -57,7 +57,6 @@ export class ProfileController {
 
     @Post('/settings')
     @ApiBearerAuth()
-    @LogAction('profile_update_settings', 'users')
     @UseInterceptors(new TransformResponse(ProfileUpdateSettingsRequestDto))
     @ApiResponse({ type: ProfileUpdateSettingsRequestDto })
     updateNotifications(@Body() data: ProfileUpdateSettingsRequestDto, @AuthUser() auth_user: Partial<UserEntity>) {
