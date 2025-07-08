@@ -1,192 +1,356 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Новая сделка создана</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #007bff;
-        }
-        .header h1 {
-            color: #007bff;
-            margin: 0;
-            font-size: 24px;
-        }
-        .deal-info {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border-left: 4px solid #007bff;
-        }
-        .info-row {
-            display: flex;
-            margin: 10px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        .info-label {
-            font-weight: bold;
-            width: 150px;
-            color: #555;
-        }
-        .info-value {
-            flex: 1;
-            color: #333;
-        }
-        .customer-section, .distributor-section, .creator-section {
-            margin: 20px 0;
-            padding: 15px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #007bff;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            color: #666;
-            font-size: 12px;
-        }
-        .amount {
-            font-size: 18px;
-            font-weight: bold;
-            color: #28a745;
-        }
-        .status {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-            background: #17a2b8;
-            color: white;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=yes">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Новая сделка создана</title>
+  <style>
+    #outlook a { padding: 0; }
+    .ReadMsgBody, .ExternalClass { width: 100%; }
+    .ExternalClass,
+    .ExternalClass p,
+    .ExternalClass td,
+    .ExternalClass div,
+    .ExternalClass span { line-height: 100%; }
+    a { text-decoration: none; }
+    body, table, td, p, li, a {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    img {
+      -ms-interpolation-mode: bicubic;
+      display: block;
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+    td { vertical-align: top; }
+    .thread-item.expanded .thread-body .body,
+    .msg-body { width: 100% !important; display: block !important; }
+    .btn { transition: 0.3s !important; }
+    .btn:hover { transition: 0.3s !important; }
+    .fadeimg { transition: 0.3s !important; opacity: 1 !important; }
+    .fadeimg:hover { transition: 0.3s !important; opacity: 0.7 !important; }
+    p img { display: inline !important; }
+    :root { color-scheme: light dark; supported-color-schemes: light dark; }
+    u + .body .gmail-blend-screen { background: #000; mix-blend-mode: screen; }
+    u + .body .gmail-blend-difference { background: #000; mix-blend-mode: difference; }
+    u + .body .gmail-blend-exclusion-blk { background-color: #000; mix-blend-mode: exclusion; }
+    u + .body .gmail-blend-difference-blk { background-color: #000; mix-blend-mode: difference; color: #fff; }
+    .info-section { background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 15px 0; }
+    .section-title { color: #007bff; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+    .amount { color: #28a745; font-weight: bold; font-size: 18px; }
+    .status { background: #17a2b8; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+    @media only screen { html { min-height: 100%; } }
+    @media only screen and (max-width: 616px) {
+      table.body .show-for-large { display: none !important; width: 0; overflow: hidden; }
+      table.body center { min-width: 0 !important; }
+      table.body .container { width: 100% !important; }
+      .mb100 { display: inline-block !important; width: 100% !important; }
+      .mwa { width: auto !important; min-width: 100% !important; }
+      .header-inner { padding: 20px !important; }
+      .header-logo { width: 120px !important; }
+      .main p { font-size: 15px !important; line-height: 1.6 !important; }
+      .main .btn { font-size: 15px !important; line-height: 100% !important; padding: 10px 30px !important; }
+      .main-inner { padding: 0 20px 20px !important; }
+      .hi { font-size: 20px !important; border-radius: 10px !important; }
+      .container { border-radius: 20px 20px 0 0 !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .dm-bg-dark { background: #1E1E1E !important; }
+      .body { background: transparent !important; }
+      .dm-c-white { color: #fefefe !important; }
+      .footer { background: #282C35 !important; }
+      .footer p, .footer a { color: #fefefe !important; }
+      .info-section { background: #2a2a2a !important; border-left-color: #007bff !important; }
+    }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🎉 Создана новая сделка</h1>
-            <p>Здравствуйте, {{adminName}}!</p>
-        </div>
+<body class="body" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; background: #F1F4F9; height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; word-spacing: normal;">
+<!-- preheader -->
+<div style="display:none !important; overflow:hidden; float:left; width:0px; max-height:0px; max-width:0px; line-height:0px; visibility:hidden;">
+  Создана новая сделка №{{dealNumber}}. Заказчик: {{customerFirstName}} {{customerLastName}}.
+</div>
+<!-- /preheader -->
+<table class="body" style="background: #F1F4F9; border-collapse: collapse; border-spacing: 0; height: 100%; width: 100%;">
+  <tr>
+    <td align="center" valign="top" style="padding: 0; text-align: center;">
+      <center style="width: 100%;">
+        <table align="center" class="container dm-bg-dark float-center" style="background: #FFFFFF; border-collapse: separate; border-radius: 34px 34px 0 0; border-spacing: 0; margin: 0 auto; text-align: center; width: 600px;">
+          <tr>
+            <td style="padding: 0;">
+              <table class="header" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                <tr>
+                  <td class="header-inner" style="padding: 44px 23px 41px;">
+                    <a href="#" target="_blank">
+                      <img src="{{URL}}/images/mail/logo-w.png" class="header-logo" width="170" alt="Тринити" style="display: block; font-family: Arial, sans-serif; font-size: 20px; font-weight: bold; text-align: left;">
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <table class="main" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                <tr>
+                  <td class="main-inner" align="center" style="padding: 0 23px 36px;">
+                    <div class="show-for-large" role="separator" style="line-height:10px; height:10px; font-size:10px">&#8202;</div>
+                    <div role="separator" style="line-height:20px; height:20px; font-size:20px">&#8202;</div>
+                    
+                    <p class="dm-c-white" style="color: #007bff; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 24px; font-weight: bold; line-height: 1.2; margin: 0 auto; margin-bottom: 10px; padding: 0; text-align: center;">
+                      Создана новая сделка
+                    </p>
+                    
+                    <p class="dm-c-white" style="color: #0a0a0a; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 17px; line-height: 1.76; margin: 0 auto; margin-bottom: 20px; padding: 0; text-align: center;">
+                      Здравствуйте, {{adminName}}!
+                    </p>
 
-        <div class="deal-info">
-            <div class="info-row">
-                <div class="info-label">Номер сделки:</div>
-                <div class="info-value"><strong>{{dealNumber}}</strong></div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">ID сделки:</div>
-                <div class="info-value">{{dealId}}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">Дата создания:</div>
-                <div class="info-value">{{creationDate}}</div>
-            </div>
-            {{#if purchaseDate}}
-            <div class="info-row">
-                <div class="info-label">Дата покупки:</div>
-                <div class="info-value">{{purchaseDate}}</div>
-            </div>
-            {{/if}}
-            {{#if amount}}
-            <div class="info-row">
-                <div class="info-label">Сумма:</div>
-                <div class="info-value amount">{{amount}} ₽</div>
-            </div>
-            {{/if}}
-            {{#if status}}
-            <div class="info-row">
-                <div class="info-label">Статус:</div>
-                <div class="info-value"><span class="status">{{status}}</span></div>
-            </div>
-            {{/if}}
-        </div>
+                    <div class="info-section" style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 15px 0; text-align: left;">
+                      <p class="section-title" style="color: #007bff; font-weight: bold; font-size: 16px; margin: 0 0 10px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        📋 Информация о сделке
+                      </p>
+                      <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee; width: 150px;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Номер сделки:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0; font-weight: bold;">{{dealNumber}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">ID сделки:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{dealId}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Дата создания:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{creationDate}}</p>
+                          </td>
+                        </tr>
+                        {{#if purchaseDate}}
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Дата покупки:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{purchaseDate}}</p>
+                          </td>
+                        </tr>
+                        {{/if}}
+                        {{#if amount}}
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Сумма:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p class="amount" style="color: #28a745; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 18px; font-weight: bold; margin: 0;">{{amount}} ₽</p>
+                          </td>
+                        </tr>
+                        {{/if}}
+                        {{#if status}}
+                        <tr>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Статус:</p>
+                          </td>
+                          <td style="padding: 5px 0;">
+                            <span class="status" style="background: #17a2b8; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; text-transform: uppercase; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">{{status}}</span>
+                          </td>
+                        </tr>
+                        {{/if}}
+                      </table>
+                    </div>
 
-        <div class="customer-section">
-            <div class="section-title">👤 Заказчик</div>
-            <div class="info-row">
-                <div class="info-label">Имя:</div>
-                <div class="info-value">{{customerFirstName}} {{customerLastName}}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">Email:</div>
-                <div class="info-value">{{customerEmail}}</div>
-            </div>
-            {{#if customerPhone}}
-            <div class="info-row">
-                <div class="info-label">Телефон:</div>
-                <div class="info-value">{{customerPhone}}</div>
-            </div>
-            {{/if}}
-        </div>
+                    <div class="info-section" style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 15px 0; text-align: left;">
+                      <p class="section-title" style="color: #007bff; font-weight: bold; font-size: 16px; margin: 0 0 10px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        👤 Заказчик
+                      </p>
+                      <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee; width: 150px;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Имя:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{customerFirstName}} {{customerLastName}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Email:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">
+                              <a href="mailto:{{customerEmail}}" style="color: #0047bb; text-decoration: none;">{{customerEmail}}</a>
+                            </p>
+                          </td>
+                        </tr>
+                        {{#if customerPhone}}
+                        <tr>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Телефон:</p>
+                          </td>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{customerPhone}}</p>
+                          </td>
+                        </tr>
+                        {{/if}}
+                      </table>
+                    </div>
 
-        <div class="distributor-section">
-            <div class="section-title">🏢 Дистрибьютор</div>
-            <div class="info-row">
-                <div class="info-label">Название:</div>
-                <div class="info-value">{{distributorName}}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">ID:</div>
-                <div class="info-value">{{distributorId}}</div>
-            </div>
-        </div>
+                    <div class="info-section" style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 15px 0; text-align: left;">
+                      <p class="section-title" style="color: #007bff; font-weight: bold; font-size: 16px; margin: 0 0 10px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        🏢 Дистрибьютор
+                      </p>
+                      <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee; width: 150px;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Название:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{distributorName}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">ID:</p>
+                          </td>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{distributorId}}</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
 
-        <div class="creator-section">
-            <div class="section-title">✍️ Создатель сделки</div>
-            <div class="info-row">
-                <div class="info-label">Имя:</div>
-                <div class="info-value">{{creatorName}}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">Email:</div>
-                <div class="info-value">{{creatorEmail}}</div>
-            </div>
-        </div>
+                    <div class="info-section" style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 15px 0; text-align: left;">
+                      <p class="section-title" style="color: #007bff; font-weight: bold; font-size: 16px; margin: 0 0 10px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        ✍️ Создатель сделки
+                      </p>
+                      <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                        <tr>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee; width: 150px;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Имя:</p>
+                          </td>
+                          <td style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">{{creatorName}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #555; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin: 0;">Email:</p>
+                          </td>
+                          <td style="padding: 5px 0;">
+                            <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">
+                              <a href="mailto:{{creatorEmail}}" style="color: #0047bb; text-decoration: none;">{{creatorEmail}}</a>
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
 
-        {{#if description}}
-        <div class="deal-info">
-            <div class="section-title">📝 Описание</div>
-            <p>{{description}}</p>
-        </div>
-        {{/if}}
+                    {{#if description}}
+                    <div class="info-section" style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 15px 0; text-align: left;">
+                      <p class="section-title" style="color: #007bff; font-weight: bold; font-size: 16px; margin: 0 0 10px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        📝 Описание
+                      </p>
+                      <p style="color: #333; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; margin: 0;">{{description}}</p>
+                    </div>
+                    {{/if}}
 
-        <div class="footer">
-            <p>Это автоматическое уведомление о создании новой сделки в системе.</p>
-            <p>Дата отправки: {{creationDate}}</p>
-        </div>
-    </div>
+                    <div class="show-for-large" role="separator" style="line-height:16px; height:16px; font-size:16px">&#8202;</div>
+                  </td>
+                </tr>
+              </table>
+              <table class="footer" style="background: #E7EDF8; border-collapse: collapse; border-spacing: 0; width: 100%;">
+                <tr>
+                  <td align="center" style="padding: 20px 20px 30px;">
+                    <div class="show-for-large" role="separator" style="line-height:10px; height:10px; font-size:10px">&#8202;</div>
+                    <div role="separator" style="line-height:10px; height:10px; font-size:10px">&#8202;</div>
+                    <table style="border-collapse: collapse; border-spacing: 0; width: auto;">
+                      <tr>
+                        <td class="mb100" style="padding: 0;">
+                          <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                            <tr>
+                              <td style="padding: 0;">
+                                <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                                  <tr>
+                                    <td align="center" style="height: 16px; padding: 0; padding-bottom: 2px; vertical-align: middle;">
+                                      <img src="{{URL}}/images/mail/phone.png" width="16" alt style="display: block;">
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding: 0;">
+                                      <p style="white-space: nowrap; padding: 0 6px; color: #0a0a0a; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; margin: 0 auto; text-align: center;">
+                                        <a href="tel:+88007758746" style="color: #0a0a0a; text-decoration: none;">8 800 775-87-46</a>
+                                      </p>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                              <td class="show-for-large" style="height: 10px; padding: 0; width: 40px;"></td>
+                              <td style="padding: 0;">
+                                <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                                  <tr>
+                                    <td align="center" style="height: 16px; padding: 0; padding-bottom: 2px; vertical-align: middle;">
+                                      <img src="{{URL}}/images/mail/mail.png" width="18" alt style="display: block;">
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding: 0;">
+                                      <p style="color: #0a0a0a; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; margin: 0 auto; padding: 0; text-align: center;">
+                                        <a href="mailto:partner@trinity.ru" style="color: #0a0a0a; text-decoration: none;">partner@trinity.ru</a>
+                                      </p>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td class="mb100" style="height: 10px; padding: 0; width: 50px;"></td>
+                        <td class="mb100" style="padding: 0;">
+                          <table style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                            <tr>
+                              <td align="center" style="height: 16px; padding: 0; padding-bottom: 2px; vertical-align: middle;">
+                                <img src="{{URL}}/images/mail/www.png" width="16" alt style="display: block;">
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 0;">
+                                <p style="white-space: nowrap; padding: 0 6px; color: #0a0a0a; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px; margin: 0 auto; text-align: center;">
+                                  <a href="#" target="_blank" style="color: #0a0a0a; text-decoration: none;">тринити.рф</a>
+                                </p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                    <div role="separator" style="line-height:24px; height:24px; font-size:24px">&#8202;</div>
+                    <p style="color: #666; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
+                      Это автоматическое уведомление о создании новой сделки в системе.<br>
+                      Дата отправки: {{creationDate}}
+                    </p>
+                    <div class="show-for-large" role="separator" style="line-height:6px; height:6px; font-size:6px">&#8202;</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        <div class="show-for-large float-center" role="separator" style="line-height:16px; height:16px; font-size:16px" align="center">&#8202;</div>
+      </center>
+    </td>
+  </tr>
+</table>
 </body>
 </html>
