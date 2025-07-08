@@ -90,23 +90,23 @@ export default class AdminPartnerService {
     const companyIds = companies.map(c => c.id);
 
     // Подсчет сделок по создателям
-    const dealsCount = await this.dealRepository
+    const dealsCount = userIds.length > 0 ? await this.dealRepository
       .createQueryBuilder('deals')
       .select('deals.creator_id', 'creator_id')
       .addSelect('COUNT(deals.id)', 'count')
       .where('deals.creator_id IN (:...userIds)', { userIds })
       .groupBy('deals.creator_id')
-      .getRawMany();
+      .getRawMany() : [];
 
     // Подсчет активных сотрудников по компаниям
-    const employeesCount = await this.companyEmployeeRepository
+    const employeesCount = companyIds.length > 0 ? await this.companyEmployeeRepository
       .createQueryBuilder('ce')
       .select('ce.company_id', 'company_id')
       .addSelect('COUNT(ce.id)', 'count')
       .where('ce.company_id IN (:...companyIds)', { companyIds })
       .andWhere('ce.status = :status', { status: 'accept' })
       .groupBy('ce.company_id')
-      .getRawMany();
+      .getRawMany() : [];
 
     // Создаем карты для быстрого поиска
     const dealsMap = new Map(dealsCount.map(d => [d.creator_id, parseInt(d.count)]));
