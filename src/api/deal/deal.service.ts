@@ -11,6 +11,8 @@ import { SearchDealDto } from './dto/request/search-deal.dto';
 import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
 import { Bitrix24Service } from '../../integrations/bitrix24/bitrix24.service';
 import { UserRepository } from 'src/orm/repositories/user.repository';
+import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.service';
+
 
 @Injectable()
 export class DealService {
@@ -22,7 +24,8 @@ export class DealService {
     private readonly dealRepository: DealRepository,
     private readonly companyRepository: CompanyRepository,
     private readonly bitrix24Service: Bitrix24Service,
-    private readonly UserRepository: UserRepository,
+    private readonly userRepository: UserRepository,
+    private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
 
   async getCount(): Promise<number> {
@@ -60,38 +63,85 @@ export class DealService {
   async create(auth_user: UserEntity, createDealDto: CreateDealDto) {
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
     const customer = await this.customerRepository.save(createDealDto.customer);
-
+  
     if(!distributor) {
       throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
     }
-
+  
     if(!customer) {
       throw new HttpException('Произошла ошибка при создании заказчика', HttpStatus.FORBIDDEN);
     }
-
+  
     const countDealsInDay = await this.dealRepository.countDealsForToday();
     const date = new Date();
-
+  
     const deal_num = `${auth_user.id}-${date.getFullYear()}/${(date.getMonth() + 1).toString()
       .padStart(2, '0')}/${date.getDate()
       .toString().padStart(2, '0')}-${countDealsInDay+1}`;
-
+  
     createDealDto.purchase_date = new Date(createDealDto.purchase_date);
-
+  
     const dealData = {
       ...createDealDto,
       customer_id: customer.id,
       creator_id: auth_user.id,
       deal_num
     }
-
+  
     const savedDeal = await this.dealRepository.save(dealData);
-
+  
     this.sendLeadToBitrix24(savedDeal, customer, distributor).catch(error => {
       this.logger.error(`Ошибка отправки лида для сделки ${savedDeal.id} в Bitrix24:`, error);
     });
-
+  
+    await this.notifyAdminsAboutNewDeal(savedDeal, customer, distributor, auth_user);
+  
     return savedDeal;
+  }
+
+  
+  private async notifyAdminsAboutNewDeal(
+    deal: any,
+    customer: any,
+    distributor: any,
+    creator: UserEntity
+  ) {
+    try {
+      const superAdmins = await this.userRepository.find({
+        where: { role_id: 1 },
+      });
+      const creatorWithInfo = await this.userRepository.findByIdWithUserInfo(creator.id);
+
+      for (const admin of superAdmins) {
+        await this.emailConfirmerService.emailSend({
+          email: admin.email,
+          subject: 'Создана новая сделка',
+          template: 'admin-new-deal-notification',
+          context: {
+            adminName: admin.info?.first_name || 'Администратор',
+            dealNumber: deal.deal_num,
+            dealId: deal.id,
+            customerFirstName: customer.first_name,
+            customerLastName: customer.last_name,
+            customerEmail: customer.email,
+            customerPhone: customer.phone,
+            distributorName: distributor.name,
+            distributorId: distributor.id,
+            creatorName: creatorWithInfo.info?.first_name && creatorWithInfo.info?.last_name 
+              ? `${creatorWithInfo.info.first_name} ${creatorWithInfo.info.last_name}`
+              : creatorWithInfo.email,
+            creatorEmail: creatorWithInfo.email,
+            creationDate: new Date().toLocaleDateString('ru-RU'),
+            purchaseDate: deal.purchase_date ? new Date(deal.purchase_date).toLocaleDateString('ru-RU') : null,
+            amount: deal.amount,
+            status: deal.status,
+            description: deal.description,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка отправки уведомления админам о новой сделке:', error);
+    }
   }
 
   /**

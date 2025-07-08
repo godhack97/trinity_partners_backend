@@ -36,7 +36,7 @@ export class UserEntity extends BasisEntity {
   @OneToOne(() => CompanyEmployeeEntity, (CompanyEmployee) => CompanyEmployee.employee)
   company_employee: CompanyEmployeeEntity;
 
-  @OneToOne(() => UserInfoEntity, (userInfo: UserInfoEntity) => userInfo.user) // Добавляем связь с UserInfoEntity
+  @OneToOne(() => UserInfoEntity, (userInfo: UserInfoEntity) => userInfo.user)
   user_info: UserInfoEntity;
 
   @ManyToOne(() => RoleEntity, (role: RoleEntity) => role.id, { eager: true })

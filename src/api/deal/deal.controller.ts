@@ -16,7 +16,9 @@ import { LogAction } from 'src/logs/log-action.decorator';
 @UseGuards(CheckUserOrCompanyStatusGuard)
 @Controller('deal')
 export class DealController {
-  constructor(private readonly dealService: DealService) { }
+  constructor(
+    private readonly dealService: DealService
+  ) { }
 
   @Get('/count')
   @ApiResponse({ type: Number })

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Новая сделка создана</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+        }
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 24px;
+        }
+        .deal-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .info-row {
+            display: flex;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 150px;
+            color: #555;
+        }
+        .info-value {
+            flex: 1;
+            color: #333;
+        }
+        .customer-section, .distributor-section, .creator-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 12px;
+        }
+        .amount {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: #17a2b8;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Создана новая сделка</h1>
+            <p>Здравствуйте, {{adminName}}!</p>
+        </div>
+
+        <div class="deal-info">
+            <div class="info-row">
+                <div class="info-label">Номер сделки:</div>
+                <div class="info-value"><strong>{{dealNumber}}</strong></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">ID сделки:</div>
+                <div class="info-value">{{dealId}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Дата создания:</div>
+                <div class="info-value">{{creationDate}}</div>
+            </div>
+            {{#if purchaseDate}}
+            <div class="info-row">
+                <div class="info-label">Дата покупки:</div>
+                <div class="info-value">{{purchaseDate}}</div>
+            </div>
+            {{/if}}
+            {{#if amount}}
+            <div class="info-row">
+                <div class="info-label">Сумма:</div>
+                <div class="info-value amount">{{amount}} ₽</div>
+            </div>
+            {{/if}}
+            {{#if status}}
+            <div class="info-row">
+                <div class="info-label">Статус:</div>
+                <div class="info-value"><span class="status">{{status}}</span></div>
+            </div>
+            {{/if}}
+        </div>
+
+        <div class="customer-section">
+            <div class="section-title">👤 Заказчик</div>
+            <div class="info-row">
+                <div class="info-label">Имя:</div>
+                <div class="info-value">{{customerFirstName}} {{customerLastName}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{customerEmail}}</div>
+            </div>
+            {{#if customerPhone}}
+            <div class="info-row">
+                <div class="info-label">Телефон:</div>
+                <div class="info-value">{{customerPhone}}</div>
+            </div>
+            {{/if}}
+        </div>
+
+        <div class="distributor-section">
+            <div class="section-title">🏢 Дистрибьютор</div>
+            <div class="info-row">
+                <div class="info-label">Название:</div>
+                <div class="info-value">{{distributorName}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">ID:</div>
+                <div class="info-value">{{distributorId}}</div>
+            </div>
+        </div>
+
+        <div class="creator-section">
+            <div class="section-title">✍️ Создатель сделки</div>
+            <div class="info-row">
+                <div class="info-label">Имя:</div>
+                <div class="info-value">{{creatorName}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{creatorEmail}}</div>
+            </div>
+        </div>
+
+        {{#if description}}
+        <div class="deal-info">
+            <div class="section-title">📝 Описание</div>
+            <p>{{description}}</p>
+        </div>
+        {{/if}}
+
+        <div class="footer">
+            <p>Это автоматическое уведомление о создании новой сделки в системе.</p>
+            <p>Дата отправки: {{creationDate}}</p>
+        </div>
+    </div>
+</body>
+</html>
