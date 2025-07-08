@@ -196,11 +196,6 @@ export class ConfiguratorService {
   }
 
   async getComponents( entry?: SearchComponentsDto ) {
-
-    console.log('');
-    console.log(`getComponents`, entry);
-    console.log('');
-
     const queryBuilder = this.cnfComponentRepository.createQueryBuilder('cmp')
       .leftJoinAndMapMany(
         "cmp.component_slots",

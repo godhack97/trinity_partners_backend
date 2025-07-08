@@ -127,9 +127,9 @@ export class DealService {
             customerPhone: customer.phone,
             distributorName: distributor.name,
             distributorId: distributor.id,
-            creatorName: creatorWithInfo.info?.first_name && creatorWithInfo.info?.last_name 
-              ? `${creatorWithInfo.info.first_name} ${creatorWithInfo.info.last_name}`
-              : creatorWithInfo.email,
+            creatorName: creatorWithInfo.user_info?.first_name && creatorWithInfo.user_info?.last_name 
+            ? `${creatorWithInfo.user_info.first_name} ${creatorWithInfo.user_info.last_name}`
+            : creatorWithInfo.email,
             creatorEmail: creatorWithInfo.email,
             creationDate: new Date().toLocaleDateString('ru-RU'),
             purchaseDate: deal.purchase_date ? new Date(deal.purchase_date).toLocaleDateString('ru-RU') : null,
