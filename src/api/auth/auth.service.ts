@@ -98,12 +98,14 @@ export class AuthService {
 
     const notifications = await this.notificationService.check(user.id);
     const notifications_unread = await this.notificationService.countUnread(user.id);
+    const notifications_settings = await this.notificationService.getSettings(user.id);
     const news = await this.newsService.check();
 
     return {
       ...user,
       notifications,
       notifications_unread,
+      notifications_settings,
       news
     };
   }

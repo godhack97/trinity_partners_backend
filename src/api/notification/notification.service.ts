@@ -118,6 +118,22 @@ export class NotificationService {
       .getMany();
   }
 
+  async getSettings(userId: number) {
+    const userSettingEntities = await this.userSettingRepository.findBy({
+      user_id: userId,
+      type: In(NotificationSettingsTypes)
+    });
+
+    const settings = {};
+
+    for (const setting of userSettingEntities) {
+      const key = setting.type.toLowerCase();
+      settings[key] = setting.value === UserNotificationType.Yes;
+    }
+
+    return settings;
+   }
+
   async countUnread(id: number) {
     return await this.notificationRepository
       .createQueryBuilder()
