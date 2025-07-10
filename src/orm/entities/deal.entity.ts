@@ -1,6 +1,7 @@
 import {  Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { CustomerEntity, DistributorEntity, UserEntity } from ".";
+import { DeleteDateColumn } from 'typeorm';
 
 
 export enum DealStatus {
@@ -116,4 +117,7 @@ export class DealEntity extends BasisEntity {
 
   @Column({ nullable: true })
   discount_date: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
 }

@@ -29,6 +29,7 @@ export enum UserActionType {
 
     DEAL_UPDATE = 'deal_update',
     DEAL_ADD = 'deal_add',
+    DEAL_DELETE = 'deal_delete',
 
     DISTRIBUTOR_ADD = 'distributor_add',
     DISTRIBUTOR_UPDATE = 'distributor_update',
@@ -123,6 +124,7 @@ export enum UserActionType {
 
     [UserActionType.DEAL_UPDATE]: 'Обновлена  сделка',
     [UserActionType.DEAL_ADD]: 'Добавлена сделка',
+    [UserActionType.DEAL_DELETE]: 'Удалена сделка',
 
     [UserActionType.DISTRIBUTOR_ADD]: 'Добавлен дистрибьютор',
     [UserActionType.DISTRIBUTOR_UPDATE]: 'Обновлён дистрибьютор',

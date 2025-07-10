@@ -10,6 +10,7 @@ import { SearchDealDto } from './dto/request/search-deal.dto';
 import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
 import { CheckUserOrCompanyStatusGuard } from '@app/guards/check-user-or-company-status.guard';
 import { LogAction } from 'src/logs/log-action.decorator';
+import { Delete } from '@nestjs/common';
 
 @ApiTags('deal')
 @ApiBearerAuth()
@@ -23,43 +24,43 @@ export class DealController {
   @Get('/count')
   @ApiResponse({ type: Number })
   async getCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getCount();
+    return this.dealService.getCount();
   }
-  
+
   @Get('/count/all')
   @ApiResponse({ type: Number })
   async getAllCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getAllCount();
+    return this.dealService.getAllCount();
   }
-  
+
   @Get('/count/moderation')
   @ApiResponse({ type: Number })
   async getModerationCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getModerationCount();
+    return this.dealService.getModerationCount();
   }
-  
+
   @Get('/count/registered')
   @ApiResponse({ type: Number })
   async getRegisteredCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getRegisteredCount();
+    return this.dealService.getRegisteredCount();
   }
-  
+
   @Get('/count/canceled')
   @ApiResponse({ type: Number })
   async getCanceledCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getCanceledCount();
+    return this.dealService.getCanceledCount();
   }
-  
+
   @Get('/count/win')
   @ApiResponse({ type: Number })
   async getWinCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getWinCount();
+    return this.dealService.getWinCount();
   }
-  
+
   @Get('/count/loose')
   @ApiResponse({ type: Number })
   async getLooseCount(@AuthUser() auth_user: UserEntity) {
-   return this.dealService.getLooseCount();
+    return this.dealService.getLooseCount();
   }
 
   @Post()
@@ -83,12 +84,12 @@ export class DealController {
 
   async testBitrix24Connection() {
     const isConnected = await this.dealService.checkBitrix24Connection();
-    
+
     console.log(isConnected);
     return {
       connected: isConnected,
-      message: isConnected 
-        ? 'Подключение к Bitrix24 работает корректно' 
+      message: isConnected
+        ? 'Подключение к Bitrix24 работает корректно'
         : 'Ошибка подключения к Bitrix24. Проверьте настройки BITRIX24_WEBHOOK_URL'
     };
   }
@@ -112,5 +113,21 @@ export class DealController {
   @ApiResponse({ type: DealResponseDto })
   findOne(@Param('id') id: string, @AuthUser() auth_user: UserEntity) {
     return this.dealService.findOne(+id, auth_user);
+  }
+
+  @Delete(':id')
+  @LogAction('deal_delete', 'deals')
+  @ApiResponse({
+    description: 'Сделка успешно удалена',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' }
+      }
+    }
+  })
+  async remove(@Param('id') id: string, @AuthUser() auth_user: UserEntity) {
+    await this.dealService.remove(+id, auth_user);
+    return { message: 'Сделка успешно удалена' };
   }
 }
