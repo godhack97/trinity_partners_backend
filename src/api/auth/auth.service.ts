@@ -13,6 +13,7 @@ import { Repository } from 'typeorm';
 import { ResetHashRepository } from '@orm/repositories/reset-hash.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import { UserToken } from 'src/orm/entities/user-token.entity';
+import { ResetHashEntity } from 'src/orm/entities/reset-hash.entity';
 import {
   createCredentials,
   createPassword,
@@ -26,7 +27,8 @@ import { RoleTypes } from "@app/types/RoleTypes";
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly resetHashRepository: ResetHashRepository,
+    @InjectRepository(ResetHashEntity)
+    private readonly resetHashRepository: Repository<ResetHashEntity>,
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly notificationService: NotificationService,
     private readonly newsService: NewsService,

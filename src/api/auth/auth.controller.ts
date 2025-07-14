@@ -55,7 +55,7 @@ export class AuthController {
     return this.authService.forgotPassword(body);
   }
 
-  @Post('recovery-password')
+  @Post('change-forgot-password')
   @LogAction('auth_recovery_password', 'users')
   @Public()
   async recoveryPassword(@Body() body) {

@@ -35,6 +35,7 @@ import { CompanyModule } from './api/company/company.module';
 import { AuthTokenModule } from './services/auth-token/auth-token.module';
 import { UploadFileModule } from './api/upload-file/upload-file.module';
 import { UserEntity } from './orm/entities/user.entity';
+import { ResetHashEntity } from '@orm/entities';
 import { UserToken } from './orm/entities/user-token.entity';
 import { UserAction } from "./logs/user-action.entity";
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -137,7 +138,8 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'dev'}`;
     EmailConfirmModule,
     NewsModule,
     UserToken,
-    UserEntity
+    UserEntity,
+    ResetHashEntity
   ],
   controllers: [AppController],
   providers: [
