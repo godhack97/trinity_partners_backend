@@ -174,7 +174,14 @@ export class EmailConfirmerService {
             link: 'https://partner.trinity.ru/'
           }
         });
+        await this.notifySuperAdminsAboutNewPartner({
+          company_name: user.info?.company_name,
+          first_name: user.info?.first_name,
+          last_name: user.info?.last_name,
+          email: user?.email,
+        });
         break;
+
       case RoleTypes.Employee:
         await this._emailSend({
           ...sendOpts,
@@ -188,6 +195,46 @@ export class EmailConfirmerService {
         break;
     }
   }
+
+	private async notifySuperAdminsAboutNewPartner({
+		company_name,
+		first_name,
+		last_name,
+		email,
+	}: {
+		company_name?: string;
+		first_name?: string;
+		last_name?: string;
+		email: string;
+	}) {
+		const superAdmins = await this.userRepository.find({
+			where: { role_id: 1 },
+		});
+
+		// Автоматически определяем имя партнёра
+		const partnerName =
+			company_name ||
+			[first_name, last_name].filter(Boolean).join(' ') ||
+			'Партнёр';
+		const partnerEmail = email;
+
+		for (const admin of superAdmins) {
+			await this.emailSend({
+				email: admin.email,
+				subject: emailSendConfig({ partnerName, partnerEmail })[
+					'notify.new.partner'
+				].subject,
+				template: emailSendConfig({ partnerName, partnerEmail })[
+					'notify.new.partner'
+				].template,
+				context: {
+					partnerName,
+					partnerEmail,
+					link: 'https://partner.trinity.ru/',
+				},
+			});
+		}
+	}
 
   private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
     const resetHashDelete = await this.resetHashRepository.delete(resetHashEntity.id);

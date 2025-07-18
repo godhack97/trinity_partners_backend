@@ -270,15 +270,6 @@ export class UserService {
 			method: EmailConfirmerMethod.EmailConfirmation,
 		});
 	
-		// ===== ВСТРОЕННЫЙ ВЫЗОВ РАССЫЛКИ АДМИНАМ =====
-		await this.notifySuperAdminsAboutNewPartner({
-			company_name: registrationCompanyDto.company_name,
-			first_name: registrationCompanyDto.first_name,
-			last_name: registrationCompanyDto.last_name,
-			email: registrationCompanyDto.email,
-		});
-		// =============================================
-	
 		return newUser;
 	}
 
