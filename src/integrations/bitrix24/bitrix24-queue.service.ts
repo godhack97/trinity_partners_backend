@@ -2,7 +2,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Bitrix24Service } from './bitrix24.service';
-import { DealRepository, UserRepository } from '@orm/repositories';
+import { DealRepository, UserRepository, CustomerRepository } from '@orm/repositories';
 import { Bitrix24SyncStatus } from '@orm/entities';
 import { IsNull, Not } from 'typeorm';
 import { UserActionsService } from '../../logs/user-actions.service';
@@ -15,6 +15,7 @@ export class Bitrix24QueueService {
     private readonly bitrix24Service: Bitrix24Service,
     private readonly dealRepository: DealRepository,
     private readonly userRepository: UserRepository,
+    private readonly customerRepository: CustomerRepository,
     private readonly userActionsService: UserActionsService,
   ) {}
 
@@ -129,7 +130,18 @@ export class Bitrix24QueueService {
         distributorName = `Distributor_${deal.distributor_id}`;
       }
 
-      const bitrixLeadId = await this.bitrix24Service.createLead(deal, distributorName, contactId);
+
+    const existingCustomer = await this.customerRepository.findSimilar(
+      deal.customer.inn,
+      deal.customer.email,
+      deal.customer.first_name,
+      deal.customer.last_name
+    );
+
+    const customer = existingCustomer || await this.customerRepository.save(deal.customer);
+
+
+      const bitrixLeadId = await this.bitrix24Service.createLead(deal, customer, distributorName, contactId);
 
       if (bitrixLeadId) {
         await this.dealRepository.update(deal.id, {

@@ -62,7 +62,15 @@ export class DealService {
 
   async create(auth_user: UserEntity, createDealDto: CreateDealDto) {
     const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
-    const customer = await this.customerRepository.save(createDealDto.customer);
+
+    const existingCustomer = await this.customerRepository.findSimilar(
+      createDealDto.customer.inn,
+      createDealDto.customer.email,
+      createDealDto.customer.first_name,
+      createDealDto.customer.last_name
+    );
+
+    const customer = existingCustomer || await this.customerRepository.save(createDealDto.customer);
 
     if(!distributor) {
       throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
@@ -88,9 +96,13 @@ export class DealService {
       deal_num
     }
 
+    if (dealData.customer_id) {
+      delete dealData.customer;
+    }
+
     const savedDeal = await this.dealRepository.save(dealData);
 
-    this.sendLeadToBitrix24(savedDeal, customer, distributor).catch(error => {
+    this.sendLeadToBitrix24(savedDeal, customer, distributor, auth_user).catch(error => {
       this.logger.error(`Ошибка отправки лида для сделки ${savedDeal.id} в Bitrix24:`, error);
     });
 
@@ -127,7 +139,7 @@ export class DealService {
             customerPhone: customer.phone,
             distributorName: distributor.name,
             distributorId: distributor.id,
-            creatorName: creatorWithInfo.user_info?.first_name && creatorWithInfo.user_info?.last_name 
+            creatorName: creatorWithInfo.user_info?.first_name && creatorWithInfo.user_info?.last_name
             ? `${creatorWithInfo.user_info.first_name} ${creatorWithInfo.user_info.last_name}`
             : creatorWithInfo.email,
             creatorEmail: creatorWithInfo.email,
@@ -147,32 +159,51 @@ export class DealService {
   /**
    * Отправка лида в Bitrix24
    */
-  private async sendLeadToBitrix24(deal: any, customer: any, distributor?: any): Promise<void> {
+  private async sendLeadToBitrix24(deal: any, customer: any, distributor?: any, creator?: UserEntity): Promise<void> {
     try {
       this.logger.log(`Отправка лида для сделки ${deal.id} в Bitrix24...`);
 
       const distributorName = distributor?.name || distributor?.company_name || `Distributor_${deal.distributor_id}`;
 
-      const leadId = await this.bitrix24Service.createLead(deal, distributorName);
+      let dealCreator = creator;
+      if (!dealCreator && deal.creator_id) {
+        dealCreator = await this.userRepository.findByIdWithUserInfo(deal.creator_id);
+      }
+
+      if (!dealCreator) {
+        this.logger.error(`Не удалось найти создателя сделки ${deal.id}`);
+        await this.dealRepository.update(deal.id, {
+          bitrix24_sync_status: Bitrix24SyncStatus.FAILED
+        });
+        return;
+      }
+
+      const dealWithPartner = {
+        ...deal,
+        partner: dealCreator,
+        customer: customer
+      };
+
+      const leadId = await this.bitrix24Service.createLead(dealWithPartner, customer, distributorName);
 
       if (leadId) {
-        await this.dealRepository.update(deal.id, { 
+        await this.dealRepository.update(deal.id, {
           bitrix24_deal_id: leadId,
           bitrix24_sync_status: Bitrix24SyncStatus.SYNCED,
           bitrix24_synced_at: new Date()
         });
         this.logger.log(`Лид для сделки ${deal.id} успешно создан в Bitrix24 с ID: ${leadId}`);
       } else {
-        await this.dealRepository.update(deal.id, { 
-          bitrix24_sync_status: Bitrix24SyncStatus.FAILED 
+        await this.dealRepository.update(deal.id, {
+          bitrix24_sync_status: Bitrix24SyncStatus.FAILED
         });
         this.logger.warn(`Не удалось создать лид для сделки ${deal.id} в Bitrix24`);
       }
     } catch (error) {
       this.logger.error(`Ошибка при отправке лида для сделки ${deal.id} в Bitrix24:`, error);
 
-      await this.dealRepository.update(deal.id, { 
-        bitrix24_sync_status: Bitrix24SyncStatus.FAILED 
+      await this.dealRepository.update(deal.id, {
+        bitrix24_sync_status: Bitrix24SyncStatus.FAILED
       });
     }
   }
@@ -305,16 +336,22 @@ export class DealService {
     const customer = await this.customerRepository.findById(deal.customer_id);
     const distributor = await this.distributorRepository.findById(deal.distributor_id);
 
+    const creator = await this.userRepository.findByIdWithUserInfo(deal.creator_id);
+
     if (!customer) {
       throw new HttpException('Клиент не найден', HttpStatus.NOT_FOUND);
     }
 
+    if (!creator) {
+      throw new HttpException('Создатель сделки не найден', HttpStatus.NOT_FOUND);
+    }
+
     try {
-      await this.dealRepository.update(dealId, { 
-        bitrix24_sync_status: Bitrix24SyncStatus.PENDING 
+      await this.dealRepository.update(dealId, {
+        bitrix24_sync_status: Bitrix24SyncStatus.PENDING
       });
 
-      await this.sendLeadToBitrix24(deal, customer, distributor);
+      await this.sendLeadToBitrix24(deal, customer, distributor, creator);
 
       return { success: true, message: 'Лид отправлен в Bitrix24' };
     } catch (error) {

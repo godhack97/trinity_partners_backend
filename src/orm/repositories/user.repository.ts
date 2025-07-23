@@ -61,7 +61,7 @@ export class UserRepository {
   async findByIdWithUserInfo(id: number): Promise<UserEntity> {
     return await this.findOne({
       where: { id },
-      relations: ['user_info']
+      relations: ['user_info', 'owner_company']
     });
   }
 

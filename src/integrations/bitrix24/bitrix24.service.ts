@@ -4,7 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { DealEntity, CustomerEntity, UserEntity, UserInfoEntity, CompanyEntity } from '@orm/entities';
-import { CompanyRepository } from '@orm/repositories';
+import { CompanyRepository, CustomerRepository } from '@orm/repositories';
 
 export interface Bitrix24LeadData {
   TITLE: string;
@@ -42,6 +42,7 @@ export interface Bitrix24LeadData {
   UF_CRM_1749553951?: string;  // Дата создания сделки
   UF_CRM_1749554019?: string;  // Дистрибьютор name
   UF_CRM_1747652899094?: string; // Компания партнера
+  UF_CRM_1753262316548?: string; // пометка, что прилетело с партнерки
   [key: string]: any;
 }
 
@@ -61,7 +62,8 @@ export class Bitrix24Service {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    private readonly companyRepository: CompanyRepository
+    private readonly companyRepository: CompanyRepository,
+    private readonly customerRepository: CustomerRepository
   ) {
     this.webhookUrl = this.configService.get<string>('BITRIX24_WEBHOOK_URL');
 
@@ -124,15 +126,17 @@ export class Bitrix24Service {
       return null;
     }
 
+    console.log('userData', userData);
+
     try {
       const contactData = {
-        NAME: userData.info?.first_name || '',
-        LAST_NAME: userData.info?.last_name || '',
-        COMPANY_TITLE: userData.info?.company_name || userData.owner_company?.name || '',
-        PHONE: userData.info?.phone ? [{ VALUE: userData.info.phone, VALUE_TYPE: 'WORK' }] : undefined,
+        NAME: userData?.info?.first_name || '',
+        LAST_NAME: userData?.info?.last_name || '',
+        COMPANY_TITLE: userData?.info?.company_name || userData?.owner_company?.name || '',
+        PHONE: userData?.info?.phone ? [{ VALUE: userData?.info?.phone, VALUE_TYPE: 'WORK' }] : undefined,
         UF_CRM_68500D3603B21: (await this.companyRepository.findOne({ where: { owner_id: userData.id } }))?.inn || '',
 
-        EMAIL: userData.email ? [{ VALUE: userData.email, VALUE_TYPE: 'WORK' }] : undefined,
+        EMAIL: userData?.email ? [{ VALUE: userData?.email, VALUE_TYPE: 'WORK' }] : undefined,
         OPENED: 'Y',
         ASSIGNED_BY_ID: userData.id,
         CREATED_BY_ID: userData.id,
@@ -214,57 +218,94 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Создание компании заказчика в Bitrix24
-   */
-  async createCustomerCompany(customerData: CustomerEntity): Promise<number | null> {
-    if (!this.webhookUrl) {
-      this.logger.warn('Bitrix24 webhook URL не настроен');
-      return null;
-    }
-
-    try {
-      const companyData = {
-        TITLE: customerData.company_name || `${customerData.first_name} ${customerData.last_name}`.trim(),
-        COMPANY_TYPE: 'CUSTOMER', // Тип компании - заказчик
-        PHONE: customerData.phone ? [{ VALUE: customerData.phone, VALUE_TYPE: 'WORK' }] : undefined,
-        EMAIL: customerData.email ? [{ VALUE: customerData.email, VALUE_TYPE: 'WORK' }] : undefined,
-        OPENED: 'Y',
-        COMMENTS: `Компания заказчика. ИНН: ${customerData.inn || 'не указан'}`,
-        // Пользовательские поля для данных заказчика
-        UF_CRM_68500D3655754: customerData.first_name,
-        UF_CRM_68500D365A5DC: customerData.last_name,
-        UF_CRM_68500D3660B6A: customerData.inn,
-      };
-
-      Object.keys(companyData).forEach(key => {
-        if (companyData[key] === undefined) {
-          delete companyData[key];
-        }
-      });
-
-      const response = await this.httpRequestWithRetry(() =>
-        firstValueFrom(
-          this.httpService.post(`${this.webhookUrl}/crm.company.add.json`, {
-            fields: companyData,
-          })
-        )
-      );
-
-      if (response.data?.result) {
-        this.logger.log(`Компания заказчика создана в Bitrix24 с ID: ${response.data.result}`);
-        return response.data.result;
-      }
-
-      this.logger.error('Ошибка создания компании заказчика в Bitrix24:', response.data);
-      return null;
-    } catch (error) {
-      this.logger.error('Ошибка при создании компании заказчика в Bitrix24:', error.message);
-      return null;
-    }
+/**
+ * Создание компании заказчика в Bitrix24
+ */
+async createCustomerCompany(customerData: CustomerEntity): Promise<number | null> {
+  if (!this.webhookUrl) {
+    this.logger.warn('Bitrix24 webhook URL не настроен');
+    return null;
   }
 
-  async createLead(dealData: DealEntity, distributorName?: string, creatorContactId?: number): Promise<number | null> {
+  if (customerData?.bitrix24_company_id) {
+    this.logger.log(`Компания с id ${customerData?.bitrix24_company_id} уже существует в Bitrix24`)
+    return customerData?.bitrix24_company_id;
+  }
+
+  try {
+    const companyData = {
+      TITLE: customerData?.company_name || `${customerData?.first_name} ${customerData?.last_name}`.trim(),
+      COMPANY_TYPE: 'CUSTOMER',
+      PHONE: customerData?.phone ? [{ VALUE: customerData?.phone, VALUE_TYPE: 'WORK' }] : undefined,
+      EMAIL: customerData?.email ? [{ VALUE: customerData?.email, VALUE_TYPE: 'WORK' }] : undefined,
+      OPENED: 'Y',
+      COMMENTS: `Компания заказчика. ИНН: ${customerData?.inn || 'не указан'}`,
+      UF_CRM_68500D3655754: customerData?.first_name,
+      UF_CRM_68500D365A5DC: customerData?.last_name,
+      UF_CRM_68500D3660B6A: customerData?.inn,
+    };
+
+    Object.keys(companyData).forEach(key => {
+      if (companyData[key] === undefined) {
+        delete companyData[key];
+      }
+    });
+
+    const response = await this.httpRequestWithRetry(() =>
+      firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.company.add.json`, {
+          fields: companyData,
+        })
+      )
+    );
+
+    if (response.data?.result) {
+      const bitrixCompanyId = response.data.result;
+      this.logger.log(`Компания заказчика создана в Bitrix24 с ID: ${bitrixCompanyId}`);
+
+      // ДОБАВЛЕННЫЕ ЛОГИ ПЕРЕД ОБНОВЛЕНИЕМ
+      console.log('About to update customer with ID:', customerData.id);
+      console.log('Setting bitrix24_company_id to:', bitrixCompanyId);
+
+      try {
+        const updateResult = await this.customerRepository.update(customerData.id, {
+          bitrix24_company_id: bitrixCompanyId
+        });
+
+        console.log('Update result:', updateResult);
+
+        const updatedCustomer = await this.customerRepository.findOne({
+          where: { id: customerData.id }
+        });
+
+        console.log('Updated customer from DB:', {
+          id: updatedCustomer?.id,
+          bitrix24_company_id: updatedCustomer?.bitrix24_company_id
+        });
+
+        if (!updatedCustomer?.bitrix24_company_id) {
+          this.logger.error('КРИТИЧЕСКАЯ ОШИБКА: bitrix24_company_id не сохранился в БД!');
+        }
+
+      } catch (updateError) {
+        this.logger.error('Ошибка при обновлении customer в БД:', updateError);
+        console.log('Update error details:', updateError);
+      }
+
+      console.log('=== END CREATE CUSTOMER COMPANY DEBUG ===');
+      return bitrixCompanyId;
+    }
+
+    this.logger.error('Ошибка создания компании заказчика в Bitrix24:', response.data);
+    return null;
+  } catch (error) {
+    this.logger.error('Ошибка при создании компании заказчика в Bitrix24:', error.message);
+    console.log('Full error:', error);
+    return null;
+  }
+}
+
+  async createLead(dealData: DealEntity, customer: any, distributorName?: string, creatorContactId?: number): Promise<number | null> {
     if (!this.webhookUrl) {
       this.logger.warn('Bitrix24 webhook URL не настроен');
       return null;
@@ -283,8 +324,12 @@ export class Bitrix24Service {
       }
 
       let companyId: number | null = null;
-      if (dealData.customer) {
-        companyId = dealData.customer.bitrix24_company_id || (await this.createCustomerCompany(dealData.customer));
+      if (dealData.customer ?? customer) {
+        const customerToUse = dealData.customer ?? customer;
+
+        companyId = customerToUse?.bitrix24_company_id || (await this.createCustomerCompany(customerToUse));
+
+        console.log('Final companyId after createCustomerCompany:', companyId);
 
         if (!companyId) {
           this.logger.error('Не удалось создать компанию заказчика для лида');
@@ -319,6 +364,7 @@ export class Bitrix24Service {
         UF_CRM_1749553924: dealData.id,
         UF_CRM_1749553951: dealData.created_at ? this.formatDateForBitrix(dealData.created_at) : this.formatDateForBitrix(new Date()),
         UF_CRM_1749554019: distributorName,
+        UF_CRM_1753262316548: 'Создано в партнёрском конфигураторе',
       };
 
       Object.keys(bitrixLeadData).forEach(key => {
@@ -337,6 +383,7 @@ export class Bitrix24Service {
 
       if (response.data?.result) {
         this.logger.log(`Лид создан в Bitrix24 с ID: ${response.data.result}`);
+
         return response.data.result;
       }
 
