@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Request } from 'express';
 import { ResetHashRepository } from '@orm/repositories/reset-hash.repository';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import { UserToken } from 'src/orm/entities/user-token.entity';
@@ -35,48 +36,53 @@ export class AuthService {
 
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
-  ) {}
+  ) { }
 
-  async login(authLoginDto: AuthLoginRequestDto, clientId: string) {
+  async login(authLoginDto: AuthLoginRequestDto, clientId: string, req?: Request) {
     let user = await this.userRepository.findByEmail(authLoginDto.email);
     if (!user) throw new UnauthorizedException();
-  
+
     const isVerify = await verifyPassword({
       user_password: user.password,
       password: authLoginDto.password,
       salt: user.salt,
     });
     if (!isVerify) throw new UnauthorizedException();
-  
-    // Ищем запись user_id + client_id
+
     let userToken = await this.userTokenRepository.findOneBy({
       user_id: user.id,
       client_id: clientId,
     });
-  
+
     if (userToken) {
-      // Если токен уже есть — просто возвращаем его, не трогаем
+      if (req) {
+        await this.updateUserActivity(user.id, req);
+      }
+
       const token = userToken.token;
       if (user.role.name === RoleTypes.Partner) {
         user.owner_company = await user.lazy_owner_company;
       }
       return { token, user };
     }
-  
-    // Если нет — создаём новый токен
+
     const token = await createToken(user.salt);
-  
+
     userToken = this.userTokenRepository.create({
       user_id: user.id,
       token,
       client_id: clientId,
     });
     await this.userTokenRepository.save(userToken);
-  
+
+    if (req) {
+      await this.updateUserActivity(user.id, req);
+    }
+
     if (user.role.name === RoleTypes.Partner) {
       user.owner_company = await user.lazy_owner_company;
     }
-  
+
     return { token, user };
   }
 
@@ -89,7 +95,7 @@ export class AuthService {
     await this.userTokenRepository.delete({ token, client_id: clientId });
   }
 
-  async check(authorization: string, clientId: string) {
+  async check(authorization: string, clientId: string, req?: Request) {
     const token = authorization.substring(7);
 
     const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
@@ -97,6 +103,10 @@ export class AuthService {
 
     const user = await this.userRepository.findByIdWithCompanyEmployees(tokenEntity.user_id);
     if (!user) throw new HttpException(`Пользователь не найден`, HttpStatus.NOT_FOUND);
+
+    if (req) {
+      await this.updateUserActivity(tokenEntity.user_id, req);
+    }
 
     const notifications = await this.notificationService.check(user.id);
     const notifications_unread = await this.notificationService.countUnread(user.id);
@@ -165,5 +175,70 @@ export class AuthService {
       email,
       method: EmailConfirmerMethod.Recovery
     });
+  }
+
+  private async updateUserActivity(userId: number, req: Request) {
+    const user = await this.userRepository.findById(userId);
+    if (!user?.lastActivity?.lastSeen) {
+      await this.saveActivity(userId, req);
+      return;
+    }
+
+    const lastSeen = new Date(user.lastActivity.lastSeen);
+    const now = new Date();
+
+    if (now.getTime() - lastSeen.getTime() > 60000) {
+      await this.saveActivity(userId, req);
+    }
+  }
+
+  private async saveActivity(userId: number, req: Request) {
+    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceInfo = this.parseUserAgent(userAgent);
+
+    await this.userRepository.updateUser(userId, {
+      lastActivity: {
+        lastSeen: new Date(),
+        ip: ip,
+        browser: deviceInfo.browser,
+        device: deviceInfo.device,
+        os: deviceInfo.os
+      }
+    });
+  }
+
+  private parseUserAgent(userAgent: string) {
+    return {
+      browser: userAgent.includes('Chrome') ? 'Chrome' :
+        userAgent.includes('Firefox') ? 'Firefox' :
+          userAgent.includes('Safari') ? 'Safari' :
+            userAgent.includes('Edge') ? 'Edge' : 'Other',
+      device: userAgent.includes('Mobile') ? 'Mobile' : 'Desktop',
+      os: userAgent.includes('Windows') ? 'Windows' :
+        userAgent.includes('Mac OS') ? 'macOS' :
+          userAgent.includes('Linux') ? 'Linux' :
+            userAgent.includes('Android') ? 'Android' :
+              userAgent.includes('iOS') ? 'iOS' : 'Other'
+    };
+  }
+
+  async getUserActivity(userId: number) {
+    const user = await this.userRepository.findById(userId);
+    if (!user?.lastActivity) {
+      return { isOnline: false, lastActivity: null };
+    }
+
+    const isOnline = this.isUserOnline(user.lastActivity.lastSeen);
+    return {
+      isOnline,
+      lastActivity: user.lastActivity
+    };
+  }
+
+  private isUserOnline(lastSeen: string | Date): boolean {
+    if (!lastSeen) return false;
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    return new Date(lastSeen) > fiveMinutesAgo;
   }
 }

@@ -7,10 +7,9 @@ import { LogAction } from 'src/logs/log-action.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   private extractClientId(query: any, body: any, headers: any): string {
-    // Если client_id не передан в query, body, или headers, берем origin из заголовков
     return (
       headers['origin'] ||
       query.client_id ||
@@ -22,9 +21,9 @@ export class AuthController {
 
   @Post('login')
   @Public()
-  async login(@Body() dto: AuthLoginRequestDto, @Query() query, @Headers() headers) {
+  async login(@Body() dto: AuthLoginRequestDto, @Query() query, @Headers() headers, @Req() req: Request) {
     const clientId = this.extractClientId(query, dto, headers);
-    return this.authService.login(dto, clientId);
+    return this.authService.login(dto, clientId, req);
   }
 
   @Post('logout')
@@ -35,10 +34,10 @@ export class AuthController {
   }
 
   @Get('check')
-  async check(@Headers() headers, @Query() query) {
+  async check(@Headers() headers, @Query() query, @Req() req: Request) {
     const authorization = headers.authorization;
     const clientId = this.extractClientId(query, {}, headers);
-    return this.authService.check(authorization, clientId);
+    return this.authService.check(authorization, clientId, req);
   }
 
   @Post('update-password')
@@ -60,5 +59,10 @@ export class AuthController {
   @Public()
   async recoveryPassword(@Body() body) {
     return this.authService.recoveryPassword(body);
+  }
+
+  @Get('user-activity/:userId')
+  async getUserActivity(@Query('userId') userId: number) {
+    return this.authService.getUserActivity(userId);
   }
 }

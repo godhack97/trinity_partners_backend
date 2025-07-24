@@ -85,4 +85,13 @@ export class UserEntity extends BasisEntity {
     comment: 'Время последней синхронизации контакта с Bitrix24'
   })
   bitrix24_synced_at?: Date;
+
+  @Column({ type: 'json', nullable: true })
+  lastActivity: {
+    lastSeen: Date;
+    ip: string;
+    browser: string;
+    device: string;
+    os: string;
+  } | null;
 }

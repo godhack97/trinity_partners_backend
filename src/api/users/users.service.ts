@@ -25,7 +25,7 @@ export class UsersService {
   async findUsersByRoleIdGreaterThanOne(): Promise<UserEntity[]> {
     const users = await this.usersRepository.find({
       where: { role_id: MoreThan(1) },
-      select: ['id', 'email', 'role_id', 'is_activated', 'email_confirmed'],
+      select: ['id', 'email', 'role_id', 'is_activated', 'email_confirmed', 'lastActivity'],
     });
 
     if (!users.length) {
