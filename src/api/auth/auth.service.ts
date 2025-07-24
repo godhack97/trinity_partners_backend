@@ -178,37 +178,45 @@ export class AuthService {
   }
 
   private async updateUserActivity(userId: number, req: Request) {
-    const user = await this.userRepository.findById(userId);
-    if (!user?.lastActivity?.lastSeen) {
-      await this.saveActivity(userId, req);
-      return;
-    }
+    try {
+      const user = await this.userRepository.findById(userId);
+      if (!user?.lastActivity?.lastSeen) {
+        await this.saveActivity(userId, req);
+        return;
+      }
 
-    const lastSeen = new Date(user.lastActivity.lastSeen);
-    const now = new Date();
+      const lastSeen = new Date(user.lastActivity.lastSeen);
+      const now = new Date();
 
-    if (now.getTime() - lastSeen.getTime() > 60000) {
-      await this.saveActivity(userId, req);
+      if (now.getTime() - lastSeen.getTime() > 30000) {
+        await this.saveActivity(userId, req);
+      }
+    } catch (error) {
+      console.error('Error updating user activity:', error);
     }
   }
 
   private async saveActivity(userId: number, req: Request) {
-    const ip = req.headers['x-forwarded-for'] as string ||
-      req.headers['x-real-ip'] as string ||
-      req.connection.remoteAddress ||
-      req.socket.remoteAddress ||
+    const forwarded = req.headers['x-forwarded-for'] as string;
+    const realIp = req.headers['x-real-ip'] as string;
+
+    let clientIp = forwarded?.split(',')[0]?.trim() ||
+      realIp ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
       req.ip;
+
+    clientIp = clientIp?.replace('::ffff:', '') || 'unknown';
+
+    console.log('Real client IP:', clientIp);
+
     const userAgent = req.headers['user-agent'] || '';
     const deviceInfo = this.parseUserAgent(userAgent);
-    const clientIp = typeof ip === 'string' && ip.includes(',')
-      ? ip.split(',')[0].trim()
-      : ip;
-    const cleanIp = clientIp?.replace('::ffff:', '') || 'unknown';
 
     await this.userRepository.updateUser(userId, {
       lastActivity: {
         lastSeen: new Date(),
-        ip: cleanIp,
+        ip: clientIp,
         browser: deviceInfo.browser,
         device: deviceInfo.device,
         os: deviceInfo.os
@@ -220,14 +228,15 @@ export class AuthService {
     return {
       browser: userAgent.includes('Chrome') ? 'Chrome' :
         userAgent.includes('Firefox') ? 'Firefox' :
-          userAgent.includes('Safari') ? 'Safari' :
-            userAgent.includes('Edge') ? 'Edge' : 'Other',
-      device: userAgent.includes('Mobile') ? 'Mobile' : 'Desktop',
+          userAgent.includes('Safari') && !userAgent.includes('Chrome') ? 'Safari' :
+            userAgent.includes('Edge') ? 'Edge' :
+              userAgent.includes('Opera') ? 'Opera' : 'Other',
+      device: userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone') ? 'Mobile' : 'Desktop',
       os: userAgent.includes('Windows') ? 'Windows' :
         userAgent.includes('Mac OS') ? 'macOS' :
           userAgent.includes('Linux') ? 'Linux' :
             userAgent.includes('Android') ? 'Android' :
-              userAgent.includes('iOS') ? 'iOS' : 'Other'
+              userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : 'Other'
     };
   }
 
