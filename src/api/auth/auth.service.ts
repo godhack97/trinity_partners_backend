@@ -193,14 +193,22 @@ export class AuthService {
   }
 
   private async saveActivity(userId: number, req: Request) {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.headers['x-forwarded-for'] as string ||
+      req.headers['x-real-ip'] as string ||
+      req.connection.remoteAddress ||
+      req.socket.remoteAddress ||
+      req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const deviceInfo = this.parseUserAgent(userAgent);
+    const clientIp = typeof ip === 'string' && ip.includes(',')
+      ? ip.split(',')[0].trim()
+      : ip;
+    const cleanIp = clientIp?.replace('::ffff:', '') || 'unknown';
 
     await this.userRepository.updateUser(userId, {
       lastActivity: {
         lastSeen: new Date(),
-        ip: ip,
+        ip: cleanIp,
         browser: deviceInfo.browser,
         device: deviceInfo.device,
         os: deviceInfo.os
