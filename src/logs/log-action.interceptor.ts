@@ -26,15 +26,19 @@ export class LogActionInterceptor implements NestInterceptor {
       if (Array.isArray(obj)) {
         return obj.map(removePasswords);
       }
+
       if (obj && typeof obj === 'object') {
         const result: any = {};
+
         for (const key of Object.keys(obj)) {
-          if (!key.toLowerCase().includes('password')) {
+          if (!key.toLowerCase().includes('password') && !key.toLowerCase().includes('repeat')) {
             result[key] = removePasswords(obj[key]);
           }
         }
+
         return result;
       }
+
       return obj;
     }
 
