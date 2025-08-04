@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Post, Query, Req, Param } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthLoginRequestDto } from './dto/request/auth-login.request.dto';
+import { AuthCheckResponseDto } from './dto/response/auth-check.response.dto';
 import { Request } from 'express';
 import { Public } from 'src/decorators/Public';
 import { LogAction } from 'src/logs/log-action.decorator';
@@ -36,6 +37,7 @@ export class AuthController {
   }
 
   @Get('check')
+  @ApiResponse({ status: 200, type: AuthCheckResponseDto })
   async check(@Headers() headers, @Query() query, @Req() req: Request) {
     const authorization = headers.authorization;
     const clientId = this.extractClientId(query, {}, headers);
