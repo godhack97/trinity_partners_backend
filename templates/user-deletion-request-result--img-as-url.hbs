@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Результат рассмотрения заявки на удаление</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F1F4F9;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table class="body" style="background: #F1F4F9; border-collapse: collapse; border-spacing: 0; height: 100%; width: 100%;">
+    <tr>
+      <td align="center" valign="top" style="padding: 0; text-align: center;">
+        <center style="width: 100%;">
+          <table align="center" class="container" style="background: #FFFFFF; border-collapse: separate; border-radius: 34px 34px 0 0; border-spacing: 0; margin: 0 auto; text-align: center; width: 600px;">
+            <tr>
+              <td style="padding: 0;">
+                <table class="header" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                  <tr>
+                    <td class="header-inner" style="padding: 44px 23px 41px;">
+                      <a href="#" target="_blank" style="color: #2199e8; text-decoration: none;">
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <table class="main" style="border-collapse: collapse; border-spacing: 0; width: 100%;">
+                  <tr>
+                    <td class="main-inner" align="center" style="padding: 0 23px 36px;">
+                      <div role="separator" style="line-height:20px; height:20px; font-size:20px">&#8202;</div>
+                      <h2 style="color: #0047bb; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 24px; margin: 0 0 20px 0; text-align: left;">Результат рассмотрения заявки на удаление</h2>
+                      <p style="color: #0a0a0a; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 17px; line-height: 1.76; margin: 0 auto; margin-bottom: 10px; padding: 0; text-align: left;">
+                        Уважаемый {{ userName }},
+                        <br><br>
+                        Ваша заявка на удаление сделки <b>{{ dealNumber }}</b> была <b>{{ status }}</b>.
+                        <br><br>
+                        <div style="background-color: #E7EDF8; padding: 20px; border-radius: 14px; margin: 20px 0;">
+                          <b>Статус:</b> {{ status }}<br>
+                          <b>Обработано:</b> {{ processedByEmail }}<br>
+                          <b>Дата обработки:</b> {{ processedDate }}
+                        </div>
+                        <br>
+                        {{#if (eq status "одобрена")}}
+                        <span style="color: #28a745; font-weight: bold;">Сделка была успешно удалена из системы.</span>
+                        {{else}}
+                        <span style="color: #fd7e14; font-weight: bold;">Сделка остается в системе. При необходимости вы можете подать новую заявку с уточненной причиной.</span>
+                        {{/if}}
+                        <br><br>
+                        С уважением,<br>Команда портала Тринити
+                      </p>
+                      <div role="separator" style="line-height:16px; height:16px; font-size:16px">&#8202;</div>
+                      <a href="{{link}}" target="_blank" class="btn" style="background-color: #0047bb; border: 1px solid #0047bb; border-radius: 14px !important; box-shadow: 0 15px 35px rgba(50, 50, 93, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07); color: #FFFFFF; display: inline-block; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 20px; font-weight: bold; line-height: 20px; padding: 12px 28px 14px; text-align: center; text-decoration: none;">Перейти в личный кабинет</a>
+                    </td>
+                  </tr>
+                </table>
+                <table class="footer" style="background: #E7EDF8; border-collapse: collapse; border-spacing: 0; width: 100%;">
+                  <tr>
+                    <td align="center" style="padding: 20px 20px 30px;">
+                      <p style="color: #666; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; margin: 0;">
+                        Вы получили это письмо, поскольку зарегистрированы на тринити.рф<br>
+                        <a href="mailto:partner@trinity.ru" style="color: #0a0a0a; text-decoration: none;">partner@trinity.ru</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </center>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

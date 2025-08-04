@@ -208,8 +208,6 @@ export class AuthService {
 
     clientIp = clientIp?.replace('::ffff:', '') || 'unknown';
 
-    console.log('Real client IP:', clientIp);
-
     const userAgent = req.headers['user-agent'] || '';
     const deviceInfo = this.parseUserAgent(userAgent);
 

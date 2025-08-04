@@ -4,6 +4,7 @@ import { DealController } from './deal.controller';
 import { CheckUserOrCompanyStatusGuard } from '@app/guards/check-user-or-company-status.guard';
 import { Bitrix24Module } from '@integrations/bitrix24/bitrix24.module';
 import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.service';
+import { DealDeletionRequestRepository } from './deal-deletion-request.repository';
 
 @Module({
   imports: [Bitrix24Module],
@@ -12,6 +13,7 @@ import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.serv
     DealService, 
     EmailConfirmerService,
     CheckUserOrCompanyStatusGuard,
+    DealDeletionRequestRepository,
   ],
   exports: [DealService],
 })

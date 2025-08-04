@@ -2,6 +2,7 @@ import { SearchDealDto } from "@api/deal/dto/request/search-deal.dto";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DealEntity } from "@orm/entities";
+import { DealDeletionStatus } from "@orm/entities/deal-deletion-request.entity";
 import { Between, LessThanOrEqual, Like, MoreThanOrEqual, Repository } from "typeorm";
 
 @Injectable()
@@ -16,10 +17,10 @@ export class DealRepository extends Repository<DealEntity> {
   async countDealsForToday(): Promise<number> {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     return await this.count({
       where: {
         created_at: Between(startOfDay, endOfDay),
@@ -32,38 +33,18 @@ export class DealRepository extends Repository<DealEntity> {
   }
 
   public async findDealsWithFilters(entry?: SearchDealDto): Promise<DealEntity[]> {
-    // let whereCondition = {};
-    
-    // if (entry?.startDate && entry?.endDate) {
-    //   whereCondition = { purchase_date: Between(new Date(entry.startDate), new Date(entry.endDate)) };   
-    // } else if (entry?.startDate) {
-    //   whereCondition = { purchase_date: MoreThanOrEqual(new Date(entry.startDate)) };
-    // } else if (entry?.endDate) {
-    //   whereCondition = { purchase_date: LessThanOrEqual(new Date(entry.endDate)) };
-    // }
-
-    // if (entry?.status) {
-    //   whereCondition = { ...whereCondition, status: entry.status };
-    // }
-
-    // if(entry?.search) {
-    //   whereCondition = [
-    //     { ...whereCondition, deal_num: Like(`%${entry.search.toLowerCase()}%`) },
-    //     { ...whereCondition, deal_sum: Like(`%${entry.search.toLowerCase()}%`) },
-    //     { ...whereCondition, title: Like(`%${entry.search.toLowerCase()}%`) }
-    //   ];
-    // }
-    
-    // return await this.find({
-    //   where: whereCondition,
-    // });
-
-    // Чтобы искало без учета регистра, плюс в дальнейшем проще будет добавялть условия поиска
     const queryBuilder = this.createQueryBuilder("deal")
-     .leftJoinAndSelect("deal.distributor", "distributor")
-     .leftJoinAndSelect("deal.customer", "customer")
-     .leftJoinAndSelect("deal.partner", "partner")
-     .leftJoinAndSelect("partner.role", "role");
+      .leftJoinAndSelect("deal.distributor", "distributor")
+      .leftJoinAndSelect("deal.customer", "customer")
+      .leftJoinAndSelect("deal.partner", "partner")
+      .leftJoinAndSelect("partner.role", "role")
+      .leftJoin(
+        "deal_deletion_requests",
+        "deletion_request",
+        "deletion_request.deal_id = deal.id AND deletion_request.status = :pendingStatus",
+        { pendingStatus: DealDeletionStatus.PENDING }
+      )
+      .addSelect("CASE WHEN deletion_request.id IS NOT NULL THEN 'yes' ELSE 'no' END", "delete_request_status");
 
     if (entry?.startDate && entry?.endDate) {
       queryBuilder.andWhere("deal.purchase_date BETWEEN :startDate AND :endDate", {
@@ -92,25 +73,26 @@ export class DealRepository extends Repository<DealEntity> {
       );
     }
 
-    const dealsFromDB = await queryBuilder.getMany();
+    const result = await queryBuilder.getRawAndEntities();
 
     const deals = [];
 
-    for ( const deal of dealsFromDB ) {
-
-      let dealWithPartherCompany = deal;
+    for (let i = 0; i < result.entities.length; i++) {
+      const deal = result.entities[i];
+      const raw = result.raw[i];
 
       const partner = deal.partner;
-      
-      if ( partner && partner.lazy_owner_company ) {
-          
+      if (partner && partner.lazy_owner_company) {
         const partnerCompany = await partner.lazy_owner_company;
-        dealWithPartherCompany.partner.owner_company = partnerCompany;
-
+        deal.partner.owner_company = partnerCompany;
       }
 
-      deals.push( dealWithPartherCompany );
+      const dealWithStatus = {
+        ...deal,
+        delete_request_status: raw.delete_request_status
+      };
 
+      deals.push(dealWithStatus);
     }
 
     return deals;

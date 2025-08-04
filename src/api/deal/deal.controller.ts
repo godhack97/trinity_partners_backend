@@ -1,5 +1,5 @@
 import { AuthUser } from "@decorators/auth-user";
-import { Controller, Get, Post, Body, Param, UseInterceptors, Req, Query, UseGuards, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseInterceptors, Req, Query, UseGuards, UploadedFile, BadRequestException, Put } from '@nestjs/common';
 import { UserEntity } from "@orm/entities";
 import { DealService } from './deal.service';
 import { CreateDealDto } from './dto/request/create-deal.dto';
@@ -11,6 +11,9 @@ import { DealStatisticsResponseDto } from './dto/response/deal-statistics-respon
 import { CheckUserOrCompanyStatusGuard } from '@app/guards/check-user-or-company-status.guard';
 import { LogAction } from 'src/logs/log-action.decorator';
 import { Delete } from '@nestjs/common';
+import { CreateDealDeletionRequestDto } from './dto/request/create-deal-deletion-request.dto';
+import { ProcessDealDeletionRequestDto } from './dto/request/process-deal-deletion-request.dto';
+import { DealDeletionRequestResponseDto } from './dto/response/deal-deletion-request-response.dto';
 
 @ApiTags('deal')
 @ApiBearerAuth()
@@ -81,7 +84,6 @@ export class DealController {
       }
     }
   })
-
   async testBitrix24Connection() {
     const isConnected = await this.dealService.checkBitrix24Connection();
 
@@ -106,6 +108,60 @@ export class DealController {
   @ApiResponse({ type: DealStatisticsResponseDto })
   getDealStatistic(@AuthUser() auth_user: UserEntity): Promise<DealStatisticsResponseDto> {
     return this.dealService.getDealStatistic(auth_user);
+  }
+
+  @Get('deletion-requests')
+  @ApiResponse({
+    description: 'Список заявок на удаление',
+    type: DealDeletionRequestResponseDto,
+    isArray: true
+  })
+  async getDeletionRequests(@AuthUser() auth_user: UserEntity) {
+    return this.dealService.getDeletionRequests(auth_user);
+  }
+
+  @Get('deletion-requests/pending')
+  @ApiResponse({
+    description: 'Список ожидающих заявок на удаление (только для админов)',
+    type: DealDeletionRequestResponseDto,
+    isArray: true
+  })
+  async getPendingDeletionRequests(@AuthUser() auth_user: UserEntity) {
+    return this.dealService.getPendingDeletionRequests(auth_user);
+  }
+
+  @Post(':id/deletion-request')
+  @ApiBody({ type: CreateDealDeletionRequestDto })
+  @ApiResponse({
+    description: 'Заявка на удаление создана',
+    type: DealDeletionRequestResponseDto
+  })
+  async createDeletionRequest(
+    @Param('id') id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() createDeletionRequestDto: CreateDealDeletionRequestDto
+  ) {
+    return this.dealService.createDeletionRequest(+id, auth_user, createDeletionRequestDto);
+  }
+
+  @Put('deletion-requests/:requestId/process')
+  @LogAction('deal_deletion_request_process', 'deal_deletion_requests')
+  @ApiBody({ type: ProcessDealDeletionRequestDto })
+  @ApiResponse({
+    description: 'Заявка на удаление обработана',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' }
+      }
+    }
+  })
+  async processDeletionRequest(
+    @Param('requestId') requestId: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() processDto: ProcessDealDeletionRequestDto
+  ) {
+    return this.dealService.processDeletionRequest(+requestId, auth_user, processDto);
   }
 
   @Get(':id')

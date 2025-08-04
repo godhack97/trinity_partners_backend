@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Headers, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Query, Req, Param } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthLoginRequestDto } from './dto/request/auth-login.request.dto';
 import { Request } from 'express';
 import { Public } from 'src/decorators/Public';
 import { LogAction } from 'src/logs/log-action.decorator';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam  } from '@nestjs/swagger';
+
 
 @Controller('auth')
 export class AuthController {
@@ -62,7 +64,8 @@ export class AuthController {
   }
 
   @Get('user-activity/:userId')
-  async getUserActivity(@Query('userId') userId: number) {
+  @ApiParam({ name: 'userId', type: 'number' })
+  async getUserActivity(@Param('userId') userId: number) {
     return this.authService.getUserActivity(userId);
   }
 }

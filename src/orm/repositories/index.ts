@@ -11,3 +11,4 @@ export * from './customer.repository';
 export * from './distributor.repository';
 export * from './notification.repository';
 export * from './news.repository';
+export * from './deal.deletion.request.repository';

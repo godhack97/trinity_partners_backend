@@ -82,4 +82,8 @@ export class DealResponseDto  extends WithIdDto{
   @Expose()
   @Type(() => DistributorResponseDto)
   created_at: Date;
+
+  @ApiProperty({ description: 'Статус заявки на удаление сделки', enum: ['yes', 'no'] })
+  @Expose()
+  delete_request_status: 'yes' | 'no';
 }

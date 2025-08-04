@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { CreateDealDto } from './dto/request/create-deal.dto';
-import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository } from '@orm/repositories';
+import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository, DealDeletionRequestRepository } from '@orm/repositories';
 import { RoleTypes } from '@app/types/RoleTypes';
 import {
   DealStatus,
@@ -12,7 +12,10 @@ import { DealStatisticsResponseDto } from './dto/response/deal-statistics-respon
 import { Bitrix24Service } from '../../integrations/bitrix24/bitrix24.service';
 import { UserRepository } from 'src/orm/repositories/user.repository';
 import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.service';
-
+import { CreateDealDeletionRequestDto } from './dto/request/create-deal-deletion-request.dto';
+import { ProcessDealDeletionRequestDto } from './dto/request/process-deal-deletion-request.dto';
+import { DealDeletionStatus, DealDeletionRequestEntity } from '@orm/entities/deal-deletion-request.entity';
+import { DealDeletionRequestResponseDto } from './dto/response/deal-deletion-request-response.dto';
 
 @Injectable()
 export class DealService {
@@ -26,6 +29,7 @@ export class DealService {
     private readonly bitrix24Service: Bitrix24Service,
     private readonly userRepository: UserRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
+    private readonly dealDeletionRequestRepository: DealDeletionRequestRepository,
   ) {}
 
   async getCount(): Promise<number> {
@@ -110,7 +114,6 @@ export class DealService {
 
     return savedDeal;
   }
-
 
   private async notifyAdminsAboutNewDeal(
     deal: any,
@@ -275,6 +278,175 @@ export class DealService {
     };
 
     return statistic;
+  }
+
+  async createDeletionRequest(
+    dealId: number,
+    auth_user: UserEntity,
+    createDeletionRequestDto: CreateDealDeletionRequestDto
+  ): Promise<DealDeletionRequestResponseDto> {
+    const deal = await this.findOne(dealId, auth_user);
+
+    if (deal.creator_id !== auth_user.id) {
+      throw new HttpException('Вы можете подавать заявку на удаление только своих сделок', HttpStatus.FORBIDDEN);
+    }
+
+    if (deal.deletedAt) {
+      throw new HttpException('Сделка уже удалена', HttpStatus.BAD_REQUEST);
+    }
+
+    const hasPendingRequest = await this.dealDeletionRequestRepository.hasPendingRequestForDeal(dealId);
+    if (hasPendingRequest) {
+      throw new HttpException('Уже существует активная заявка на удаление этой сделки', HttpStatus.BAD_REQUEST);
+    }
+
+    const deletionRequest = await this.dealDeletionRequestRepository.save({
+      deal_id: dealId,
+      requester_id: auth_user.id,
+      deletion_reason: createDeletionRequestDto.deletion_reason,
+      status: DealDeletionStatus.PENDING
+    });
+
+    await this.notifyAdminsAboutDeletionRequest(deletionRequest);
+
+    return this.mapDeletionRequestToResponse(deletionRequest);
+  }
+
+  async getDeletionRequests(auth_user: UserEntity): Promise<DealDeletionRequestResponseDto[]> {
+    let requests: DealDeletionRequestEntity[];
+
+    if (auth_user.role_id === 1) {
+      requests = await this.dealDeletionRequestRepository.findAllWithRelations();
+    } else {
+      requests = await this.dealDeletionRequestRepository.findByRequesterId(auth_user.id);
+    }
+
+    return requests.map(request => this.mapDeletionRequestToResponse(request));
+  }
+
+  async getPendingDeletionRequests(auth_user: UserEntity): Promise<DealDeletionRequestResponseDto[]> {
+    if (auth_user.role_id !== 1) {
+      throw new HttpException('Недостаточно прав для просмотра ожидающих заявок', HttpStatus.FORBIDDEN);
+    }
+
+    const requests = await this.dealDeletionRequestRepository.findPendingRequests();
+    return requests.map(request => this.mapDeletionRequestToResponse(request));
+  }
+
+  async processDeletionRequest(
+    requestId: number,
+    auth_user: UserEntity,
+    processDto: ProcessDealDeletionRequestDto
+  ): Promise<{ message: string }> {
+    if (auth_user.role_id !== 1) {
+      throw new HttpException('Недостаточно прав для обработки заявок на удаление', HttpStatus.FORBIDDEN);
+    }
+
+    const request = await this.dealDeletionRequestRepository.findById(requestId);
+    if (!request) {
+      throw new HttpException('Заявка на удаление не найдена', HttpStatus.NOT_FOUND);
+    }
+
+    if (request.status !== DealDeletionStatus.PENDING) {
+      throw new HttpException('Заявка уже обработана', HttpStatus.BAD_REQUEST);
+    }
+
+    await this.dealDeletionRequestRepository.update(requestId, {
+      status: processDto.status,
+      processed_by_id: auth_user.id,
+      processed_at: new Date()
+    });
+
+    if (processDto.status === DealDeletionStatus.APPROVED) {
+      await this.dealRepository.softDelete(request.deal_id);
+    }
+
+    await this.notifyUserAboutDeletionRequestResult(request, processDto.status, auth_user);
+
+    const statusText = processDto.status === DealDeletionStatus.APPROVED ? 'одобрена' : 'отклонена';
+    return { message: `Заявка на удаление ${statusText}` };
+  }
+
+  private async notifyAdminsAboutDeletionRequest(request: DealDeletionRequestEntity) {
+    try {
+      const superAdmins = await this.userRepository.find({
+        where: { role_id: 1 },
+      });
+
+      const requestWithRelations = await this.dealDeletionRequestRepository.findById(request.id);
+      if (!requestWithRelations) {
+        this.logger.error(`Не удалось найти заявку ${request.id} для отправки уведомления`);
+        return;
+      }
+
+      for (const admin of superAdmins) {
+        await this.emailConfirmerService.emailSend({
+          email: admin.email,
+          subject: 'Новая заявка на удаление сделки',
+          template: 'admin-deletion-request-notification',
+          context: {
+            adminName: admin.info?.first_name || 'Администратор',
+            dealNumber: requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
+            dealId: requestWithRelations.deal?.id || request.deal_id,
+            requesterEmail: requestWithRelations.requester?.email || 'Неизвестно',
+            deletionReason: request.deletion_reason,
+            requestDate: new Date().toLocaleDateString('ru-RU'),
+            requestId: request.id,
+            link: 'https://partner-admin.trinity.ru/'
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка отправки уведомления админам о заявке на удаление:', error);
+    }
+  }
+
+  private async notifyUserAboutDeletionRequestResult(
+    request: DealDeletionRequestEntity,
+    status: DealDeletionStatus,
+    processedBy: UserEntity
+  ) {
+    try {
+      const requestWithRelations = await this.dealDeletionRequestRepository.findById(request.id);
+      if (!requestWithRelations) {
+        this.logger.error(`Не удалось найти заявку ${request.id} для отправки уведомления`);
+        return;
+      }
+
+      const statusText = status === DealDeletionStatus.APPROVED ? 'одобрена' : 'отклонена';
+
+      await this.emailConfirmerService.emailSend({
+        email: requestWithRelations.requester?.email || '',
+        subject: `Заявка на удаление сделки ${statusText}`,
+        template: 'user-deletion-request-result',
+        context: {
+          userName: requestWithRelations.requester?.info?.first_name || 'Пользователь',
+          dealNumber: requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
+          status: statusText,
+          processedByEmail: processedBy.email,
+          processedDate: new Date().toLocaleDateString('ru-RU')
+        },
+      });
+    } catch (error) {
+      console.error('Ошибка отправки уведомления пользователю о результате заявки:', error);
+    }
+  }
+
+  private mapDeletionRequestToResponse(request: DealDeletionRequestEntity): DealDeletionRequestResponseDto {
+    return {
+      id: request.id,
+      deal_id: request.deal_id,
+      deal_num: request.deal?.deal_num || '',
+      requester_id: request.requester_id,
+      requester_email: request.requester?.email || '',
+      deletion_reason: request.deletion_reason,
+      status: request.status,
+      processed_by_id: request.processed_by_id,
+      processed_by_email: request.processed_by?.email,
+      processed_at: request.processed_at,
+      created_at: request.created_at,
+      updated_at: request.updated_at
+    };
   }
 
   /**
