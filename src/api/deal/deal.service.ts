@@ -16,6 +16,7 @@ import { CreateDealDeletionRequestDto } from './dto/request/create-deal-deletion
 import { ProcessDealDeletionRequestDto } from './dto/request/process-deal-deletion-request.dto';
 import { DealDeletionStatus, DealDeletionRequestEntity } from '@orm/entities/deal-deletion-request.entity';
 import { DealDeletionRequestResponseDto } from './dto/response/deal-deletion-request-response.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class DealService {
@@ -30,7 +31,12 @@ export class DealService {
     private readonly userRepository: UserRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly dealDeletionRequestRepository: DealDeletionRequestRepository,
+    private configService: ConfigService,
   ) {}
+
+  private get hostname(): string {
+    return this.configService.get<string>('HOSTNAME') || 'localhost';
+  }
 
   async getCount(): Promise<number> {
     return await this.dealRepository.count();
@@ -420,6 +426,7 @@ export class DealService {
         subject: `Заявка на удаление сделки ${statusText}`,
         template: 'user-deletion-request-result',
         context: {
+          link: this.hostname,
           userName: requestWithRelations.requester?.info?.first_name || 'Пользователь',
           dealNumber: requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
           status: statusText,
