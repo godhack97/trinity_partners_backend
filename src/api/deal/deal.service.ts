@@ -423,6 +423,7 @@ export class DealService {
           userName: requestWithRelations.requester?.info?.first_name || 'Пользователь',
           dealNumber: requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
           status: statusText,
+          isApproved: status === DealDeletionStatus.APPROVED,
           processedByEmail: processedBy.email,
           processedDate: new Date().toLocaleDateString('ru-RU')
         },

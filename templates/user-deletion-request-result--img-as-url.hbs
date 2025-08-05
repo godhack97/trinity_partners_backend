@@ -37,7 +37,7 @@
                           <b>Дата обработки:</b> {{ processedDate }}
                         </div>
                         <br>
-                        {{#if (eq status "одобрена")}}
+                        {{#if isApproved}}
                         <span style="color: #28a745; font-weight: bold;">Сделка была успешно удалена из системы.</span>
                         {{else}}
                         <span style="color: #fd7e14; font-weight: bold;">Сделка остается в системе. При необходимости вы можете подать новую заявку с уточненной причиной.</span>
