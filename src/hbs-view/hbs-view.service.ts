@@ -7,10 +7,15 @@ import * as Handlebars from "handlebars";
 @Injectable()
 export class HbsViewService {
   hbs: typeof Handlebars;
-  templatesDir =  join (process.cwd(), 'templates')
+  templatesDir = join(process.cwd(), 'templates')
 
   constructor() {
-    this.hbs = Handlebars.create()
+    this.hbs = Handlebars.create();
+
+    // Регистрируем helper для сравнения
+    this.hbs.registerHelper('eq', function(a, b) {
+      return a === b;
+    });
   }
 
   createHtml({ template, context }) {
@@ -22,7 +27,7 @@ export class HbsViewService {
 
   // не сработало
   private registerPartial(name: string, filePath: string): void {
-    let path = join (this.templatesDir, filePath);
+    let path = join(this.templatesDir, filePath);
     console.log(path)
     const template = fs.readFileSync(path, 'utf-8');
     return this.hbs.registerPartial(name, template);
@@ -30,7 +35,7 @@ export class HbsViewService {
 
   // Компиляция шаблона
   private compileTemplate(templatePath: string): Handlebars.TemplateDelegate {
-    let path = join (this.templatesDir, templatePath);
+    let path = join(this.templatesDir, templatePath);
     console.log(path)
     const template = fs.readFileSync(path, 'utf-8');
     return this.hbs.compile(template);
