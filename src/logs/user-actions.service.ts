@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindManyOptions } from 'typeorm';
-import { UserAction } from './user-action.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, FindManyOptions } from "typeorm";
+import { UserAction } from "./user-action.entity";
 
 @Injectable()
 export class UserActionsService {
@@ -12,14 +12,14 @@ export class UserActionsService {
 
   async log(user_id: number | null, action: string, details: object = {}) {
     // у б24 бывает часто повторяющаяся ошибка, проверка нужна чтобы не засирать логи.
-    if (action.includes('bitrix24')) {
+    if (action.includes("bitrix24")) {
       const detailsJson = JSON.stringify(details);
 
       const existingLog = await this.userActionRepo
-        .createQueryBuilder('action')
-        .where('action.user_id = :user_id', { user_id })
-        .andWhere('action.action = :action', { action })
-        .andWhere('action.details = :details', { details: detailsJson })
+        .createQueryBuilder("action")
+        .where("action.user_id = :user_id", { user_id })
+        .andWhere("action.action = :action", { action })
+        .andWhere("action.details = :details", { details: detailsJson })
         .getOne();
 
       if (existingLog) {
@@ -43,7 +43,10 @@ export class UserActionsService {
     return this.userActionRepo.find({ where: { action } });
   }
 
-  async findByUserAndAction(user_id: number | null, action: string): Promise<UserAction[]> {
+  async findByUserAndAction(
+    user_id: number | null,
+    action: string,
+  ): Promise<UserAction[]> {
     return this.userActionRepo.find({ where: { user_id, action } });
   }
 }

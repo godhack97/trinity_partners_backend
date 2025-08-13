@@ -6,7 +6,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
 import { Expose, Type } from "class-transformer";
 
-export class DealResponseDto  extends WithIdDto{
+export class DealResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   distributor_id: number;
@@ -83,7 +83,10 @@ export class DealResponseDto  extends WithIdDto{
   @Type(() => DistributorResponseDto)
   created_at: Date;
 
-  @ApiProperty({ description: 'Статус заявки на удаление сделки', enum: ['yes', 'no'] })
+  @ApiProperty({
+    description: "Статус заявки на удаление сделки",
+    enum: ["yes", "no"],
+  })
   @Expose()
-  delete_request_status: 'yes' | 'no';
+  delete_request_status: "yes" | "no";
 }

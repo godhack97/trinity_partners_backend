@@ -13,16 +13,20 @@ export class AdminConfiguratorSlotService {
   async updateSlot(id: string, data: Partial<CreateSlotRequestDto>) {
     const slot = await this.cnfSlotRepository.findOneBy({ id });
 
-    if (!slot) throw new HttpException(`Слот ${id} не найдена`, HttpStatus.NOT_FOUND);
+    if (!slot)
+      throw new HttpException(`Слот ${id} не найдена`, HttpStatus.NOT_FOUND);
 
     return await this.cnfSlotRepository.update(id, data);
   }
 
   async deleteSlot(id: string) {
     try {
-      return await this.cnfSlotRepository.delete(id)
+      return await this.cnfSlotRepository.delete(id);
     } catch {
-      throw new HttpException(`К слоту привязаны компоненты, удаление невозможно`, HttpStatus.CONFLICT)
+      throw new HttpException(
+        `К слоту привязаны компоненты, удаление невозможно`,
+        HttpStatus.CONFLICT,
+      );
     }
   }
 }

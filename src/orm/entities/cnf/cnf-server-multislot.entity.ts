@@ -1,7 +1,16 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Timestamp, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Timestamp,
+  UpdateDateColumn,
+} from "typeorm";
 import { CnfServerEntity } from "./cnf-server.entity";
 
-@Entity({ name: 'cnf_server_multislots' })
+@Entity({ name: "cnf_server_multislots" })
 export class CnfServerMultislotEntity {
   @PrimaryGeneratedColumn()
   id: string;
@@ -27,5 +36,4 @@ export class CnfServerMultislotEntity {
   @ManyToOne(() => CnfServerEntity, (server) => server.multislots)
   @JoinColumn({ name: "server_id" })
   server: CnfServerEntity;
-
 }

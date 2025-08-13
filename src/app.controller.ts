@@ -3,7 +3,7 @@ import { SendsayService } from "@app/sendsay/sendsay.service";
 import { MailerService } from "@nestjs-modules/mailer";
 import { Controller, Get } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AppService } from './app.service';
+import { AppService } from "./app.service";
 import { Public } from "./decorators/Public";
 
 @Controller()
@@ -14,7 +14,6 @@ export class AppController {
     private readonly hbsViewService: HbsViewService,
     private readonly mailerService: MailerService,
     private readonly sendsayService: SendsayService,
-
   ) {}
 
   @Public()
@@ -51,6 +50,6 @@ export class AppController {
     //   })
     // }
 
-    return 'Hello server!';
+    return "Hello server!";
   }
 }

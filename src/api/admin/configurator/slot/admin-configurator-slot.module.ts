@@ -5,6 +5,6 @@ import { AdminConfiguratorSlotService } from "./admin-configurator-slot.service"
 @Module({
   controllers: [AdminConfiguratorSlotController],
   providers: [AdminConfiguratorSlotService],
-  exports: [AdminConfiguratorSlotService]
+  exports: [AdminConfiguratorSlotService],
 })
 export class AdminConfiguratorSlotModule {}

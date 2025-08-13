@@ -1,16 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ForbiddenInnRepository } from 'src/orm/repositories/forbidden-inn.repository';
-import { CreateForbiddenInnDto, UpdateForbiddenInnDto } from './forbidden-inns.controller';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenInnRepository } from "src/orm/repositories/forbidden-inn.repository";
+import {
+  CreateForbiddenInnDto,
+  UpdateForbiddenInnDto,
+} from "./forbidden-inns.controller";
 
 @Injectable()
 export class ForbiddenInnService {
   constructor(
     private readonly forbiddenInnRepository: ForbiddenInnRepository,
-  ) { }
+  ) {}
 
   async findAll() {
     return await this.forbiddenInnRepository.find({
-      order: { created_at: 'DESC' },
+      order: { created_at: "DESC" },
     });
   }
 
@@ -29,7 +32,7 @@ export class ForbiddenInnService {
     const existingRecord = await this.forbiddenInnRepository.findOneBy({ id });
 
     if (!existingRecord) {
-      throw new NotFoundException('Запись не найдена');
+      throw new NotFoundException("Запись не найдена");
     }
 
     await this.forbiddenInnRepository.update(id, updateDto);
@@ -40,7 +43,7 @@ export class ForbiddenInnService {
     const existingRecord = await this.forbiddenInnRepository.findOneBy({ id });
 
     if (!existingRecord) {
-      throw new NotFoundException('Запись не найдена');
+      throw new NotFoundException("Запись не найдена");
     }
 
     await this.forbiddenInnRepository.delete(id);

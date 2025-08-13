@@ -1,4 +1,4 @@
-import * as repositories from './repositories';
+import * as repositories from "./repositories";
 
 export const repoList = createRepos();
 

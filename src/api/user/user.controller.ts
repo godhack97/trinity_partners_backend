@@ -4,16 +4,16 @@ import {
   Get,
   Param,
   UseInterceptors,
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { TransformResponse } from 'src/interceptors/transform-response.interceptor';
-import { UserResponseDto } from './dto/response/user.response.dto';
-import { UserService } from './user.service';
-import { LogAction } from 'src/logs/log-action.decorator';
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { TransformResponse } from "src/interceptors/transform-response.interceptor";
+import { UserResponseDto } from "./dto/response/user.response.dto";
+import { UserService } from "./user.service";
+import { LogAction } from "src/logs/log-action.decorator";
 
-@ApiTags('user')
+@ApiTags("user")
 @ApiBearerAuth()
-@Controller('user')
+@Controller("user")
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -24,16 +24,16 @@ export class UserController {
     return this.userService.findAll();
   }
 
-  @Get(':id')
+  @Get(":id")
   @UseInterceptors(new TransformResponse(UserResponseDto))
   @ApiResponse({ type: UserResponseDto })
-  findOne(@Param('id') id: string) {
+  findOne(@Param("id") id: string) {
     return this.userService.findOne(+id);
   }
 
-  @Delete(':id')
-  @LogAction('user_archive', 'users')
-  remove(@Param('id') id: string) {
+  @Delete(":id")
+  @LogAction("user_archive", "users")
+  remove(@Param("id") id: string) {
     return this.userService.remove(+id);
   }
 }

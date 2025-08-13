@@ -5,10 +5,7 @@ import AdminPartnerService from "./admin-partner.service";
 
 @Module({
   controllers: [AdminPartnerController],
-  providers: [
-    AdminPartnerService,
-    EmailConfirmerService
-  ],
+  providers: [AdminPartnerService, EmailConfirmerService],
   exports: [AdminPartnerService],
 })
 export class AdminPartnerModule {}

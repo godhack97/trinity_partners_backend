@@ -1,13 +1,13 @@
-import { Column, Entity, } from "typeorm";
+import { Column, Entity } from "typeorm";
 import { BasisUUIDEntity } from "@orm/entities/basis.entity";
 
 @Entity({
-  name: 'cnf_slots',
+  name: "cnf_slots",
   orderBy: {
-    name: "ASC"
-  }
+    name: "ASC",
+  },
 })
-export class CnfSlotEntity extends BasisUUIDEntity{
+export class CnfSlotEntity extends BasisUUIDEntity {
   @Column()
   name: string;
 

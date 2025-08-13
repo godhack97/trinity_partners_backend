@@ -5,32 +5,25 @@ import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.serv
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { createCredentials } from "@app/utils/password";
-import {
-  HttpException,
-  HttpStatus,
-  Injectable
-} from '@nestjs/common';
-import {
-  UserNotificationType,
-  UserSettingType
-} from "@orm/entities";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { UserNotificationType, UserSettingType } from "@orm/entities";
 import {
   RoleRepository,
   UserRepository,
-  UserSettingRepository
+  UserSettingRepository,
 } from "@orm/repositories";
 
-const USER_EXISTS = 'Пользователь с таким E-mail уже существует'
+const USER_EXISTS = "Пользователь с таким E-mail уже существует";
 
 export enum SearchRoleAdminTypes {
   SuperAdmin = RoleTypes.SuperAdmin,
   ContentManager = RoleTypes.ContentManager,
-  ALL = 'all'
+  ALL = "all",
 }
 
 export enum RoleAdminTypes {
   SuperAdmin = RoleTypes.SuperAdmin,
-  ContentManager = RoleTypes.ContentManager
+  ContentManager = RoleTypes.ContentManager,
 }
 @Injectable()
 export class AdminUserAdminService {
@@ -41,23 +34,20 @@ export class AdminUserAdminService {
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
 
-  allowed_roles =  [
-    RoleTypes.SuperAdmin,
-    RoleTypes.ContentManager
-  ]
+  allowed_roles = [RoleTypes.SuperAdmin, RoleTypes.ContentManager];
 
   async getCount(): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
+    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
     queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
-    
+
     return await queryBuilder.getCount();
   }
-  
+
   async getCountByRole(role: SearchRoleAdminTypes): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
-    
+    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
+
     switch (role) {
       case SearchRoleAdminTypes.SuperAdmin:
       case SearchRoleAdminTypes.ContentManager:
@@ -65,26 +55,28 @@ export class AdminUserAdminService {
         break;
       case SearchRoleAdminTypes.ALL:
       default:
-        queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
+        queryBuilder.andWhere("r.name IN (:...name)", {
+          name: this.allowed_roles,
+        });
     }
-    
+
     return await queryBuilder.getCount();
   }
-  
+
   async getArchivedCount(): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
+    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
     queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
     queryBuilder.withDeleted();
     queryBuilder.andWhere("u.deleted_at IS NOT NULL");
-    
+
     return await queryBuilder.getCount();
   }
 
   async findAll(entry?: SearchAdminDto) {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne('u.role', 'roles', 'r', 'u.role_id = r.id');
-  
+    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
+
     switch (entry?.role) {
       case SearchRoleAdminTypes.SuperAdmin:
       case SearchRoleAdminTypes.ContentManager:
@@ -92,9 +84,11 @@ export class AdminUserAdminService {
         break;
       case SearchRoleAdminTypes.ALL:
       default:
-        queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
+        queryBuilder.andWhere("r.name IN (:...name)", {
+          name: this.allowed_roles,
+        });
     }
-  
+
     // Фильтрация по archive (deleted_at)
     if (entry?.archive === true) {
       queryBuilder.withDeleted();
@@ -104,7 +98,7 @@ export class AdminUserAdminService {
     return queryBuilder.getMany();
   }
 
-  async create(data: CreateAdminRequestDto)  {
+  async create(data: CreateAdminRequestDto) {
     const isExist = await this.userRepository.findByEmail(data.email);
 
     if (isExist) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
@@ -122,22 +116,21 @@ export class AdminUserAdminService {
       email_confirmed: true,
     });
 
-    await this._createNotificationSettings(user.id)
+    await this._createNotificationSettings(user.id);
     await this.emailConfirmerService.send({
       user_id: user.id,
       email: user.email,
-      method: EmailConfirmerMethod.EmailConfirmation
-    })
+      method: EmailConfirmerMethod.EmailConfirmation,
+    });
 
-    return user
+    return user;
   }
 
   async update(id: number, data: UpdateAdminRequestDto) {
-
     const isUserAdmin = await this.userRepository.findById(id);
 
     if (!this.allowed_roles.includes(isUserAdmin.role.name as RoleTypes)) {
-      throw new HttpException('Это не администратор!', HttpStatus.FORBIDDEN);
+      throw new HttpException("Это не администратор!", HttpStatus.FORBIDDEN);
     }
 
     const { role } = data;
@@ -156,7 +149,10 @@ export class AdminUserAdminService {
     const result = await this.userRepository.softDelete(id);
 
     if (result.affected === 0) {
-      throw new HttpException('Пользователь не найден или не был удален', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "Пользователь не найден или не был удален",
+        HttpStatus.NOT_FOUND,
+      );
     }
   }
 
@@ -165,7 +161,10 @@ export class AdminUserAdminService {
     const result = await this.userRepository.restore(id);
 
     if (result.affected === 0) {
-      throw new HttpException('Пользователь не найден или уже восстановлен', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "Пользователь не найден или уже восстановлен",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     return { success: true };
@@ -182,7 +181,7 @@ export class AdminUserAdminService {
         user_id: id,
         type: UserSettingType.NOTIFICATIONS_EMAIL,
         value: UserNotificationType.Yes,
-      }
-    ])
+      },
+    ]);
   }
 }

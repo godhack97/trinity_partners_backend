@@ -10,7 +10,6 @@ class MultislotSlotsDto {
 }
 
 export class UpdateMultislotRequestDto {
-
   @ApiProperty()
   @IsStringRu()
   name: string;

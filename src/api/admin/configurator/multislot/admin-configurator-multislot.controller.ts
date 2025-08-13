@@ -5,35 +5,40 @@ import { CreateMultislotRequestDto } from "./dto/request/create-multislot.reques
 import { UpdateMultislotRequestDto } from "./dto/request/update-multislot.request.dto";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
-import { LogAction } from 'src/logs/log-action.decorator';
+import { LogAction } from "src/logs/log-action.decorator";
 
-@ApiTags('admin/configurator/multislot')
+@ApiTags("admin/configurator/multislot")
 @ApiBearerAuth()
-@Controller('admin/configurator/multislot')
+@Controller("admin/configurator/multislot")
 @Roles([RoleTypes.SuperAdmin])
 export class AdminConfiguratorMultislotController {
-  constructor(private readonly adminConfiguratorMultislotService: AdminConfiguratorMultislotService){}
+  constructor(
+    private readonly adminConfiguratorMultislotService: AdminConfiguratorMultislotService,
+  ) {}
 
   @Get()
   getMultislots() {
-    return this.adminConfiguratorMultislotService.getMultislots()
+    return this.adminConfiguratorMultislotService.getMultislots();
   }
 
-  @Post('create')
-  @LogAction('configurator_multislot_add', 'cnf_multislots')
+  @Post("create")
+  @LogAction("configurator_multislot_add", "cnf_multislots")
   createMultislot(@Body() data: CreateMultislotRequestDto) {
     return this.adminConfiguratorMultislotService.createMultislot(data);
   }
 
-  @Post(':id/update')
-  @LogAction('configurator_multislot_update', 'cnf_multislots')
-  updateMultislot(@Param('id') id: string, @Body() data: UpdateMultislotRequestDto) {
+  @Post(":id/update")
+  @LogAction("configurator_multislot_update", "cnf_multislots")
+  updateMultislot(
+    @Param("id") id: string,
+    @Body() data: UpdateMultislotRequestDto,
+  ) {
     return this.adminConfiguratorMultislotService.updateMultislot(id, data);
   }
 
-  @Post(':id/delete')
-  @LogAction('configurator_multislot_delete', 'cnf_multislots')
-  deleteMultislot(@Param('id') id: string) {
+  @Post(":id/delete")
+  @LogAction("configurator_multislot_delete", "cnf_multislots")
+  deleteMultislot(@Param("id") id: string) {
     return this.adminConfiguratorMultislotService.deleteMultislot(id);
   }
 }

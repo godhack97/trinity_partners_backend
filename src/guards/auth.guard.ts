@@ -1,10 +1,15 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { IS_PUBLIC_KEY } from '@decorators/Public';
-import { Reflector } from '@nestjs/core';
-import { UserRepository } from 'src/orm/repositories/user.repository';
-import { UserToken } from 'src/orm/entities/user-token.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { IS_PUBLIC_KEY } from "@decorators/Public";
+import { Reflector } from "@nestjs/core";
+import { UserRepository } from "src/orm/repositories/user.repository";
+import { UserToken } from "src/orm/entities/user-token.entity";
+import { Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
 
 const ERROR_MSG = `Пользователь не прошел аутентификацию!`;
 
@@ -30,12 +35,13 @@ export class AuthGuard implements CanActivate {
     const body = request.body || {};
     const query = request.query || {};
 
-    const _token: string = headers.authorization || '';
+    const _token: string = headers.authorization || "";
 
     // Собираем client_id
-    const clientId = headers['origin'];
+    const clientId = headers["origin"];
 
-    if (!_token || _token.length === 0) throw new UnauthorizedException(ERROR_MSG);
+    if (!_token || _token.length === 0)
+      throw new UnauthorizedException(ERROR_MSG);
     if (!clientId) throw new UnauthorizedException(`Client ID отсутствует!`);
 
     const token = _token.substring(7);
@@ -44,16 +50,17 @@ export class AuthGuard implements CanActivate {
     // console.log('clientId:', clientId);
 
     // Ищем токен в таблице user_tokens по token + client_id
-    const userToken = await this.userTokenRepository.findOne({ 
+    const userToken = await this.userTokenRepository.findOne({
       where: { token, client_id: clientId },
-      relations: ['user'],
+      relations: ["user"],
     });
 
-    if (!userToken || !userToken.user) throw new UnauthorizedException(ERROR_MSG);
+    if (!userToken || !userToken.user)
+      throw new UnauthorizedException(ERROR_MSG);
 
     // Устанавливаем пользователя в запрос
-    request['auth_user'] = userToken.user;
-    
+    request["auth_user"] = userToken.user;
+
     return true;
   }
 }

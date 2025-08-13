@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
-import { DealDeletionRequestEntity, DealDeletionStatus } from '@orm/entities/deal-deletion-request.entity';
+import { Injectable } from "@nestjs/common";
+import { DataSource, Repository } from "typeorm";
+import {
+  DealDeletionRequestEntity,
+  DealDeletionStatus,
+} from "@orm/entities/deal-deletion-request.entity";
 
 @Injectable()
 export class DealDeletionRequestRepository extends Repository<DealDeletionRequestEntity> {
@@ -14,8 +17,8 @@ export class DealDeletionRequestRepository extends Repository<DealDeletionReques
       relations: {
         deal: true,
         requester: true,
-        processed_by: true
-      }
+        processed_by: true,
+      },
     });
   }
 
@@ -25,9 +28,9 @@ export class DealDeletionRequestRepository extends Repository<DealDeletionReques
       relations: {
         deal: true,
         requester: true,
-        processed_by: true
+        processed_by: true,
       },
-      order: { created_at: 'DESC' }
+      order: { created_at: "DESC" },
     });
   }
 
@@ -36,20 +39,22 @@ export class DealDeletionRequestRepository extends Repository<DealDeletionReques
       where: { status: DealDeletionStatus.PENDING },
       relations: {
         deal: true,
-        requester: true
+        requester: true,
       },
-      order: { created_at: 'ASC' }
+      order: { created_at: "ASC" },
     });
   }
 
-  async findByRequesterId(requesterId: number): Promise<DealDeletionRequestEntity[]> {
+  async findByRequesterId(
+    requesterId: number,
+  ): Promise<DealDeletionRequestEntity[]> {
     return this.find({
       where: { requester_id: requesterId },
       relations: {
         deal: true,
-        processed_by: true
+        processed_by: true,
       },
-      order: { created_at: 'DESC' }
+      order: { created_at: "DESC" },
     });
   }
 
@@ -57,8 +62,8 @@ export class DealDeletionRequestRepository extends Repository<DealDeletionReques
     const count = await this.count({
       where: {
         deal_id: dealId,
-        status: DealDeletionStatus.PENDING
-      }
+        status: DealDeletionStatus.PENDING,
+      },
     });
     return count > 0;
   }
@@ -68,9 +73,9 @@ export class DealDeletionRequestRepository extends Repository<DealDeletionReques
       relations: {
         deal: true,
         requester: true,
-        processed_by: true
+        processed_by: true,
       },
-      order: { created_at: 'DESC' }
+      order: { created_at: "DESC" },
     });
   }
 }

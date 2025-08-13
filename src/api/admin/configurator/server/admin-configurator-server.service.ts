@@ -1,6 +1,15 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { AddServerRequestDto, ServerMultislotDto, ServerSlotDto } from './dto/request/add-server.request.dto';
-import { CnfServerRepository, CnfServerSlotRepository, CnfServerMultislotRepository, CnfServerGenerationRepository } from '@orm/repositories';
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import {
+  AddServerRequestDto,
+  ServerMultislotDto,
+  ServerSlotDto,
+} from "./dto/request/add-server.request.dto";
+import {
+  CnfServerRepository,
+  CnfServerSlotRepository,
+  CnfServerMultislotRepository,
+  CnfServerGenerationRepository,
+} from "@orm/repositories";
 
 @Injectable()
 export class AdminConfiguratorServerService {
@@ -23,14 +32,19 @@ export class AdminConfiguratorServerService {
       image,
       cert,
       guide,
-      gisp = '',
+      gisp = "",
       sort, // Добавляем sort
     } = data;
 
-    const serverGeneration = await this.cnfServerGenerationRepository.findOneBy({ id: server_generation_id });
-    
+    const serverGeneration = await this.cnfServerGenerationRepository.findOneBy(
+      { id: server_generation_id },
+    );
+
     if (!serverGeneration) {
-      throw new HttpException('Данного поколения сервера не существует', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "Данного поколения сервера не существует",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const server = await this.cnfServerRepository.save({
@@ -63,24 +77,31 @@ export class AdminConfiguratorServerService {
       image,
       cert,
       guide,
-      gisp = '',
+      gisp = "",
       sort, // Добавляем sort
     } = data;
 
     const existsServer = await this.cnfServerRepository.findOneBy({ id });
 
     if (!existsServer) {
-      throw new HttpException('Cервер не найден', HttpStatus.NOT_FOUND);
+      throw new HttpException("Cервер не найден", HttpStatus.NOT_FOUND);
     }
 
-    const serverGeneration = await this.cnfServerGenerationRepository.findOneBy({ id: server_generation_id });
-    
+    const serverGeneration = await this.cnfServerGenerationRepository.findOneBy(
+      { id: server_generation_id },
+    );
+
     if (!serverGeneration) {
-      throw new HttpException('Данного поколения сервера не существует', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "Данного поколения сервера не существует",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     await this.cnfServerSlotRepository.delete({ server_id: existsServer.id });
-    await this.cnfServerMultislotRepository.delete({ server_id: existsServer.id });
+    await this.cnfServerMultislotRepository.delete({
+      server_id: existsServer.id,
+    });
 
     const server = await this.cnfServerRepository.save({
       id: existsServer.id,
@@ -118,7 +139,10 @@ export class AdminConfiguratorServerService {
     }
   }
 
-  private async updateMultiSlots(id: string, multislots?: ServerMultislotDto[]) {
+  private async updateMultiSlots(
+    id: string,
+    multislots?: ServerMultislotDto[],
+  ) {
     if (multislots?.length > 0) {
       await this.cnfServerMultislotRepository.save(
         multislots.map((el) => ({

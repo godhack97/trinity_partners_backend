@@ -3,16 +3,16 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { ClassTransformOptions, plainToInstance } from 'class-transformer';
-import { map } from 'rxjs/operators';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { ClassTransformOptions, plainToInstance } from "class-transformer";
+import { map } from "rxjs/operators";
 export interface ClassContrustor {
   new (...args: any[]): object;
 }
 
 const options: ClassTransformOptions = {
-  strategy: 'excludeAll',
+  strategy: "excludeAll",
 };
 
 const transformer = (classConstructor) => (entity) => {

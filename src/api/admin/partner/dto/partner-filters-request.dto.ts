@@ -3,7 +3,6 @@ import { CompanyStatus } from "@orm/entities";
 import { IsBoolean, IsOptional } from "class-validator";
 
 export class PartnerFilterRequestDto {
-
   @ApiPropertyOptional()
   @IsOptional()
   status?: CompanyStatus;
@@ -12,5 +11,4 @@ export class PartnerFilterRequestDto {
   @IsOptional()
   @IsBoolean()
   is_activated?: boolean;
-
 }

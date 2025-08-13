@@ -2,28 +2,30 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn, ManyToOne, OneToMany,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   Timestamp,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from "typeorm";
-import { CnfServerboxHeightEntity } from './cnf-serverbox-height.entity';
+import { CnfServerboxHeightEntity } from "./cnf-serverbox-height.entity";
 import { CnfServerSlotEntity } from "./cnf-server-slot.entity";
 import { CnfServerMultislotEntity } from "./cnf-server-multislot.entity";
 import { CnfServerGeneration } from "./cnf-server-generation.entity";
 
 @Entity({
-  name: 'cnf_servers',
+  name: "cnf_servers",
 })
 export class CnfServerEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
   name: string;
 
-  @Column({ type: 'int', default: 100 })
+  @Column({ type: "int", default: 100 })
   sort: number;
 
   @Column()
@@ -33,7 +35,7 @@ export class CnfServerEntity {
     () => CnfServerboxHeightEntity,
     (serverbox_height: CnfServerboxHeightEntity) => serverbox_height.id,
   )
-  @JoinColumn({ name: 'serverbox_height_id' })
+  @JoinColumn({ name: "serverbox_height_id" })
   serverbox_height: CnfServerboxHeightEntity;
 
   @Column()
@@ -43,25 +45,25 @@ export class CnfServerEntity {
     () => CnfServerGeneration,
     (server_generation: CnfServerGeneration) => server_generation.id,
   )
-  @JoinColumn({ name: 'server_generation_id' })
+  @JoinColumn({ name: "server_generation_id" })
   server_generation: CnfServerGeneration;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   server_generation_id: string;
 
   @Column()
   price: number;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   image: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   guide: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   cert: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   gisp: string;
 
   @CreateDateColumn()
@@ -70,9 +72,13 @@ export class CnfServerEntity {
   @UpdateDateColumn()
   updated_at: Timestamp;
 
-  @OneToMany(() => CnfServerSlotEntity, (serverslot) => serverslot.server, {eager: true})
+  @OneToMany(() => CnfServerSlotEntity, (serverslot) => serverslot.server, {
+    eager: true,
+  })
   slots: [CnfServerSlotEntity];
 
-  @OneToMany(() => CnfServerMultislotEntity, ( sms ) => sms.server, {eager: true})
+  @OneToMany(() => CnfServerMultislotEntity, (sms) => sms.server, {
+    eager: true,
+  })
   multislots: [CnfServerMultislotEntity];
 }

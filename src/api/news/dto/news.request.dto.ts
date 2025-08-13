@@ -13,5 +13,3 @@ export class NewsRequestDto {
   @ApiProperty()
   image_big: string;
 }
-
-

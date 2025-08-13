@@ -3,7 +3,7 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
-  Injectable
+  Injectable,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { UserRepository } from "src/orm/repositories/user.repository";
@@ -13,22 +13,22 @@ import { ACCEPTED_ROLES } from "@decorators/Roles";
 export class RoleGuard implements CanActivate {
   constructor(
     private readonly userRepository: UserRepository,
-    private reflector: Reflector
+    private reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext) {
     const roles = this.reflector.getAllAndOverride<string[]>(ACCEPTED_ROLES, [
       context.getHandler(),
-      context.getClass()
+      context.getClass(),
     ]);
 
-    if (!roles || (roles.length == 0)) return true;
+    if (!roles || roles.length == 0) return true;
 
     const request = context.switchToHttp().getRequest();
 
-    const user = await this.userRepository.findById(request.auth_user.id );
+    const user = await this.userRepository.findById(request.auth_user.id);
 
-    if(roles.includes(user.role.name)) return true;
+    if (roles.includes(user.role.name)) return true;
 
     throw new HttpException(`У вас недостаточно прав!`, HttpStatus.FORBIDDEN);
   }

@@ -1,7 +1,7 @@
-import { Global, Module } from '@nestjs/common';
-import { entityList } from './entity.list';
-import { repoList } from './repo.list';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Global, Module } from "@nestjs/common";
+import { entityList } from "./entity.list";
+import { repoList } from "./repo.list";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
 @Global()
 @Module({
@@ -9,4 +9,4 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   providers: [...repoList],
   exports: [...repoList, TypeOrmModule],
 })
-export class OrmModule { }
+export class OrmModule {}

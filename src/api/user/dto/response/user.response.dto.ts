@@ -1,7 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Expose, Type } from 'class-transformer';
-import { RoleResponseDto } from 'src/api/role/dto/response/role.response.dto';
-import { WithIdDto } from 'src/dto/with-id.dto';
+import { ApiProperty } from "@nestjs/swagger";
+import { Expose, Type } from "class-transformer";
+import { RoleResponseDto } from "src/api/role/dto/response/role.response.dto";
+import { WithIdDto } from "src/dto/with-id.dto";
 import { PartnerResponseDto } from "@api/partner/dto/response/PartnerResponseDto";
 
 export class UserResponseDto extends WithIdDto {

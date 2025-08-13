@@ -1,337 +1,337 @@
-import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.service';
-import { EmailConfirmerMethod } from '@api/email-confirmer/types';
-import { UserSettingRepository } from '@orm/repositories/user-setting.repository';
-import { UserToken } from 'src/orm/entities/user-token.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { emailSendConfig } from '@api/email-confirmer/config';
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
+import { EmailConfirmerMethod } from "@api/email-confirmer/types";
+import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
+import { UserToken } from "src/orm/entities/user-token.entity";
+import { Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
+import { emailSendConfig } from "@api/email-confirmer/config";
 
 import {
-	HttpException,
-	HttpStatus,
-	Injectable,
-	BadRequestException,
-} from '@nestjs/common';
+  HttpException,
+  HttpStatus,
+  Injectable,
+  BadRequestException,
+} from "@nestjs/common";
 
-import { ForbiddenInnRepository } from 'src/orm/repositories/forbidden-inn.repository';
-import { CompanyRepository } from 'src/orm/repositories/company.repository';
-import { RoleRepository } from 'src/orm/repositories/role.repository';
-import { UserInfoRepository } from 'src/orm/repositories/user-info.repository';
-import { UserRepository } from 'src/orm/repositories/user.repository';
-import { createCredentials, createToken } from 'src/utils/password';
-import { RegistrationEmployeeRequestDto } from '../registration/dto/request/registration-employee.request.dto';
-import { RegistrationCompanyRequestDto } from '../registration/dto/request/registration-company.request.dto';
-import { CompanyEmployeeRepository } from '@orm/repositories';
+import { ForbiddenInnRepository } from "src/orm/repositories/forbidden-inn.repository";
+import { CompanyRepository } from "src/orm/repositories/company.repository";
+import { RoleRepository } from "src/orm/repositories/role.repository";
+import { UserInfoRepository } from "src/orm/repositories/user-info.repository";
+import { UserRepository } from "src/orm/repositories/user.repository";
+import { createCredentials, createToken } from "src/utils/password";
+import { RegistrationEmployeeRequestDto } from "../registration/dto/request/registration-employee.request.dto";
+import { RegistrationCompanyRequestDto } from "../registration/dto/request/registration-company.request.dto";
+import { CompanyEmployeeRepository } from "@orm/repositories";
 import {
-	CompanyEmployeeStatus,
-	CompanyStatus,
-	UserNotificationType,
-	UserSettingType,
+  CompanyEmployeeStatus,
+  CompanyStatus,
+  UserNotificationType,
+  UserSettingType,
   CompanyEntity,
-  UserEntity
-} from '@orm/entities';
+  UserEntity,
+} from "@orm/entities";
 import {
-	RegistrationSuperAdminDto,
-	RegistrationSuperAdminWithSecretDto,
-} from '../registration/dto/request/registration-super-admin.request.dto';
+  RegistrationSuperAdminDto,
+  RegistrationSuperAdminWithSecretDto,
+} from "../registration/dto/request/registration-super-admin.request.dto";
 
-const USER_SECRET = 'Неправильно введен СЕКРЕТ';
-const USER_EXISTS = 'Пользователь с таким E-mail уже существует';
-const USER_PHONE_EXISTS = 'Пользователь с таким телефоном уже существует';
-const INN_EXISTS = 'Пользователь с таким ИНН уже существует';
+const USER_SECRET = "Неправильно введен СЕКРЕТ";
+const USER_EXISTS = "Пользователь с таким E-mail уже существует";
+const USER_PHONE_EXISTS = "Пользователь с таким телефоном уже существует";
+const INN_EXISTS = "Пользователь с таким ИНН уже существует";
 //Можно перенести в .env
-const SECRET_KEY = 'askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412';
+const SECRET_KEY = "askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412";
 
-const INN_FORBIDDEN = 'ИНН запрещён к регистрации.';
+const INN_FORBIDDEN = "ИНН запрещён к регистрации.";
 
 @Injectable()
 export class UserService {
-	constructor(
-		private readonly forbiddenInnRepository: ForbiddenInnRepository,
-		private readonly userRepository: UserRepository,
-		private readonly userInfoRepository: UserInfoRepository,
-		private readonly roleRepository: RoleRepository,
-		private readonly companyRepository: CompanyRepository,
-		private readonly companyEmployeeRepository: CompanyEmployeeRepository,
-		private readonly userSettingRepository: UserSettingRepository,
-		private readonly emailConfirmerService: EmailConfirmerService,
-		@InjectRepository(UserToken)
-		private readonly userTokenRepository: Repository<UserToken>
-	) {}
+  constructor(
+    private readonly forbiddenInnRepository: ForbiddenInnRepository,
+    private readonly userRepository: UserRepository,
+    private readonly userInfoRepository: UserInfoRepository,
+    private readonly roleRepository: RoleRepository,
+    private readonly companyRepository: CompanyRepository,
+    private readonly companyEmployeeRepository: CompanyEmployeeRepository,
+    private readonly userSettingRepository: UserSettingRepository,
+    private readonly emailConfirmerService: EmailConfirmerService,
+    @InjectRepository(UserToken)
+    private readonly userTokenRepository: Repository<UserToken>,
+  ) {}
 
-	async createEmployee(
-		registrationEmployeeDto: RegistrationEmployeeRequestDto
-	) {
-		const user = await this.userRepository.findByEmail(
-			registrationEmployeeDto.email
-		);
+  async createEmployee(
+    registrationEmployeeDto: RegistrationEmployeeRequestDto,
+  ) {
+    const user = await this.userRepository.findByEmail(
+      registrationEmployeeDto.email,
+    );
 
-		if (user) throw new BadRequestException(USER_EXISTS);
+    if (user) throw new BadRequestException(USER_EXISTS);
 
-		const isUserPhone = await this.userInfoRepository.findOneBy({
-			phone: registrationEmployeeDto.phone,
-		});
+    const isUserPhone = await this.userInfoRepository.findOneBy({
+      phone: registrationEmployeeDto.phone,
+    });
 
-		if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
+    if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
 
-		const company = await this.companyRepository.findOneBy({
-			inn: registrationEmployeeDto.company_inn,
-		});
+    const company = await this.companyRepository.findOneBy({
+      inn: registrationEmployeeDto.company_inn,
+    });
 
-		if (!company) {
-			throw new BadRequestException('Компания с указанным ИНН не найдена');
-		}
+    if (!company) {
+      throw new BadRequestException("Компания с указанным ИНН не найдена");
+    }
 
-		const roleEmployee = await this.roleRepository.getEmployee();
-		const { email, password: _password } = registrationEmployeeDto;
-		const { salt, password } = await createCredentials(_password);
+    const roleEmployee = await this.roleRepository.getEmployee();
+    const { email, password: _password } = registrationEmployeeDto;
+    const { salt, password } = await createCredentials(_password);
 
-		const newUser = await this.userRepository.save({
-			salt,
-			email,
-			password,
-			role: roleEmployee,
-		});
+    const newUser = await this.userRepository.save({
+      salt,
+      email,
+      password,
+      role: roleEmployee,
+    });
 
-		await this._createNotificationSettings(newUser.id);
+    await this._createNotificationSettings(newUser.id);
 
-		await this.userInfoRepository.save({
-			first_name: registrationEmployeeDto.first_name,
-			last_name: registrationEmployeeDto.last_name,
-			job_title: registrationEmployeeDto.job_title,
-			phone: registrationEmployeeDto.phone,
-			company_name: company.name,
-			user: newUser,
-		});
+    await this.userInfoRepository.save({
+      first_name: registrationEmployeeDto.first_name,
+      last_name: registrationEmployeeDto.last_name,
+      job_title: registrationEmployeeDto.job_title,
+      phone: registrationEmployeeDto.phone,
+      company_name: company.name,
+      user: newUser,
+    });
 
-		await this.companyEmployeeRepository.save({
-			company_id: company.id,
-			employee_id: newUser.id,
-			status: CompanyEmployeeStatus.Pending,
-		});
+    await this.companyEmployeeRepository.save({
+      company_id: company.id,
+      employee_id: newUser.id,
+      status: CompanyEmployeeStatus.Pending,
+    });
 
-		await this.emailConfirmerService.send({
-			user_id: newUser.id,
-			email: newUser.email,
-			method: EmailConfirmerMethod.EmailConfirmation,
-		});
+    await this.emailConfirmerService.send({
+      user_id: newUser.id,
+      email: newUser.email,
+      method: EmailConfirmerMethod.EmailConfirmation,
+    });
 
-		await this.notifyPartnerAboutNewEmployee(company, newUser);
+    await this.notifyPartnerAboutNewEmployee(company, newUser);
 
-		return newUser;
-	}
+    return newUser;
+  }
 
-	private async notifyPartnerAboutNewEmployee(
-		company: CompanyEntity,
-		employee: UserEntity
-	) {
-		try {
-			const partnerUser = await this.userRepository.findByIdWithUserInfo(
-				company.owner_id
-			);
-			const employeeInfo = await this.userRepository.findByIdWithUserInfo(
-				employee.id
-			);
+  private async notifyPartnerAboutNewEmployee(
+    company: CompanyEntity,
+    employee: UserEntity,
+  ) {
+    try {
+      const partnerUser = await this.userRepository.findByIdWithUserInfo(
+        company.owner_id,
+      );
+      const employeeInfo = await this.userRepository.findByIdWithUserInfo(
+        employee.id,
+      );
 
-			await this.emailConfirmerService.emailSend({
-				email: partnerUser.email,
-				subject: 'Новый сотрудник зарегистрировался в вашей компании',
-				template: 'partner-new-employee-notification',
-				context: {
-					partnerName: partnerUser.user_info?.first_name || 'Партнер',
-					companyName: company.name,
-					employeeFirstName: employeeInfo.user_info?.first_name,
-					employeeLastName: employeeInfo.user_info?.last_name,
-					employeeEmail: employeeInfo.email,
-					employeeJobTitle: employeeInfo.user_info?.job_title,
-					employeePhone: employeeInfo.user_info?.phone,
-					registrationDate: new Date().toLocaleDateString('ru-RU'),
-					link: 'https://partner.trinity.ru/',
-				},
-			});
-		} catch (error) {
-			console.error(
-				'Ошибка отправки уведомления партнеру о новом сотруднике:',
-				error
-			);
-		}
-	}
+      await this.emailConfirmerService.emailSend({
+        email: partnerUser.email,
+        subject: "Новый сотрудник зарегистрировался в вашей компании",
+        template: "partner-new-employee-notification",
+        context: {
+          partnerName: partnerUser.user_info?.first_name || "Партнер",
+          companyName: company.name,
+          employeeFirstName: employeeInfo.user_info?.first_name,
+          employeeLastName: employeeInfo.user_info?.last_name,
+          employeeEmail: employeeInfo.email,
+          employeeJobTitle: employeeInfo.user_info?.job_title,
+          employeePhone: employeeInfo.user_info?.phone,
+          registrationDate: new Date().toLocaleDateString("ru-RU"),
+          link: "https://partner.trinity.ru/",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Ошибка отправки уведомления партнеру о новом сотруднике:",
+        error,
+      );
+    }
+  }
 
-	private async notifySuperAdminsAboutNewPartner({
-		company_name,
-		first_name,
-		last_name,
-		email,
-	}: {
-		company_name?: string;
-		first_name?: string;
-		last_name?: string;
-		email: string;
-	}) {
-		const superAdmins = await this.userRepository.find({
-			where: { role_id: 1 },
-		});
+  private async notifySuperAdminsAboutNewPartner({
+    company_name,
+    first_name,
+    last_name,
+    email,
+  }: {
+    company_name?: string;
+    first_name?: string;
+    last_name?: string;
+    email: string;
+  }) {
+    const superAdmins = await this.userRepository.find({
+      where: { role_id: 1 },
+    });
 
-		// Автоматически определяем имя партнёра
-		const partnerName =
-			company_name ||
-			[first_name, last_name].filter(Boolean).join(' ') ||
-			'Партнёр';
-		const partnerEmail = email;
+    // Автоматически определяем имя партнёра
+    const partnerName =
+      company_name ||
+      [first_name, last_name].filter(Boolean).join(" ") ||
+      "Партнёр";
+    const partnerEmail = email;
 
-		for (const admin of superAdmins) {
-			await this.emailConfirmerService.emailSend({
-				email: admin.email,
-				subject: emailSendConfig({ partnerName, partnerEmail })[
-					'notify.new.partner'
-				].subject,
-				template: emailSendConfig({ partnerName, partnerEmail })[
-					'notify.new.partner'
-				].template,
-				context: {
-					partnerName,
-					partnerEmail,
-					link: 'https://partner.trinity.ru/',
-				},
-			});
-		}
-	}
+    for (const admin of superAdmins) {
+      await this.emailConfirmerService.emailSend({
+        email: admin.email,
+        subject: emailSendConfig({ partnerName, partnerEmail })[
+          "notify.new.partner"
+        ].subject,
+        template: emailSendConfig({ partnerName, partnerEmail })[
+          "notify.new.partner"
+        ].template,
+        context: {
+          partnerName,
+          partnerEmail,
+          link: "https://partner.trinity.ru/",
+        },
+      });
+    }
+  }
 
-	async createCompany(registrationCompanyDto: RegistrationCompanyRequestDto) {
-		const user = await this.userRepository.findByEmail(
-			registrationCompanyDto.email
-		);
-	
-		if (user) throw new BadRequestException(USER_EXISTS);
-	
-		const isUserPhone = await this.userInfoRepository.findOneBy({
-			phone: registrationCompanyDto.phone,
-		});
-	
-		if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
-	
-		const isExistInn = await this.companyRepository.findOneBy({
-			inn: registrationCompanyDto.inn,
-		});
-	
-		if (isExistInn) throw new BadRequestException(INN_EXISTS);
+  async createCompany(registrationCompanyDto: RegistrationCompanyRequestDto) {
+    const user = await this.userRepository.findByEmail(
+      registrationCompanyDto.email,
+    );
 
-		const isForbiddenInn = await this.forbiddenInnRepository.findByInn(
-			registrationCompanyDto.inn
-		);
-	
-		if (isForbiddenInn) throw new BadRequestException(INN_FORBIDDEN);
-	
-		const { email, password: _password } = registrationCompanyDto;
-		const rolePartner = await this.roleRepository.getPartner();
-	
-		const { salt, password } = await createCredentials(_password);
-	
-		const newUser = await this.userRepository.save({
-			salt,
-			email,
-			password,
-			role: rolePartner,
-		});
-	
-		await this._createNotificationSettings(newUser.id);
-	
-		await this.userInfoRepository.save({
-			first_name: registrationCompanyDto.first_name,
-			last_name: registrationCompanyDto.last_name,
-			company_name: registrationCompanyDto.company_name,
-			job_title: registrationCompanyDto.job_title,
-			phone: registrationCompanyDto.phone,
-			user: newUser,
-		});
-	
-		const company = await this.companyRepository.save({
-			inn: registrationCompanyDto.inn,
-			name: registrationCompanyDto.company_name,
-			company_business_line: registrationCompanyDto.company_business_line,
-			employees_count: registrationCompanyDto.employees_count,
-			site_url: registrationCompanyDto.site_url,
-			promoted_products: registrationCompanyDto.promoted_products,
-			products_of_interest: registrationCompanyDto.products_of_interest,
-			main_customers: registrationCompanyDto.main_customers,
-			owner: newUser,
-			status: CompanyStatus.Pending,
-		});
-	
-		await this.companyEmployeeRepository.save({
-			company_id: company.id,
-			employee_id: newUser.id,
-			status: CompanyEmployeeStatus.Accept,
-		});
-	
-		await this.emailConfirmerService.send({
-			user_id: newUser.id,
-			email: newUser.email,
-			method: EmailConfirmerMethod.EmailConfirmation,
-		});
-	
-		return newUser;
-	}
+    if (user) throw new BadRequestException(USER_EXISTS);
 
-	async createSuperAdminWithSecret(data: RegistrationSuperAdminWithSecretDto) {
-		if (!(data.secret === SECRET_KEY)) {
-			throw new HttpException(USER_SECRET, HttpStatus.FORBIDDEN);
-		}
+    const isUserPhone = await this.userInfoRepository.findOneBy({
+      phone: registrationCompanyDto.phone,
+    });
 
-		return await this.createSuperAdmin(data);
-	}
+    if (isUserPhone) throw new BadRequestException(USER_PHONE_EXISTS);
 
-	async createSuperAdmin(data: RegistrationSuperAdminDto) {
-		const userExist = await this.userRepository.findByEmail(data.email);
+    const isExistInn = await this.companyRepository.findOneBy({
+      inn: registrationCompanyDto.inn,
+    });
 
-		if (userExist) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+    if (isExistInn) throw new BadRequestException(INN_EXISTS);
 
-		const { email, password: _password } = data;
-		const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
+    const isForbiddenInn = await this.forbiddenInnRepository.findByInn(
+      registrationCompanyDto.inn,
+    );
 
-		const { salt, password } = await createCredentials(_password);
+    if (isForbiddenInn) throw new BadRequestException(INN_FORBIDDEN);
 
-		const user = await this.userRepository.save({
-			salt,
-			email,
-			password,
-			role: roleSuperAdmin,
-		});
+    const { email, password: _password } = registrationCompanyDto;
+    const rolePartner = await this.roleRepository.getPartner();
 
-		await this._createNotificationSettings(user.id);
-		await this.emailConfirmerService.send({
-			user_id: user.id,
-			email: user.email,
-			method: EmailConfirmerMethod.EmailConfirmation,
-		});
+    const { salt, password } = await createCredentials(_password);
 
-		return user;
-	}
+    const newUser = await this.userRepository.save({
+      salt,
+      email,
+      password,
+      role: rolePartner,
+    });
 
-	async findAll() {
-		return await this.userRepository.find();
-	}
+    await this._createNotificationSettings(newUser.id);
 
-	async findOne(id: number) {
-		return await this.userRepository.findById(id);
-	}
+    await this.userInfoRepository.save({
+      first_name: registrationCompanyDto.first_name,
+      last_name: registrationCompanyDto.last_name,
+      company_name: registrationCompanyDto.company_name,
+      job_title: registrationCompanyDto.job_title,
+      phone: registrationCompanyDto.phone,
+      user: newUser,
+    });
 
-	remove(id: number) {
-		return `This action removes a #${id} user`;
-	}
+    const company = await this.companyRepository.save({
+      inn: registrationCompanyDto.inn,
+      name: registrationCompanyDto.company_name,
+      company_business_line: registrationCompanyDto.company_business_line,
+      employees_count: registrationCompanyDto.employees_count,
+      site_url: registrationCompanyDto.site_url,
+      promoted_products: registrationCompanyDto.promoted_products,
+      products_of_interest: registrationCompanyDto.products_of_interest,
+      main_customers: registrationCompanyDto.main_customers,
+      owner: newUser,
+      status: CompanyStatus.Pending,
+    });
 
-	private async _createNotificationSettings(id: number) {
-		await this.userSettingRepository.save([
-			{
-				user_id: id,
-				type: UserSettingType.NOTIFICATIONS_WEB,
-				value: UserNotificationType.Yes,
-			},
-			{
-				user_id: id,
-				type: UserSettingType.NOTIFICATIONS_EMAIL,
-				value: UserNotificationType.Yes,
-			},
-		]);
-	}
+    await this.companyEmployeeRepository.save({
+      company_id: company.id,
+      employee_id: newUser.id,
+      status: CompanyEmployeeStatus.Accept,
+    });
+
+    await this.emailConfirmerService.send({
+      user_id: newUser.id,
+      email: newUser.email,
+      method: EmailConfirmerMethod.EmailConfirmation,
+    });
+
+    return newUser;
+  }
+
+  async createSuperAdminWithSecret(data: RegistrationSuperAdminWithSecretDto) {
+    if (!(data.secret === SECRET_KEY)) {
+      throw new HttpException(USER_SECRET, HttpStatus.FORBIDDEN);
+    }
+
+    return await this.createSuperAdmin(data);
+  }
+
+  async createSuperAdmin(data: RegistrationSuperAdminDto) {
+    const userExist = await this.userRepository.findByEmail(data.email);
+
+    if (userExist) throw new HttpException(USER_EXISTS, HttpStatus.FORBIDDEN);
+
+    const { email, password: _password } = data;
+    const roleSuperAdmin = await this.roleRepository.getSuperAdmin();
+
+    const { salt, password } = await createCredentials(_password);
+
+    const user = await this.userRepository.save({
+      salt,
+      email,
+      password,
+      role: roleSuperAdmin,
+    });
+
+    await this._createNotificationSettings(user.id);
+    await this.emailConfirmerService.send({
+      user_id: user.id,
+      email: user.email,
+      method: EmailConfirmerMethod.EmailConfirmation,
+    });
+
+    return user;
+  }
+
+  async findAll() {
+    return await this.userRepository.find();
+  }
+
+  async findOne(id: number) {
+    return await this.userRepository.findById(id);
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} user`;
+  }
+
+  private async _createNotificationSettings(id: number) {
+    await this.userSettingRepository.save([
+      {
+        user_id: id,
+        type: UserSettingType.NOTIFICATIONS_WEB,
+        value: UserNotificationType.Yes,
+      },
+      {
+        user_id: id,
+        type: UserSettingType.NOTIFICATIONS_EMAIL,
+        value: UserNotificationType.Yes,
+      },
+    ]);
+  }
 }

@@ -1,5 +1,5 @@
-import { Global, Module } from '@nestjs/common';
-import { AuthTokenService } from './auth-token.service';
+import { Global, Module } from "@nestjs/common";
+import { AuthTokenService } from "./auth-token.service";
 
 @Global()
 @Module({

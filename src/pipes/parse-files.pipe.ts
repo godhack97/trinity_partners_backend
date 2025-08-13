@@ -1,5 +1,9 @@
-import { FileTypeValidator, MaxFileSizeValidator, ParseFilePipe, PipeTransform } from "@nestjs/common";
-
+import {
+  FileTypeValidator,
+  MaxFileSizeValidator,
+  ParseFilePipe,
+  PipeTransform,
+} from "@nestjs/common";
 
 // Данная pipe - срабатывает поздно. Файл уже успевает записаться - нужно валидацию делать на уровне multer
 export class ParseFilesPipe implements PipeTransform<Express.Multer.File[]> {
@@ -18,14 +22,15 @@ export class ParseFilesPipe implements PipeTransform<Express.Multer.File[]> {
 export const createFilePipe = (maxSize: number = 1024 * 1024 * 3) => {
   return new ParseFilePipe({
     validators: [
-      new MaxFileSizeValidator({ maxSize, message: (size) => `Файл превысил ${size} bytes` }),
+      new MaxFileSizeValidator({
+        maxSize,
+        message: (size) => `Файл превысил ${size} bytes`,
+      }),
       new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp|gif|mp4|mov)$/ }),
-    ]
-  })
-}
-export const createFilesPipe = (data?: { maxSize?: number}) => {
-  const maxSize: number = data?.maxSize | 1024 * 1024 * 3;
-  return new ParseFilesPipe(
-    createFilePipe(maxSize)
-  )
-}
+    ],
+  });
+};
+export const createFilesPipe = (data?: { maxSize?: number }) => {
+  const maxSize: number = data?.maxSize | (1024 * 1024 * 3);
+  return new ParseFilesPipe(createFilePipe(maxSize));
+};

@@ -1,8 +1,18 @@
 import {
   ArrayContains,
   ArrayMaxSize,
-  ArrayMinSize, ArrayNotContains, ArrayNotEmpty,
-  ArrayUnique, Contains, Equals, IsAlpha, IsAlphanumeric, IsArray, IsAscii, IsBase32, IsBase64,
+  ArrayMinSize,
+  ArrayNotContains,
+  ArrayNotEmpty,
+  ArrayUnique,
+  Contains,
+  Equals,
+  IsAlpha,
+  IsAlphanumeric,
+  IsArray,
+  IsAscii,
+  IsBase32,
+  IsBase64,
   IsBIC,
   IsBoolean,
   IsBooleanString,
@@ -13,47 +23,79 @@ import {
   IsDataURI,
   IsDate,
   IsDateString,
-  IsDecimal, IsDefined,
+  IsDecimal,
+  IsDefined,
   IsEAN,
-  IsEmail, IsEmpty,
+  IsEmail,
+  IsEmpty,
   IsEnum,
   IsEthereumAddress,
   IsFirebasePushId,
   IsFQDN,
-  IsFullWidth, IsHalfWidth,
+  IsFullWidth,
+  IsHalfWidth,
   IsHash,
   IsHexadecimal,
   IsHexColor,
   IsHSL,
   IsIBAN,
-  IsIdentityCard, IsIn, IsInstance, IsInt, IsIP, IsISBN, IsISIN,
+  IsIdentityCard,
+  IsIn,
+  IsInstance,
+  IsInt,
+  IsIP,
+  IsISBN,
+  IsISIN,
   IsISO31661Alpha2,
   IsISO31661Alpha3,
-  IsISO8601, IsISRC,
+  IsISO8601,
+  IsISRC,
   IsISSN,
   IsJSON,
   IsJWT,
   IsLatitude,
-  IsLatLong, IsLocale,
+  IsLatLong,
+  IsLocale,
   IsLongitude,
-  IsLowercase, IsMagnetURI, IsMilitaryTime, IsMimeType,
+  IsLowercase,
+  IsMagnetURI,
+  IsMilitaryTime,
+  IsMimeType,
   IsMobilePhone,
   IsMongoId,
   IsNegative,
   IsNotEmpty,
-  IsNotEmptyObject, IsNotIn,
+  IsNotEmptyObject,
+  IsNotIn,
   IsNumber,
-  IsNumberString, IsObject, IsOctal, IsPassportNumber,
+  IsNumberString,
+  IsObject,
+  IsOctal,
+  IsPassportNumber,
   IsPhoneNumber,
   IsPort,
   IsPositive,
-  IsPostalCode, IsRFC3339, IsRgbColor,
+  IsPostalCode,
+  IsRFC3339,
+  IsRgbColor,
   IsSemVer,
-  IsString, IsSurrogatePair, IsUppercase, IsUrl, IsUUID, IsVariableWidth, Length, Matches, Max,
-  MaxDate, MaxLength, Min,
+  IsString,
+  IsSurrogatePair,
+  IsUppercase,
+  IsUrl,
+  IsUUID,
+  IsVariableWidth,
+  Length,
+  Matches,
+  Max,
+  MaxDate,
+  MaxLength,
+  Min,
   MinDate,
-  MinLength, NotContains, NotEquals,
-  ValidateNested
+  MinLength,
+  NotContains,
+  NotEquals,
+  ValidateNested,
 } from "class-validator";
 import { ValidationOptions } from "class-validator/types/decorator/ValidationOptions";
 import * as ValidatorJS from "validator";
@@ -63,228 +105,317 @@ import { CountryCode } from "libphonenumber-js/max";
 import { IsIpVersion } from "class-validator/types/decorator/string/IsIP";
 import { IsISBNVersion } from "class-validator/types/decorator/string/IsISBN";
 
-export const MaxDateRu = (date: Date | (() => Date), validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MaxDateRu = (
+  date: Date | (() => Date),
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return MaxDate(date, {
     ...validationOptions,
-    message: message.MaxDate
+    message: message.MaxDate,
   });
 };
-export const MinDateRu = (date: Date | (() => Date), validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MinDateRu = (
+  date: Date | (() => Date),
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return MinDate(date, {
     ...validationOptions,
-    message: message.MinDate
+    message: message.MinDate,
   });
 };
-export const IsDecimalRu = (options?: ValidatorJS.IsDecimalOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsDecimalRu = (
+  options?: ValidatorJS.IsDecimalOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsDecimal(options, {
     ...validationOptions,
-    message: message.IsDecimal
+    message: message.IsDecimal,
   });
 };
-export const IsBICRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsBICRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsBIC({
     ...validationOptions,
-    message: message.IsBIC
+    message: message.IsBIC,
   });
 };
-export const IsBooleanStringRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsBooleanStringRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsBooleanString({
     ...validationOptions,
-    message: message.IsBooleanString
+    message: message.IsBooleanString,
   });
 };
-export const IsBooleanRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsBooleanRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsBoolean({
     ...validationOptions,
-    message: message.IsBoolean
+    message: message.IsBoolean,
   });
 };
-export const IsBtcAddressRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsBtcAddressRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsBtcAddress({
     ...validationOptions,
-    message: message.IsBtcAddress
+    message: message.IsBtcAddress,
   });
 };
-export const IsCreditCardRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsCreditCardRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsCreditCard({
     ...validationOptions,
-    message: message.IsCreditCard
+    message: message.IsCreditCard,
   });
 };
-export const IsCurrencyRu = (options?: ValidatorJS.IsCurrencyOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsCurrencyRu = (
+  options?: ValidatorJS.IsCurrencyOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsCurrency(options, {
     ...validationOptions,
-    message: message.IsCurrency
+    message: message.IsCurrency,
   });
 };
-export const IsDataURIRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsDataURIRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsDataURI({
     ...validationOptions,
-    message: message.IsDataURI
+    message: message.IsDataURI,
   });
 };
-export const IsDateRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsDateRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsDate({
     ...validationOptions,
-    message: message.IsDate
+    message: message.IsDate,
   });
 };
-export const IsFirebasePushIdRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsFirebasePushIdRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsFirebasePushId({
     ...validationOptions,
-    message: message.IsFirebasePushId
+    message: message.IsFirebasePushId,
   });
 };
-export const IsHashRu = (algorithm: string, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsHashRu = (
+  algorithm: string,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsHash(algorithm, {
     ...validationOptions,
-    message: message.IsHash
+    message: message.IsHash,
   });
 };
-export const IsHexColorRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsHexColorRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsHexColor({
     ...validationOptions,
-    message: message.IsHexColor
+    message: message.IsHexColor,
   });
 };
-export const IsHexadecimalRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsHexadecimalRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsHexadecimal({
     ...validationOptions,
-    message: message.IsHexadecimal
+    message: message.IsHexadecimal,
   });
 };
-export const IsHSLRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsHSLRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsHSL({
     ...validationOptions,
-    message: message.IsHSL
+    message: message.IsHSL,
   });
 };
-export const IsIdentityCardRu = (locale?: ValidatorJS.IdentityCardLocale, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsIdentityCardRu = (
+  locale?: ValidatorJS.IdentityCardLocale,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsIdentityCard(locale, {
     ...validationOptions,
-    message: message.IsIdentityCard
+    message: message.IsIdentityCard,
   });
 };
-export const IsISSNRu = (options?: ValidatorJS.IsISSNOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISSNRu = (
+  options?: ValidatorJS.IsISSNOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISSN(options, {
     ...validationOptions,
-    message: message.IsISSN
+    message: message.IsISSN,
   });
 };
-export const IsJSONRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsJSONRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsJSON({
     ...validationOptions,
-    message: message.IsJSON
+    message: message.IsJSON,
   });
 };
-export const IsJWTRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsJWTRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsJWT({
     ...validationOptions,
-    message: message.IsJWT
+    message: message.IsJWT,
   });
 };
-export const IsLatitudeRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsLatitudeRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsLatitude({
     ...validationOptions,
-    message: message.IsLatitude
+    message: message.IsLatitude,
   });
 };
-export const IsLatLongRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsLatLongRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsLatLong({
     ...validationOptions,
-    message: message.IsLatLong
+    message: message.IsLatLong,
   });
 };
-export const IsLongitudeRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsLongitudeRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsLongitude({
     ...validationOptions,
-    message: message.IsLongitude
+    message: message.IsLongitude,
   });
 };
-export const IsLowercaseRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsLowercaseRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsLowercase({
     ...validationOptions,
-    message: message.IsLowercase
+    message: message.IsLowercase,
   });
 };
-export const IsMongoIdRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsMongoIdRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsMongoId({
     ...validationOptions,
-    message: message.IsMongoId
+    message: message.IsMongoId,
   });
 };
-export const IsNegativeRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsNegativeRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsNegative({
     ...validationOptions,
-    message: message.IsNegative
+    message: message.IsNegative,
   });
 };
-export const IsNotEmptyObjectRu = (options?: {
-  nullable?: boolean
-}, validationOptions ?: ValidationOptions): PropertyDecorator => {
+export const IsNotEmptyObjectRu = (
+  options?: {
+    nullable?: boolean;
+  },
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsNotEmptyObject(options, {
     ...validationOptions,
-    message: message.IsNotEmptyObject
+    message: message.IsNotEmptyObject,
   });
 };
-export const IsNumberRu = (options?: IsNumberOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsNumberRu = (
+  options?: IsNumberOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsNumber(options, {
     ...validationOptions,
-    message: message.IsNumber
+    message: message.IsNumber,
   });
 };
-export const IsNumberStringRu = (options?: ValidatorJS.IsNumericOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsNumberStringRu = (
+  options?: ValidatorJS.IsNumericOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsNumberString(options, {
     ...validationOptions,
-    message: message.IsNumberString
+    message: message.IsNumberString,
   });
 };
-export const IsMobilePhoneRu = (locale?: ValidatorJS.MobilePhoneLocale, options?: ValidatorJS.IsMobilePhoneOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsMobilePhoneRu = (
+  locale?: ValidatorJS.MobilePhoneLocale,
+  options?: ValidatorJS.IsMobilePhoneOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsMobilePhone(locale, options, {
     ...validationOptions,
-    message: message.IsMobilePhone
+    message: message.IsMobilePhone,
   });
 };
-export const IsPortRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsPortRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsPort({
     ...validationOptions,
-    message: message.IsPort
+    message: message.IsPort,
   });
 };
-export const IsPositiveRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsPositiveRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsPositive({
     ...validationOptions,
-    message: message.IsPositive
+    message: message.IsPositive,
   });
 };
-export const IsPostalCodeRu = (locale?: "any" | ValidatorJS.PostalCodeLocale, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsPostalCodeRu = (
+  locale?: "any" | ValidatorJS.PostalCodeLocale,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsPostalCode(locale, {
     ...validationOptions,
-    message: message.IsPostalCode
+    message: message.IsPostalCode,
   });
 };
-export const IsSemVerRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsSemVerRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsSemVer({
     ...validationOptions,
-    message: message.IsSemVer
+    message: message.IsSemVer,
   });
 };
-export const IsStringRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsStringRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsString({
     ...validationOptions,
-    message: message.IsString
+    message: message.IsString,
   });
 };
-export const IsFQDNRu = (options?: ValidatorJS.IsFQDNOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsFQDNRu = (
+  options?: ValidatorJS.IsFQDNOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsFQDN(options, {
     ...validationOptions,
-    message: message.IsFQDN
+    message: message.IsFQDN,
   });
 };
-export const IsEnumRu = (entity: object, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsEnumRu = (
+  entity: object,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   Object.defineProperty(entity, "toString", {
-    value () {
-      return Object.values(this).toString()
+    value() {
+      return Object.values(this).toString();
     },
     writable: true,
     configurable: true,
@@ -292,367 +423,518 @@ export const IsEnumRu = (entity: object, validationOptions?: ValidationOptions):
   });
   return IsEnum(entity, {
     ...validationOptions,
-    message: `${message.IsEnum} ${entity.toString()}`
+    message: `${message.IsEnum} ${entity.toString()}`,
   });
 };
-export const IsDateStringRu = (options?: ValidatorJS.IsISO8601Options, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsDateStringRu = (
+  options?: ValidatorJS.IsISO8601Options,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsDateString(options, {
     ...validationOptions,
-    message: message.IsDateString
+    message: message.IsDateString,
   });
 };
-export const IsISO8601Ru = (options?: ValidatorJS.IsISO8601Options, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISO8601Ru = (
+  options?: ValidatorJS.IsISO8601Options,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISO8601(options, {
     ...validationOptions,
-    message: message.IsISO8601
+    message: message.IsISO8601,
   });
 };
-export const IsISO31661Alpha2Ru = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISO31661Alpha2Ru = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISO31661Alpha2({
     ...validationOptions,
-    message: message.IsISO31661Alpha2
+    message: message.IsISO31661Alpha2,
   });
 };
-export const IsISO31661Alpha3Ru = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISO31661Alpha3Ru = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISO31661Alpha3({
     ...validationOptions,
-    message: message.IsISO31661Alpha3
+    message: message.IsISO31661Alpha3,
   });
 };
-export const IsPhoneNumberRu = (region?: CountryCode, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsPhoneNumberRu = (
+  region?: CountryCode,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsPhoneNumber(region, {
     ...validationOptions,
-    message: message.IsPhoneNumber
+    message: message.IsPhoneNumber,
   });
 };
-export const IsMilitaryTimeRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsMilitaryTimeRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsMilitaryTime({
     ...validationOptions,
-    message: message.IsMilitaryTime
+    message: message.IsMilitaryTime,
   });
 };
-export const IsArrayRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsArrayRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsArray({
     ...validationOptions,
-    message: message.IsArray
+    message: message.IsArray,
   });
 };
-export const IsEANRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsEANRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsEAN({
     ...validationOptions,
-    message: message.IsEAN
+    message: message.IsEAN,
   });
 };
-export const IsEmailRu = (options?: ValidatorJS.IsEmailOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsEmailRu = (
+  options?: ValidatorJS.IsEmailOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsEmail(options, {
-    message: 'Некорректный адрес E-mail почты',
-    ...validationOptions
+    message: "Некорректный адрес E-mail почты",
+    ...validationOptions,
   });
 };
-export const IsEthereumAddressRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsEthereumAddressRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsEthereumAddress({
     ...validationOptions,
-    message: message.IsEthereumAddress
+    message: message.IsEthereumAddress,
   });
 };
-export const IsIBANRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsIBANRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsIBAN({
     ...validationOptions,
-    message: message.IsIBAN
+    message: message.IsIBAN,
   });
 };
-export const IsInstanceRu = (targetType: new (...args: any[]) => any, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsInstanceRu = (
+  targetType: new (...args: any[]) => any,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsInstance(targetType, {
     ...validationOptions,
-    message: message.IsInstance
+    message: message.IsInstance,
   });
 };
-export const IsIntRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsIntRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsInt({
     ...validationOptions,
-    message: message.IsInt
+    message: message.IsInt,
   });
 };
-export const IsIPRu = (version?: IsIpVersion, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsIPRu = (
+  version?: IsIpVersion,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsIP(version, {
     ...validationOptions,
-    message: message.IsIP
+    message: message.IsIP,
   });
 };
-export const IsISBNRu = (version?: IsISBNVersion, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISBNRu = (
+  version?: IsISBNVersion,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISBN(version, {
     ...validationOptions,
-    message: message.IsISBN
+    message: message.IsISBN,
   });
 };
-export const IsISINRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISINRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISIN({
     ...validationOptions,
-    message: message.IsISIN
+    message: message.IsISIN,
   });
 };
-export const IsISRCRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsISRCRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsISRC({
     ...validationOptions,
-    message: message.IsISRC
+    message: message.IsISRC,
   });
 };
-export const IsObjectRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsObjectRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsObject({
     ...validationOptions,
-    message: message.IsObject
+    message: message.IsObject,
   });
 };
-export const IsUrlRu = (options?: ValidatorJS.IsURLOptions, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsUrlRu = (
+  options?: ValidatorJS.IsURLOptions,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsUrl(options, {
     ...validationOptions,
-    message: message.IsUrl
+    message: message.IsUrl,
   });
 };
-export const IsUUIDRu = (version?: ValidatorJS.UUIDVersion, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsUUIDRu = (
+  version?: ValidatorJS.UUIDVersion,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsUUID(version, {
     ...validationOptions,
-    message: message.IsUUID
+    message: message.IsUUID,
   });
 };
-export const IsBase32Ru = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsBase32Ru = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsBase32({
     ...validationOptions,
-    message: message.IsBase32
+    message: message.IsBase32,
   });
 };
-export const IsBase64Ru = (options?: ValidatorJS.IsBase64Options, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsBase64Ru = (
+  options?: ValidatorJS.IsBase64Options,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsBase64(options, {
     ...validationOptions,
-    message: message.IsBase64
+    message: message.IsBase64,
   });
 };
-export const IsEmptyRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsEmptyRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsEmpty({
     ...validationOptions,
-    message: message.IsEmpty
+    message: message.IsEmpty,
   });
 };
-export const EqualsRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const EqualsRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return Equals({
     ...validationOptions,
-    message: message.Equals
+    message: message.Equals,
   });
 };
-export const IsLocaleRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsLocaleRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsLocale({
     ...validationOptions,
-    message: message.IsLocale
+    message: message.IsLocale,
   });
 };
-export const MinLengthRu = (min: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MinLengthRu = (
+  min: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return MinLength(min, {
     message: message.MinLength,
-    ...validationOptions
+    ...validationOptions,
   });
 };
-export const IsMagnetURIRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsMagnetURIRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsMagnetURI({
     ...validationOptions,
-    message: message.IsMagnetURI
+    message: message.IsMagnetURI,
   });
 };
-export const IsMimeTypeRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsMimeTypeRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsMimeType({
     ...validationOptions,
-    message: message.IsMimeType
+    message: message.IsMimeType,
   });
 };
-export const IsInRu = (values: readonly any[], validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsInRu = (
+  values: readonly any[],
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsIn(values, {
     ...validationOptions,
-    message: message.IsIn
+    message: message.IsIn,
   });
 };
-export const IsRFC3339Ru = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsRFC3339Ru = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsRFC3339({
     ...validationOptions,
-    message: message.IsRFC3339
+    message: message.IsRFC3339,
   });
 };
-export const IsRgbColorRu = (includePercentValues?: boolean, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsRgbColorRu = (
+  includePercentValues?: boolean,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsRgbColor(includePercentValues, {
     ...validationOptions,
-    message: message.IsRgbColor
+    message: message.IsRgbColor,
   });
 };
-export const MaxLengthRu = (max: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MaxLengthRu = (
+  max: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return MaxLength(max, {
     ...validationOptions,
-    message: message.MaxLength
+    message: message.MaxLength,
   });
 };
-export const LengthRu = (min: number, max?: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const LengthRu = (
+  min: number,
+  max?: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return Length(min, max, {
     ...validationOptions,
-    message: message.Length
+    message: message.Length,
   });
 };
-export const IsUppercaseRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsUppercaseRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsUppercase({
     ...validationOptions,
-    message: message.IsUppercase
+    message: message.IsUppercase,
   });
 };
-export const IsOctalRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsOctalRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsOctal({
     ...validationOptions,
-    message: message.IsOctal
+    message: message.IsOctal,
   });
 };
-export const IsPassportNumberRu = (countryCode: string, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsPassportNumberRu = (
+  countryCode: string,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsPassportNumber(countryCode, {
     ...validationOptions,
-    message: message.IsPassportNumber
+    message: message.IsPassportNumber,
   });
 };
-export const ArrayContainsRu = (values: any[], validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ArrayContainsRu = (
+  values: any[],
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ArrayContains(values, {
     ...validationOptions,
-    message: message.ArrayContains
+    message: message.ArrayContains,
   });
 };
-export const ContainsRu = (seed: string, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ContainsRu = (
+  seed: string,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return Contains(seed, {
     ...validationOptions,
-    message: message.Contains
+    message: message.Contains,
   });
 };
-export const IsVariableWidthRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsVariableWidthRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsVariableWidth({
     ...validationOptions,
-    message: message.IsVariableWidth
+    message: message.IsVariableWidth,
   });
 };
-export const IsFullWidthRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsFullWidthRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsFullWidth({
     ...validationOptions,
-    message: message.IsFullWidth
+    message: message.IsFullWidth,
   });
 };
-export const IsHalfWidthRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsHalfWidthRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsHalfWidth({
     ...validationOptions,
-    message: message.IsHalfWidth
+    message: message.IsHalfWidth,
   });
 };
-export const IsSurrogatePairRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsSurrogatePairRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsSurrogatePair({
     ...validationOptions,
-    message: message.IsSurrogatePair
+    message: message.IsSurrogatePair,
   });
 };
-export const ArrayMinSizeRu = (min: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ArrayMinSizeRu = (
+  min: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ArrayMinSize(min, {
     ...validationOptions,
-    message: message.ArrayMinSize
+    message: message.ArrayMinSize,
   });
 };
-export const ArrayMaxSizeRu = (max: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ArrayMaxSizeRu = (
+  max: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ArrayMaxSize(max, {
     ...validationOptions,
-    message: message.ArrayMaxSize
+    message: message.ArrayMaxSize,
   });
 };
-export const IsAsciiRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsAsciiRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsAscii({
     ...validationOptions,
-    message: message.IsAscii
+    message: message.IsAscii,
   });
 };
-export const IsAlphaRu = (locale?: ValidatorJS.AlphaLocale, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsAlphaRu = (
+  locale?: ValidatorJS.AlphaLocale,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsAlpha(locale, {
     ...validationOptions,
-    message: message.IsAlpha
+    message: message.IsAlpha,
   });
 };
-export const IsAlphanumericRu = (locale?: ValidatorJS.AlphanumericLocale, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsAlphanumericRu = (
+  locale?: ValidatorJS.AlphanumericLocale,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsAlphanumeric(locale, {
     ...validationOptions,
-    message: message.IsAlphanumeric
+    message: message.IsAlphanumeric,
   });
 };
-export const MatchesRu = (pattern: RegExp, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MatchesRu = (
+  pattern: RegExp,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return Matches(pattern, {
     ...validationOptions,
-    message: message.Matches
+    message: message.Matches,
   });
 };
 
-export const MaxRu = (maxValue: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MaxRu = (
+  maxValue: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return Max(maxValue, {
     ...validationOptions,
-    message: message.Max
+    message: message.Max,
   });
 };
-export const MinRu = (minValue: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const MinRu = (
+  minValue: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return Min(minValue, {
     ...validationOptions,
-    message: message.Min
+    message: message.Min,
   });
 };
-export const ArrayNotEmptyRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ArrayNotEmptyRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ArrayNotEmpty({
     ...validationOptions,
-    message: message.ArrayNotEmpty
+    message: message.ArrayNotEmpty,
   });
 };
-export const IsNotEmptyRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsNotEmptyRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsNotEmpty({
     ...validationOptions,
-    message: message.IsNotEmpty
+    message: message.IsNotEmpty,
   });
 };
-export const NotEqualsRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const NotEqualsRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return NotEquals({
     ...validationOptions,
-    message: message.NotEquals
+    message: message.NotEquals,
   });
 };
-export const IsDefinedRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsDefinedRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsDefined({
     ...validationOptions,
-    message: message.IsDefined
+    message: message.IsDefined,
   });
 };
-export const IsNotInRu = (values: readonly any[], validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsNotInRu = (
+  values: readonly any[],
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsNotIn(values, {
     ...validationOptions,
-    message: message.IsNotIn
+    message: message.IsNotIn,
   });
 };
-export const ArrayNotContainsRu = (values: any[], validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ArrayNotContainsRu = (
+  values: any[],
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ArrayNotContains(values, {
     ...validationOptions,
-    message: message.ArrayNotContains
+    message: message.ArrayNotContains,
   });
 };
-export const NotContainsRu = (seed: string, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const NotContainsRu = (
+  seed: string,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return NotContains(seed, {
     ...validationOptions,
-    message: message.NotContains
+    message: message.NotContains,
   });
 };
-export const IsByteLengthRu = (min: number, max?: number, validationOptions?: ValidationOptions): PropertyDecorator => {
+export const IsByteLengthRu = (
+  min: number,
+  max?: number,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return IsByteLength(min, max, {
     ...validationOptions,
-    message: message.IsByteLength
+    message: message.IsByteLength,
   });
 };
-export const ArrayUniqueRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ArrayUniqueRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ArrayUnique({
     ...validationOptions,
-    message: message.ArrayUnique
+    message: message.ArrayUnique,
   });
 };
-export const ValidateNestedRu = (validationOptions?: ValidationOptions): PropertyDecorator => {
+export const ValidateNestedRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
   return ValidateNested({
     ...validationOptions,
-    message: message.ValidateNested
+    message: message.ValidateNested,
   });
 };

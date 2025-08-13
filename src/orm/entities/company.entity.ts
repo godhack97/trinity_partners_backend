@@ -1,15 +1,22 @@
-import { Column, Entity, JoinColumn, JoinTable, ManyToMany, OneToOne } from "typeorm";
-import { BasisEntity } from './basis.entity';
-import { UserEntity } from './user.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  JoinTable,
+  ManyToMany,
+  OneToOne,
+} from "typeorm";
+import { BasisEntity } from "./basis.entity";
+import { UserEntity } from "./user.entity";
 
 export enum CompanyStatus {
-  Pending = 'pending',
-  Accept = 'accept',
-  Reject = 'reject'
+  Pending = "pending",
+  Accept = "accept",
+  Reject = "reject",
 }
 
 @Entity({
-  name: 'companies',
+  name: "companies",
 })
 export class CompanyEntity extends BasisEntity {
   @Column()
@@ -22,24 +29,24 @@ export class CompanyEntity extends BasisEntity {
   name: string;
 
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
-  @JoinColumn({ name: 'owner_id' })
+  @JoinColumn({ name: "owner_id" })
   owner: UserEntity;
 
   @ManyToMany(() => UserEntity)
   @JoinTable({
-      name: 'company_employees',
-      joinColumn: {
-        // name: 'employee_id',
-        // referencedColumnName: 'id',
-        name: 'company_id',
-        referencedColumnName: 'id',
-      },
-      inverseJoinColumn: {
-        // name: 'company_id',
-        // referencedColumnName: 'id',
-        name: 'employee_id',
-        referencedColumnName: 'id',
-      },
+    name: "company_employees",
+    joinColumn: {
+      // name: 'employee_id',
+      // referencedColumnName: 'id',
+      name: "company_id",
+      referencedColumnName: "id",
+    },
+    inverseJoinColumn: {
+      // name: 'company_id',
+      // referencedColumnName: 'id',
+      name: "employee_id",
+      referencedColumnName: "id",
+    },
   })
   employee: UserEntity[];
 
@@ -64,7 +71,7 @@ export class CompanyEntity extends BasisEntity {
   @Column({
     type: "enum",
     enum: CompanyStatus,
-    default: CompanyStatus.Pending
+    default: CompanyStatus.Pending,
   })
   status: CompanyStatus;
 }

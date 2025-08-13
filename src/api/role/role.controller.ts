@@ -1,11 +1,11 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { RoleResponseDto } from './dto/response/role.response.dto';
-import { RoleService } from './role.service';
+import { Controller, Get, Param } from "@nestjs/common";
+import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { RoleResponseDto } from "./dto/response/role.response.dto";
+import { RoleService } from "./role.service";
 
-@ApiTags('role')
+@ApiTags("role")
 @ApiBearerAuth()
-@Controller('role')
+@Controller("role")
 export class RoleController {
   constructor(private readonly roleService: RoleService) {}
 
@@ -15,9 +15,9 @@ export class RoleController {
     return this.roleService.findAll();
   }
 
-  @Get(':id')
+  @Get(":id")
   @ApiResponse({ type: RoleResponseDto })
-  findOne(@Param('id') id: string) {
+  findOne(@Param("id") id: string) {
     return this.roleService.findOne(+id);
   }
 }

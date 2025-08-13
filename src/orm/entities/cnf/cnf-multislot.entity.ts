@@ -1,11 +1,18 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Timestamp, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Timestamp,
+  UpdateDateColumn,
+} from "typeorm";
 import { CnfServerMultislotEntity } from "./cnf-server-multislot.entity";
 
 @Entity({
   name: "cnf_multislots",
   orderBy: {
-    name: "ASC"
-  }
+    name: "ASC",
+  },
 })
 export class CnfMultislotEntity {
   @PrimaryGeneratedColumn()

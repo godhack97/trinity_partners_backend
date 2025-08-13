@@ -4,13 +4,13 @@ import {
   ExecutionContext,
   CallHandler,
   Inject,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { Observable, from } from 'rxjs';
-import { switchMap, tap } from 'rxjs/operators';
-import { UserActionsService } from './user-actions.service';
-import { LOG_ACTION_KEY } from './log-action.decorator';
-import { DataSource } from 'typeorm';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { Observable, from } from "rxjs";
+import { switchMap, tap } from "rxjs/operators";
+import { UserActionsService } from "./user-actions.service";
+import { LOG_ACTION_KEY } from "./log-action.decorator";
+import { DataSource } from "typeorm";
 
 @Injectable()
 export class LogActionInterceptor implements NestInterceptor {
@@ -18,20 +18,22 @@ export class LogActionInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
     private readonly userActions: UserActionsService,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-
     function removePasswords(obj: any): any {
       if (Array.isArray(obj)) {
         return obj.map(removePasswords);
       }
 
-      if (obj && typeof obj === 'object') {
+      if (obj && typeof obj === "object") {
         const result: any = {};
 
         for (const key of Object.keys(obj)) {
-          if (!key.toLowerCase().includes('password') && !key.toLowerCase().includes('repeat')) {
+          if (
+            !key.toLowerCase().includes("password") &&
+            !key.toLowerCase().includes("repeat")
+          ) {
             result[key] = removePasswords(obj[key]);
           }
         }
@@ -53,7 +55,7 @@ export class LogActionInterceptor implements NestInterceptor {
     const userId = req.auth_user?.id;
     let snapshotPromise: Promise<any> = Promise.resolve(null);
 
-    if (logMeta.entity && req.params?.id && req.params.id.trim() !== '') {
+    if (logMeta.entity && req.params?.id && req.params.id.trim() !== "") {
       try {
         const repository = this.dataSource.getRepository(logMeta.entity);
         const idValue = isNaN(+req.params.id) ? req.params.id : +req.params.id;
@@ -75,9 +77,12 @@ export class LogActionInterceptor implements NestInterceptor {
             };
             if (entitySnapshot) {
               details.deleted = {};
-              if ('id' in entitySnapshot) details.deleted.id = entitySnapshot.id;
-              if ('name' in entitySnapshot) details.deleted.name = entitySnapshot.name;
-              if ('email' in entitySnapshot) details.deleted.email = entitySnapshot.email;
+              if ("id" in entitySnapshot)
+                details.deleted.id = entitySnapshot.id;
+              if ("name" in entitySnapshot)
+                details.deleted.name = entitySnapshot.name;
+              if ("email" in entitySnapshot)
+                details.deleted.email = entitySnapshot.email;
             }
             this.userActions.log(userId, logMeta.action, details);
           }),

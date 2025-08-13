@@ -2,52 +2,45 @@ import {
   CreateDateColumn,
   PrimaryGeneratedColumn,
   Timestamp,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from "typeorm";
 import { Exclude } from "class-transformer";
 
- type ctx = {
-   [name: string]: any
- };
+type ctx = {
+  [name: string]: any;
+};
 
-class AbstractEntity{
-   static $accepted_columns = [];
-   static $attrs_black = [
-    'created_at',
-    'updated_at',
-    'deleted_at',
-  ];
-   filterAttrs(ctx: ctx, data: object) {
+class AbstractEntity {
+  static $accepted_columns = [];
+  static $attrs_black = ["created_at", "updated_at", "deleted_at"];
+  filterAttrs(ctx: ctx, data: object) {
     return Object.fromEntries(
-      Object
-        .entries(data)
-        .filter(([k]) => {
-          if(ctx) {
-            return ctx.$accepted_columns.includes(k);
-          }
-          return AbstractEntity.$accepted_columns.includes(k);
-        }));
+      Object.entries(data).filter(([k]) => {
+        if (ctx) {
+          return ctx.$accepted_columns.includes(k);
+        }
+        return AbstractEntity.$accepted_columns.includes(k);
+      }),
+    );
   }
-   filterAttrsBlack(ctx: ctx = null, data: object) {
+  filterAttrsBlack(ctx: ctx = null, data: object) {
     return Object.fromEntries(
-      Object
-        .entries(data)
-        .filter(([k]) => {
-          if(ctx) {
-            return !ctx.$attrs_black.includes(k);
-          }
-          return !AbstractEntity.$attrs_black.includes(k);
-        }));
+      Object.entries(data).filter(([k]) => {
+        if (ctx) {
+          return !ctx.$attrs_black.includes(k);
+        }
+        return !AbstractEntity.$attrs_black.includes(k);
+      }),
+    );
   }
   _update(ctx: any, constructor, data: object) {
-    console.warn(ctx.$accepted_columns, ctx.$attrs_black)
+    console.warn(ctx.$accepted_columns, ctx.$attrs_black);
     let filtered = this.filterAttrsBlack(constructor, data);
-        filtered = this.filterAttrs(constructor, filtered);
+    filtered = this.filterAttrs(constructor, filtered);
 
     Object.assign(ctx, filtered);
   }
 }
-
 
 export class BasisEntity extends AbstractEntity {
   constructor() {
@@ -76,4 +69,3 @@ export class BasisUUIDEntity extends AbstractEntity {
   @UpdateDateColumn()
   updated_at: Timestamp;
 }
-

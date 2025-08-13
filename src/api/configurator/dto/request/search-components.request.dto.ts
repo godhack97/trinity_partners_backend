@@ -5,9 +5,7 @@ import { Type } from "class-transformer";
 import { IsEnum, IsOptional } from "class-validator";
 
 export class SearchComponentsDto {
-
   @ApiProperty()
   @IsOptional()
   componentType?: string;
-
 }

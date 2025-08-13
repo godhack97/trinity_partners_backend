@@ -1,12 +1,10 @@
 import { Column, Entity } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 
-
 @Entity({
-  name: "customers"
+  name: "customers",
 })
 export class CustomerEntity extends BasisEntity {
-
   @Column()
   first_name: string;
 

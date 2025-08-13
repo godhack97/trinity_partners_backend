@@ -1,1 +1,2 @@
-export const clearSpecSymbols = (word: string) => word.replace(/[`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, '')
+export const clearSpecSymbols = (word: string) =>
+  word.replace(/[`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, "");

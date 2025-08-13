@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from "@nestjs/swagger";
 import { IsEmailRu } from "../../../../decorators/validate";
 
 export class ForgotPasswordRequestDto {

@@ -6,22 +6,22 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  UnauthorizedException
+  UnauthorizedException,
 } from "@nestjs/common";
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Request } from 'express';
-import { ResetHashRepository } from '@orm/repositories/reset-hash.repository';
-import { UserRepository } from 'src/orm/repositories/user.repository';
-import { UserToken } from 'src/orm/entities/user-token.entity';
-import { ResetHashEntity } from 'src/orm/entities/reset-hash.entity';
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Request } from "express";
+import { ResetHashRepository } from "@orm/repositories/reset-hash.repository";
+import { UserRepository } from "src/orm/repositories/user.repository";
+import { UserToken } from "src/orm/entities/user-token.entity";
+import { ResetHashEntity } from "src/orm/entities/reset-hash.entity";
 import {
   createCredentials,
   createPassword,
   createToken,
   verifyPassword,
-} from 'src/utils/password';
-import { AuthLoginRequestDto } from './dto/request/auth-login.request.dto';
+} from "src/utils/password";
+import { AuthLoginRequestDto } from "./dto/request/auth-login.request.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 
 @Injectable()
@@ -36,9 +36,13 @@ export class AuthService {
 
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
-  ) { }
+  ) {}
 
-  async login(authLoginDto: AuthLoginRequestDto, clientId: string, req?: Request) {
+  async login(
+    authLoginDto: AuthLoginRequestDto,
+    clientId: string,
+    req?: Request,
+  ) {
     let user = await this.userRepository.findByEmail(authLoginDto.email);
     if (!user) throw new UnauthorizedException();
 
@@ -89,7 +93,10 @@ export class AuthService {
   async logout(authorization: string, clientId: string) {
     const token = authorization.substring(7);
 
-    const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
+    const tokenEntity = await this.userTokenRepository.findOneBy({
+      token,
+      client_id: clientId,
+    });
     if (!tokenEntity) throw new UnauthorizedException();
 
     await this.userTokenRepository.delete({ token, client_id: clientId });
@@ -98,19 +105,29 @@ export class AuthService {
   async check(authorization: string, clientId: string, req?: Request) {
     const token = authorization.substring(7);
 
-    const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
+    const tokenEntity = await this.userTokenRepository.findOneBy({
+      token,
+      client_id: clientId,
+    });
     if (!tokenEntity) throw new UnauthorizedException();
 
-    const user = await this.userRepository.findByIdWithCompanyEmployees(tokenEntity.user_id);
-    if (!user) throw new HttpException(`Пользователь не найден`, HttpStatus.NOT_FOUND);
+    const user = await this.userRepository.findByIdWithCompanyEmployees(
+      tokenEntity.user_id,
+    );
+    if (!user)
+      throw new HttpException(`Пользователь не найден`, HttpStatus.NOT_FOUND);
 
     if (req) {
       await this.updateUserActivity(tokenEntity.user_id, req);
     }
 
     const notifications = await this.notificationService.check(user.id);
-    const notifications_unread = await this.notificationService.countUnread(user.id);
-    const notifications_settings = await this.notificationService.getSettings(user.id);
+    const notifications_unread = await this.notificationService.countUnread(
+      user.id,
+    );
+    const notifications_settings = await this.notificationService.getSettings(
+      user.id,
+    );
     const news = await this.newsService.check();
 
     return {
@@ -118,14 +135,21 @@ export class AuthService {
       notifications,
       notifications_unread,
       notifications_settings,
-      news
+      news,
     };
   }
 
-  async updatePassword(authorization: string, clientId: string, { password, newPassword }) {
+  async updatePassword(
+    authorization: string,
+    clientId: string,
+    { password, newPassword },
+  ) {
     const token = authorization.substring(7);
 
-    const tokenEntity = await this.userTokenRepository.findOneBy({ token, client_id: clientId });
+    const tokenEntity = await this.userTokenRepository.findOneBy({
+      token,
+      client_id: clientId,
+    });
     if (!tokenEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findById(tokenEntity.user_id);
@@ -148,17 +172,21 @@ export class AuthService {
 
   async forgotPassword({ email }) {
     const user = await this.userRepository.findByEmail(email);
-    if (!user) throw new UnauthorizedException('Пользователь c таким E-mail не найден!');
+    if (!user)
+      throw new UnauthorizedException("Пользователь c таким E-mail не найден!");
 
     await this.emailConfirmerService.send({
       user_id: user.id,
       email,
-      method: EmailConfirmerMethod.Recovery
+      method: EmailConfirmerMethod.Recovery,
     });
   }
 
   async recoveryPassword({ hash, email, password, repeat }) {
-    const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email });
+    const resetHashEntity = await this.resetHashRepository.findOneBy({
+      hash,
+      email,
+    });
     if (!resetHashEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findById(resetHashEntity.user_id);
@@ -166,14 +194,18 @@ export class AuthService {
 
     if (password !== repeat) throw new UnauthorizedException();
 
-    const { password: passwordHashed, salt } = await createCredentials(password);
+    const { password: passwordHashed, salt } =
+      await createCredentials(password);
 
-    await this.userRepository.updateUser(user.id, { password: passwordHashed, salt });
+    await this.userRepository.updateUser(user.id, {
+      password: passwordHashed,
+      salt,
+    });
 
     await this.emailConfirmerService.confirm({
       hash,
       email,
-      method: EmailConfirmerMethod.Recovery
+      method: EmailConfirmerMethod.Recovery,
     });
   }
 
@@ -192,23 +224,24 @@ export class AuthService {
         await this.saveActivity(userId, req);
       }
     } catch (error) {
-      console.error('Error updating user activity:', error);
+      console.error("Error updating user activity:", error);
     }
   }
 
   private async saveActivity(userId: number, req: Request) {
-    const forwarded = req.headers['x-forwarded-for'] as string;
-    const realIp = req.headers['x-real-ip'] as string;
+    const forwarded = req.headers["x-forwarded-for"] as string;
+    const realIp = req.headers["x-real-ip"] as string;
 
-    let clientIp = forwarded?.split(',')[0]?.trim() ||
+    let clientIp =
+      forwarded?.split(",")[0]?.trim() ||
       realIp ||
       req.connection?.remoteAddress ||
       req.socket?.remoteAddress ||
       req.ip;
 
-    clientIp = clientIp?.replace('::ffff:', '') || 'unknown';
+    clientIp = clientIp?.replace("::ffff:", "") || "unknown";
 
-    const userAgent = req.headers['user-agent'] || '';
+    const userAgent = req.headers["user-agent"] || "";
     const deviceInfo = this.parseUserAgent(userAgent);
 
     await this.userRepository.updateUser(userId, {
@@ -217,24 +250,41 @@ export class AuthService {
         ip: clientIp,
         browser: deviceInfo.browser,
         device: deviceInfo.device,
-        os: deviceInfo.os
-      }
+        os: deviceInfo.os,
+      },
     });
   }
 
   private parseUserAgent(userAgent: string) {
     return {
-      browser: userAgent.includes('Chrome') ? 'Chrome' :
-        userAgent.includes('Firefox') ? 'Firefox' :
-          userAgent.includes('Safari') && !userAgent.includes('Chrome') ? 'Safari' :
-            userAgent.includes('Edge') ? 'Edge' :
-              userAgent.includes('Opera') ? 'Opera' : 'Other',
-      device: userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone') ? 'Mobile' : 'Desktop',
-      os: userAgent.includes('Windows') ? 'Windows' :
-        userAgent.includes('Mac OS') ? 'macOS' :
-          userAgent.includes('Linux') ? 'Linux' :
-            userAgent.includes('Android') ? 'Android' :
-              userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : 'Other'
+      browser: userAgent.includes("Chrome")
+        ? "Chrome"
+        : userAgent.includes("Firefox")
+          ? "Firefox"
+          : userAgent.includes("Safari") && !userAgent.includes("Chrome")
+            ? "Safari"
+            : userAgent.includes("Edge")
+              ? "Edge"
+              : userAgent.includes("Opera")
+                ? "Opera"
+                : "Other",
+      device:
+        userAgent.includes("Mobile") ||
+        userAgent.includes("Android") ||
+        userAgent.includes("iPhone")
+          ? "Mobile"
+          : "Desktop",
+      os: userAgent.includes("Windows")
+        ? "Windows"
+        : userAgent.includes("Mac OS")
+          ? "macOS"
+          : userAgent.includes("Linux")
+            ? "Linux"
+            : userAgent.includes("Android")
+              ? "Android"
+              : userAgent.includes("iPhone") || userAgent.includes("iPad")
+                ? "iOS"
+                : "Other",
     };
   }
 
@@ -247,7 +297,7 @@ export class AuthService {
     const isOnline = this.isUserOnline(user.lastActivity.lastSeen);
     return {
       isOnline,
-      lastActivity: user.lastActivity
+      lastActivity: user.lastActivity,
     };
   }
 

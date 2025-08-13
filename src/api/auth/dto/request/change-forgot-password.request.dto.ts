@@ -1,9 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
-import {
-  IsEmailRu,
-  MinLengthRu
-} from "@decorators/validate";
+import { ApiProperty } from "@nestjs/swagger";
+import { Expose } from "class-transformer";
+import { IsEmailRu, MinLengthRu } from "@decorators/validate";
 export class ChangeForgotPasswordDto {
   @ApiProperty()
   @Expose()

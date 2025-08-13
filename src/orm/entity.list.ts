@@ -1,5 +1,5 @@
-import { EntityClassOrSchema } from '@nestjs/typeorm/dist/interfaces/entity-class-or-schema.type';
-import * as entities from './entities';
+import { EntityClassOrSchema } from "@nestjs/typeorm/dist/interfaces/entity-class-or-schema.type";
+import * as entities from "./entities";
 
 export const entityList = createEntities();
 

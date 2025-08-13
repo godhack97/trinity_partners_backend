@@ -1,6 +1,6 @@
-import { Repository } from 'typeorm';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from "typeorm";
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import { CompanyEmployeeEntity, CompanyEntity } from "../entities";
 
 @Injectable()
@@ -15,17 +15,16 @@ export class CompanyRepository extends Repository<CompanyEntity> {
   async findByOwnerId(ownerId: number): Promise<CompanyEntity> {
     return await this.findOne({
       where: { owner_id: ownerId },
-      relations: ['employee'], 
+      relations: ["employee"],
     });
   }
 
   async findByIdWithEmployees(id: number): Promise<CompanyEntity> {
     return await this.findOne({
       where: { id },
-      relations: ['employee'], 
+      relations: ["employee"],
     });
   }
-
 
   async findById(id: number): Promise<CompanyEntity> {
     return await this.findOneBy({ id });

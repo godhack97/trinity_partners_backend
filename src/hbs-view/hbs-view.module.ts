@@ -1,8 +1,5 @@
 import { HbsViewService } from "@app/hbs-view/hbs-view.service";
-import {
-  Global,
-  Module
-} from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
 
 @Global()
 @Module({
@@ -10,4 +7,4 @@ import {
   providers: [HbsViewService],
   exports: [HbsViewService],
 })
-export class HbsViewModule{}
+export class HbsViewModule {}

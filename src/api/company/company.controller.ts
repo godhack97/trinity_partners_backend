@@ -1,44 +1,66 @@
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AuthUser } from "@decorators/auth-user";
 import { Roles } from "@decorators/Roles";
-import { Controller, Get, Post, Body, Patch, Param, Req, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Req,
+  UseInterceptors,
+} from "@nestjs/common";
 import { UserEntity } from "@orm/entities";
-import { CompanyService } from './company.service';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AddEmployeeRequestDto } from './dto/request/add-employee.request.dto';
-import { AddEmployeeAdminRequestDto } from './dto/request/add-employee-admin-request.dto';
-import { TransformResponse } from '@interceptors/transform-response.interceptor';
-import { CompanyEmployeesWithEmpoloyeeResponseDto } from './dto/response/company-employees-response.dto';
-import { LogAction } from 'src/logs/log-action.decorator';
+import { CompanyService } from "./company.service";
+import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { AddEmployeeRequestDto } from "./dto/request/add-employee.request.dto";
+import { AddEmployeeAdminRequestDto } from "./dto/request/add-employee-admin-request.dto";
+import { TransformResponse } from "@interceptors/transform-response.interceptor";
+import { CompanyEmployeesWithEmpoloyeeResponseDto } from "./dto/response/company-employees-response.dto";
+import { LogAction } from "src/logs/log-action.decorator";
 
-@ApiTags('company')
+@ApiTags("company")
 @ApiBearerAuth()
-@Controller('company')
+@Controller("company")
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
-  @Post('add-employee')
-  @LogAction('employee_add', 'company_employees')
+  @Post("add-employee")
+  @LogAction("employee_add", "company_employees")
   @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin])
-  addEmployee(@AuthUser() auth_user: UserEntity, @Body() addEmployeeDto: AddEmployeeRequestDto) {
+  addEmployee(
+    @AuthUser() auth_user: UserEntity,
+    @Body() addEmployeeDto: AddEmployeeRequestDto,
+  ) {
     return this.companyService.addEmployee(auth_user, addEmployeeDto);
   }
 
-  @Get('get-employees')
-  @UseInterceptors(new TransformResponse(CompanyEmployeesWithEmpoloyeeResponseDto, true))
+  @Get("get-employees")
+  @UseInterceptors(
+    new TransformResponse(CompanyEmployeesWithEmpoloyeeResponseDto, true),
+  )
   @ApiResponse({ type: [CompanyEmployeesWithEmpoloyeeResponseDto] })
-  getCompanyEmployees(@Req() request: Request,) {
+  getCompanyEmployees(@Req() request: Request) {
     return this.companyService.getCompanyEmployees(request);
   }
 
-  @Patch('change-admin-status/:id')
-  changeStatusEmployeeAdmin(@Req() request: Request, @Param('id') id: string, @Body() changeStatasEmployeeAdminDto: AddEmployeeAdminRequestDto) {
-    return this.companyService.changeStatusEmployeeAdmin(request, +id, changeStatasEmployeeAdminDto);
+  @Patch("change-admin-status/:id")
+  changeStatusEmployeeAdmin(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body() changeStatasEmployeeAdminDto: AddEmployeeAdminRequestDto,
+  ) {
+    return this.companyService.changeStatusEmployeeAdmin(
+      request,
+      +id,
+      changeStatasEmployeeAdminDto,
+    );
   }
 
-  @Patch('remove-employee/:id')
-  @LogAction('employee_archive', 'users')
-  removeEmployee(@Req() request: Request, @Param('id') id: string) {
+  @Patch("remove-employee/:id")
+  @LogAction("employee_archive", "users")
+  removeEmployee(@Req() request: Request, @Param("id") id: string) {
     return this.companyService.removeEmployee(request, +id);
   }
 }

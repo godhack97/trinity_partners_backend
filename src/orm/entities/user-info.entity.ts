@@ -1,16 +1,16 @@
-import { Entity, Column, JoinColumn, OneToOne } from 'typeorm';
-import { BasisEntity } from './basis.entity';
-import { UserEntity } from './user.entity';
+import { Entity, Column, JoinColumn, OneToOne } from "typeorm";
+import { BasisEntity } from "./basis.entity";
+import { UserEntity } from "./user.entity";
 
 @Entity({
-  name: 'users_info',
+  name: "users_info",
 })
 export class UserInfoEntity extends BasisEntity {
   @Column()
   user_id: number;
 
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: "user_id" })
   user: UserEntity;
 
   @Column()

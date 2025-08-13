@@ -5,14 +5,13 @@ import { Type } from "class-transformer";
 import { IsEnum, IsOptional } from "class-validator";
 
 export class SearchDealDto {
-
   @ApiProperty()
   @IsOptional()
   @IsDateRu()
   @Type(() => Date)
   @ApiPropertyOptional()
-  startDate?: Date; 
-  
+  startDate?: Date;
+
   @ApiProperty()
   @IsDateRu()
   @IsOptional()
@@ -23,7 +22,7 @@ export class SearchDealDto {
   @ApiProperty()
   @IsEnum(DealStatus, { each: true })
   @IsOptional()
-  @ApiPropertyOptional({enum: DealStatus})
+  @ApiPropertyOptional({ enum: DealStatus })
   status?: DealStatus;
 
   @ApiProperty()

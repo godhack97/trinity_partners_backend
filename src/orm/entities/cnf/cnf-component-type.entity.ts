@@ -1,7 +1,14 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Timestamp, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Timestamp,
+  UpdateDateColumn,
+} from "typeorm";
 
 @Entity({
-  name: 'cnf_component_types',
+  name: "cnf_component_types",
 })
 export class CnfComponentTypeEntity {
   @PrimaryGeneratedColumn()

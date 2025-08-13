@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { CreateRoleRequestDto } from './dto/request/create-role.request.dto';
+import { Injectable } from "@nestjs/common";
+import { CreateRoleRequestDto } from "./dto/request/create-role.request.dto";
 
 @Injectable()
 export class RoleService {
   create(createRoleDto: CreateRoleRequestDto) {
-    return 'This action adds a new role';
+    return "This action adds a new role";
   }
 
   findAll() {

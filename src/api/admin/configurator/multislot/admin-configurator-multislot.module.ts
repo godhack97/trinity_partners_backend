@@ -5,6 +5,6 @@ import { Module } from "@nestjs/common";
 @Module({
   controllers: [AdminConfiguratorMultislotController],
   providers: [AdminConfiguratorMultislotService],
-  exports: [AdminConfiguratorMultislotService]
+  exports: [AdminConfiguratorMultislotService],
 })
-export class AdminConfiguratorMultislotModule { }
+export class AdminConfiguratorMultislotModule {}

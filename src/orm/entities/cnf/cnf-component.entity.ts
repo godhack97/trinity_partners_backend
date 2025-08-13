@@ -1,16 +1,12 @@
-import {
-  Column,
-  Entity,
-  OneToMany,
-} from "typeorm";
+import { Column, Entity, OneToMany } from "typeorm";
 import { BasisUUIDEntity } from "../basis.entity";
 import { CnfComponentSlotEntity } from "./cnf-component-slot.entity";
 
 @Entity({
-  name: 'cnf_components',
+  name: "cnf_components",
   orderBy: {
-    name: "ASC"
-  }
+    name: "ASC",
+  },
 })
 export class CnfComponentEntity extends BasisUUIDEntity {
   constructor() {
@@ -18,13 +14,13 @@ export class CnfComponentEntity extends BasisUUIDEntity {
   }
 
   static $accepted_columns = [
-    'id',
-    'type_id',
-    'subtype',
-    'price',
-    'name',
-    'server_generation_id',
-    'processor_generation_id',
+    "id",
+    "type_id",
+    "subtype",
+    "price",
+    "name",
+    "server_generation_id",
+    "processor_generation_id",
   ];
 
   @Column("uuid")
@@ -47,22 +43,22 @@ export class CnfComponentEntity extends BasisUUIDEntity {
 
   @OneToMany(
     () => CnfComponentSlotEntity,
-    (cnfComponentSlotEntity:CnfComponentSlotEntity)=> cnfComponentSlotEntity.component,
+    (cnfComponentSlotEntity: CnfComponentSlotEntity) =>
+      cnfComponentSlotEntity.component,
     {
-      orphanedRowAction: 'delete',
+      orphanedRowAction: "delete",
       cascade: ["insert", "update"],
-
-    }
+    },
   )
   slots: CnfComponentSlotEntity[];
 
   static init(data: object) {
-    const instance = new this()
-    instance._update(instance, CnfComponentEntity, data)
-    return instance
+    const instance = new this();
+    instance._update(instance, CnfComponentEntity, data);
+    return instance;
   }
 
   update(data: object) {
-    super._update(this, CnfComponentEntity, data)
+    super._update(this, CnfComponentEntity, data);
   }
 }

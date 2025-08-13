@@ -1,9 +1,9 @@
-import { BasisEntity } from 'src/orm/entities/basis.entity';
+import { BasisEntity } from "src/orm/entities/basis.entity";
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { CnfComponentEntity } from "./cnf-component.entity";
 
 @Entity({
-  name: 'cnf_component_slots',
+  name: "cnf_component_slots",
 })
 export class CnfComponentSlotEntity extends BasisEntity {
   constructor() {
@@ -11,11 +11,11 @@ export class CnfComponentSlotEntity extends BasisEntity {
   }
 
   static $accepted_columns = [
-    'id',
-    'component_id',
-    'slot_id',
-    'amount',
-    'increase',
+    "id",
+    "component_id",
+    "slot_id",
+    "amount",
+    "increase",
   ];
   @Column("uuid")
   component_id: string;
@@ -34,19 +34,19 @@ export class CnfComponentSlotEntity extends BasisEntity {
     (cnfComponentEntity: CnfComponentEntity) => cnfComponentEntity.slots,
     {
       onUpdate: "CASCADE",
-      orphanedRowAction: 'delete',
-    }
+      orphanedRowAction: "delete",
+    },
   )
   @JoinColumn({ name: "component_id" })
   component: CnfComponentEntity;
 
   static init(data: object) {
-    const instance = new this()
-    instance._update(instance, CnfComponentSlotEntity, data)
-    return instance
+    const instance = new this();
+    instance._update(instance, CnfComponentSlotEntity, data);
+    return instance;
   }
 
   update(data: object) {
-    super._update(this, CnfComponentSlotEntity, data)
+    super._update(this, CnfComponentSlotEntity, data);
   }
 }

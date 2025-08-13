@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { CnfComponentEntity } from 'src/orm/entities/cnf/cnf-component.entity';
-import { Repository } from 'typeorm';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { CnfComponentEntity } from "src/orm/entities/cnf/cnf-component.entity";
+import { Repository } from "typeorm";
 
 @Injectable()
 export class CnfComponentRepository extends Repository<CnfComponentEntity> {

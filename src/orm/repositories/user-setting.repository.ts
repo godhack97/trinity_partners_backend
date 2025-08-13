@@ -1,10 +1,7 @@
-import { Repository } from 'typeorm';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import {
-  UserInfoEntity,
-  UserSettingEntity
-} from "@orm/entities";
+import { Repository } from "typeorm";
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { UserInfoEntity, UserSettingEntity } from "@orm/entities";
 
 @Injectable()
 export class UserSettingRepository extends Repository<UserSettingEntity> {

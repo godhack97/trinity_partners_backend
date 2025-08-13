@@ -1,4 +1,11 @@
-import { IsNotEmptyRu, MinLengthRu, MinRu, IsStringRu, IsBooleanRu, IsNumberRu } from "@decorators/validate";
+import {
+  IsNotEmptyRu,
+  MinLengthRu,
+  MinRu,
+  IsStringRu,
+  IsBooleanRu,
+  IsNumberRu,
+} from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsArray, IsOptional, ValidateNested } from "class-validator";

@@ -4,15 +4,15 @@ import { AdminService } from "./admin.service";
 import { Roles } from "../../decorators/Roles";
 import { RoleTypes } from "../../types/RoleTypes";
 
-@ApiTags('admin')
+@ApiTags("admin")
 @ApiBearerAuth()
-@Controller('admin')
+@Controller("admin")
 @Roles([RoleTypes.SuperAdmin])
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get()
   adminhello() {
-      return 'Hello AdminController';
+    return "Hello AdminController";
   }
 }

@@ -2,7 +2,7 @@ import { emailSendConfig } from "@api/email-confirmer/config";
 import {
   ActionParams,
   ConfirmParams,
-  SendParams
+  SendParams,
 } from "@api/email-confirmer/types";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { createHash } from "@app/utils/password";
@@ -12,14 +12,11 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  Logger
+  Logger,
 } from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import { ConfigService } from "@nestjs/config";
-import {
-  ResetHashRepository,
-  UserRepository
-} from "@orm/repositories";
+import { ResetHashRepository, UserRepository } from "@orm/repositories";
 import * as querystring from "node:querystring";
 
 @Injectable()
@@ -33,29 +30,35 @@ export class EmailConfirmerService {
 
   // Альтернатива: можно сделать геттеры
   get mail() {
-    return this.configService.get('EMAIL_USERNAME');
+    return this.configService.get("EMAIL_USERNAME");
   }
 
   get hostname() {
-    return this.configService.get('FRONTEND_HOSTNAME');
+    return this.configService.get("FRONTEND_HOSTNAME");
   }
 
   confirmActions = {
     registration: this._registrationAction,
     recovery: this._restoreAction,
-  }
+  };
 
   confirmHtml = {
-    [RoleTypes.Partner]: 'Ваша заявка на доступ к порталу принята. Ожидайте, пожалуйста, ответный e-mail с подтверждением доступа в течение 12 часов.',
-    [RoleTypes.Employee]: 'Вы успешно зарегистрированы на портале. Ожидайте, когда вас добавят к списку сотрудников в партнерском аккаунте.',
-  }
+    [RoleTypes.Partner]:
+      "Ваша заявка на доступ к порталу принята. Ожидайте, пожалуйста, ответный e-mail с подтверждением доступа в течение 12 часов.",
+    [RoleTypes.Employee]:
+      "Вы успешно зарегистрированы на портале. Ожидайте, когда вас добавят к списку сотрудников в партнерском аккаунте.",
+  };
 
   async confirm(data: ConfirmParams) {
     const { hash, method, email } = data;
 
-    const resetHashEntity = await this.resetHashRepository.findOneBy({ hash, email })
+    const resetHashEntity = await this.resetHashRepository.findOneBy({
+      hash,
+      email,
+    });
 
-    if(!resetHashEntity) throw new HttpException('Хэш не найден', HttpStatus.NOT_FOUND)
+    if (!resetHashEntity)
+      throw new HttpException("Хэш не найден", HttpStatus.NOT_FOUND);
 
     const action = this.confirmActions[method];
     return await action.call(this, { resetHashEntity });
@@ -66,8 +69,8 @@ export class EmailConfirmerService {
     const hash = createHash();
     const qs = querystring.stringify({
       email,
-      verify: hash
-    })
+      verify: hash,
+    });
 
     // Получаем hostname всегда в методе или через геттер
     const hostname = this.hostname;
@@ -79,12 +82,12 @@ export class EmailConfirmerService {
       hash,
       user_id,
       email,
-      expire_date
+      expire_date,
     });
 
     return await this._emailSend({
       email,
-      ...emailSendConfig({ link })[method]
+      ...emailSendConfig({ link })[method],
     });
   }
 
@@ -93,14 +96,15 @@ export class EmailConfirmerService {
 
     const resetHashEntity = await this.resetHashRepository.findOne({
       where: { user_id },
-      order: { id: 'DESC' }
+      order: { id: "DESC" },
     });
 
-    if(!resetHashEntity) throw new BadRequestException('Пользователь для отправки не найден!')
+    if (!resetHashEntity)
+      throw new BadRequestException("Пользователь для отправки не найден!");
 
     const qs = querystring.stringify({
       email: resetHashEntity.email,
-      verify: resetHashEntity.hash
+      verify: resetHashEntity.hash,
     });
 
     const hostname = this.hostname;
@@ -108,9 +112,8 @@ export class EmailConfirmerService {
 
     return await this._emailSend({
       email,
-      ...emailSendConfig({ link })[method]
+      ...emailSendConfig({ link })[method],
     });
-
   }
 
   async emailSend({ email, subject, template, context }) {
@@ -119,7 +122,7 @@ export class EmailConfirmerService {
 
   private async _emailSend({ email, subject, template, context }) {
     try {
-      const isGmail = email.includes('gmail');
+      const isGmail = email.includes("gmail");
       const templateVariation = isGmail
         ? `${template}--img-as-url.hbs`
         : `${template}--img-as-base64.hbs`;
@@ -132,47 +135,52 @@ export class EmailConfirmerService {
         template: templateVariation,
         context: {
           ...context,
-          URL: this.hostname
+          URL: this.hostname,
         },
       });
-
     } catch (error) {
       Logger.error(error);
     }
   }
 
-  private async _restoreAction({ resetHashEntity }: ActionParams){
+  private async _restoreAction({ resetHashEntity }: ActionParams) {
     return await this._deleteResetHashEntity({ resetHashEntity });
   }
 
   private async _registrationAction({ resetHashEntity }: ActionParams) {
     await this._deleteResetHashEntity({ resetHashEntity });
 
-    const updateUser = await this.userRepository.update(resetHashEntity.user_id, {
-      email_confirmed: true,
-    });
+    const updateUser = await this.userRepository.update(
+      resetHashEntity.user_id,
+      {
+        email_confirmed: true,
+      },
+    );
 
     if (updateUser.affected === 0) {
-      throw new InternalServerErrorException('Не удалось обновить пользователя');
+      throw new InternalServerErrorException(
+        "Не удалось обновить пользователя",
+      );
     }
 
     const user = await this.userRepository.findById(resetHashEntity.user_id);
 
-    if(!user) throw new InternalServerErrorException('Не удалось найти пользователя');
+    if (!user)
+      throw new InternalServerErrorException("Не удалось найти пользователя");
 
     const sendOpts = {
       email: user.email,
-      subject: 'Подтверждение почты!',
+      subject: "Подтверждение почты!",
     };
 
     switch (user.role.name) {
       case RoleTypes.Partner:
         await this._emailSend({
           ...sendOpts,
-          template: 'request-company-receive',
+          template: "request-company-receive",
           context: {
-            link: 'https://partner.trinity.ru/'
-          }
+            link: "https://partner.trinity.ru/",
+          },
         });
         await this.notifySuperAdminsAboutNewPartner({
           company_name: user.info?.company_name,
@@ -185,10 +193,10 @@ export class EmailConfirmerService {
       case RoleTypes.Employee:
         await this._emailSend({
           ...sendOpts,
-          template: 'registration-employee',
+          template: "registration-employee",
           context: {
-            link: 'https://partner.trinity.ru/'
-          }
+            link: "https://partner.trinity.ru/",
+          },
         });
         break;
       default:
@@ -196,60 +204,67 @@ export class EmailConfirmerService {
     }
   }
 
-	private async notifySuperAdminsAboutNewPartner({
-		company_name,
-		first_name,
-		last_name,
-		email,
-	}: {
-		company_name?: string;
-		first_name?: string;
-		last_name?: string;
-		email: string;
-	}) {
-		const superAdmins = await this.userRepository.find({
-			where: { role_id: 1 },
-		});
+  private async notifySuperAdminsAboutNewPartner({
+    company_name,
+    first_name,
+    last_name,
+    email,
+  }: {
+    company_name?: string;
+    first_name?: string;
+    last_name?: string;
+    email: string;
+  }) {
+    const superAdmins = await this.userRepository.find({
+      where: { role_id: 1 },
+    });
 
-		// Автоматически определяем имя партнёра
-		const partnerName =
-			company_name ||
-			[first_name, last_name].filter(Boolean).join(' ') ||
-			'Партнёр';
-		const partnerEmail = email;
+    // Автоматически определяем имя партнёра
+    const partnerName =
+      company_name ||
+      [first_name, last_name].filter(Boolean).join(" ") ||
+      "Партнёр";
+    const partnerEmail = email;
 
-		for (const admin of superAdmins) {
-			await this.emailSend({
-				email: admin.email,
-				subject: emailSendConfig({ partnerName, partnerEmail })[
-					'notify.new.partner'
-				].subject,
-				template: emailSendConfig({ partnerName, partnerEmail })[
-					'notify.new.partner'
-				].template,
-				context: {
-					partnerName,
-					partnerEmail,
-					link: 'https://partner.trinity.ru/',
-				},
-			});
-		}
-	}
-
-  private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
-    const resetHashDelete = await this.resetHashRepository.delete(resetHashEntity.id);
-
-    if (!resetHashDelete) {
-      throw new HttpException('Не удалось удалить', HttpStatus.INTERNAL_SERVER_ERROR);
+    for (const admin of superAdmins) {
+      await this.emailSend({
+        email: admin.email,
+        subject: emailSendConfig({ partnerName, partnerEmail })[
+          "notify.new.partner"
+        ].subject,
+        template: emailSendConfig({ partnerName, partnerEmail })[
+          "notify.new.partner"
+        ].template,
+        context: {
+          partnerName,
+          partnerEmail,
+          link: "https://partner.trinity.ru/",
+        },
+      });
     }
   }
 
-  private _createExpireDate(options: { addDays: number } = { addDays: 2 } ): string {
+  private async _deleteResetHashEntity({ resetHashEntity }: ActionParams) {
+    const resetHashDelete = await this.resetHashRepository.delete(
+      resetHashEntity.id,
+    );
+
+    if (!resetHashDelete) {
+      throw new HttpException(
+        "Не удалось удалить",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  private _createExpireDate(
+    options: { addDays: number } = { addDays: 2 },
+  ): string {
     const { addDays = 2 } = options;
     const d = new Date();
     d.setDate(d.getDate() + addDays);
-    const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-    const timeString = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+    const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
+    const timeString = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
     return `${yearString} ${timeString}`;
   }
 }

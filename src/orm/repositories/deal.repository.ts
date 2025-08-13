@@ -3,7 +3,13 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DealEntity } from "@orm/entities";
 import { DealDeletionStatus } from "@orm/entities/deal-deletion-request.entity";
-import { Between, LessThanOrEqual, Like, MoreThanOrEqual, Repository } from "typeorm";
+import {
+  Between,
+  LessThanOrEqual,
+  Like,
+  MoreThanOrEqual,
+  Repository,
+} from "typeorm";
 
 @Injectable()
 export class DealRepository extends Repository<DealEntity> {
@@ -32,7 +38,9 @@ export class DealRepository extends Repository<DealEntity> {
     return await this.findOneBy({ id });
   }
 
-  public async findDealsWithFilters(entry?: SearchDealDto): Promise<DealEntity[]> {
+  public async findDealsWithFilters(
+    entry?: SearchDealDto,
+  ): Promise<DealEntity[]> {
     const queryBuilder = this.createQueryBuilder("deal")
       .leftJoinAndSelect("deal.distributor", "distributor")
       .leftJoinAndSelect("deal.customer", "customer")
@@ -42,15 +50,21 @@ export class DealRepository extends Repository<DealEntity> {
         "deal_deletion_requests",
         "deletion_request",
         "deletion_request.deal_id = deal.id AND deletion_request.status = :pendingStatus",
-        { pendingStatus: DealDeletionStatus.PENDING }
+        { pendingStatus: DealDeletionStatus.PENDING },
       )
-      .addSelect("CASE WHEN deletion_request.id IS NOT NULL THEN 'yes' ELSE 'no' END", "delete_request_status");
+      .addSelect(
+        "CASE WHEN deletion_request.id IS NOT NULL THEN 'yes' ELSE 'no' END",
+        "delete_request_status",
+      );
 
     if (entry?.startDate && entry?.endDate) {
-      queryBuilder.andWhere("deal.purchase_date BETWEEN :startDate AND :endDate", {
-        startDate: new Date(entry.startDate),
-        endDate: new Date(entry.endDate),
-      });
+      queryBuilder.andWhere(
+        "deal.purchase_date BETWEEN :startDate AND :endDate",
+        {
+          startDate: new Date(entry.startDate),
+          endDate: new Date(entry.endDate),
+        },
+      );
     } else if (entry?.startDate) {
       queryBuilder.andWhere("deal.purchase_date >= :startDate", {
         startDate: new Date(entry.startDate),
@@ -69,7 +83,7 @@ export class DealRepository extends Repository<DealEntity> {
       const search = `%${entry.search.toLowerCase()}%`;
       queryBuilder.andWhere(
         "(LOWER(deal.deal_num) LIKE :search OR LOWER(deal.deal_sum) LIKE :search OR LOWER(deal.title) LIKE :search)",
-        { search }
+        { search },
       );
     }
 
@@ -89,7 +103,7 @@ export class DealRepository extends Repository<DealEntity> {
 
       const dealWithStatus = {
         ...deal,
-        delete_request_status: raw.delete_request_status
+        delete_request_status: raw.delete_request_status,
       };
 
       deals.push(dealWithStatus);

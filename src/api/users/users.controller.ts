@@ -1,6 +1,5 @@
-
-import { UsersService } from './users.service';
-import { UserEntity } from '../../orm/entities/user.entity';
+import { UsersService } from "./users.service";
+import { UserEntity } from "../../orm/entities/user.entity";
 import {
   Controller,
   Delete,
@@ -8,17 +7,17 @@ import {
   Param,
   UseInterceptors,
   HttpException,
-  HttpStatus
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+  HttpStatus,
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
 
-@Controller('users')
-@ApiTags('users')
+@Controller("users")
+@ApiTags("users")
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get('/count')
+  @Get("/count")
   @ApiBearerAuth()
   @ApiResponse({ type: Number })
   async getCount() {

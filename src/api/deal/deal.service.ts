@@ -1,22 +1,27 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { CreateDealDto } from './dto/request/create-deal.dto';
-import { CompanyRepository, CustomerRepository, DealRepository, DistributorRepository, DealDeletionRequestRepository } from '@orm/repositories';
-import { RoleTypes } from '@app/types/RoleTypes';
+import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
+import { CreateDealDto } from "./dto/request/create-deal.dto";
 import {
-  DealStatus,
-  UserEntity,
-  Bitrix24SyncStatus
-} from '@orm/entities';
-import { SearchDealDto } from './dto/request/search-deal.dto';
-import { DealStatisticsResponseDto } from './dto/response/deal-statistics-response.dto';
-import { Bitrix24Service } from '../../integrations/bitrix24/bitrix24.service';
-import { UserRepository } from 'src/orm/repositories/user.repository';
-import { EmailConfirmerService } from '@api/email-confirmer/email-confirmer.service';
-import { CreateDealDeletionRequestDto } from './dto/request/create-deal-deletion-request.dto';
-import { ProcessDealDeletionRequestDto } from './dto/request/process-deal-deletion-request.dto';
-import { DealDeletionStatus, DealDeletionRequestEntity } from '@orm/entities/deal-deletion-request.entity';
-import { DealDeletionRequestResponseDto } from './dto/response/deal-deletion-request-response.dto';
-import { ConfigService } from '@nestjs/config';
+  CompanyRepository,
+  CustomerRepository,
+  DealRepository,
+  DistributorRepository,
+  DealDeletionRequestRepository,
+} from "@orm/repositories";
+import { RoleTypes } from "@app/types/RoleTypes";
+import { DealStatus, UserEntity, Bitrix24SyncStatus } from "@orm/entities";
+import { SearchDealDto } from "./dto/request/search-deal.dto";
+import { DealStatisticsResponseDto } from "./dto/response/deal-statistics-response.dto";
+import { Bitrix24Service } from "../../integrations/bitrix24/bitrix24.service";
+import { UserRepository } from "src/orm/repositories/user.repository";
+import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
+import { CreateDealDeletionRequestDto } from "./dto/request/create-deal-deletion-request.dto";
+import { ProcessDealDeletionRequestDto } from "./dto/request/process-deal-deletion-request.dto";
+import {
+  DealDeletionStatus,
+  DealDeletionRequestEntity,
+} from "@orm/entities/deal-deletion-request.entity";
+import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-request-response.dto";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class DealService {
@@ -35,7 +40,7 @@ export class DealService {
   ) {}
 
   private get hostname(): string {
-    return this.configService.get<string>('HOSTNAME') || 'localhost';
+    return this.configService.get<string>("HOSTNAME") || "localhost";
   }
 
   async getCount(): Promise<number> {
@@ -51,51 +56,76 @@ export class DealService {
   }
 
   async getModerationCount(): Promise<number> {
-    return await this.dealRepository.count({ where: { status: DealStatus.Moderation } });
+    return await this.dealRepository.count({
+      where: { status: DealStatus.Moderation },
+    });
   }
 
   async getRegisteredCount(): Promise<number> {
-    return await this.dealRepository.count({ where: { status: DealStatus.Registered } });
+    return await this.dealRepository.count({
+      where: { status: DealStatus.Registered },
+    });
   }
 
   async getCanceledCount(): Promise<number> {
-    return await this.dealRepository.count({ where: { status: DealStatus.Canceled } });
+    return await this.dealRepository.count({
+      where: { status: DealStatus.Canceled },
+    });
   }
 
   async getWinCount(): Promise<number> {
-    return await this.dealRepository.count({ where: { status: DealStatus.Win } });
+    return await this.dealRepository.count({
+      where: { status: DealStatus.Win },
+    });
   }
 
   async getLooseCount(): Promise<number> {
-    return await this.dealRepository.count({ where: { status: DealStatus.Lose } });
+    return await this.dealRepository.count({
+      where: { status: DealStatus.Lose },
+    });
   }
 
   async create(auth_user: UserEntity, createDealDto: CreateDealDto) {
-    const distributor = await this.distributorRepository.findById(createDealDto.distributor_id);
+    const distributor = await this.distributorRepository.findById(
+      createDealDto.distributor_id,
+    );
 
     const existingCustomer = await this.customerRepository.findSimilar(
       createDealDto.customer.inn,
       createDealDto.customer.email,
       createDealDto.customer.first_name,
-      createDealDto.customer.last_name
+      createDealDto.customer.last_name,
     );
 
-    const customer = existingCustomer || await this.customerRepository.save(createDealDto.customer);
+    const customer =
+      existingCustomer ||
+      (await this.customerRepository.save(createDealDto.customer));
 
-    if(!distributor) {
-      throw new HttpException('Данного дистрибьютора не существует', HttpStatus.FORBIDDEN);
+    if (!distributor) {
+      throw new HttpException(
+        "Данного дистрибьютора не существует",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
-    if(!customer) {
-      throw new HttpException('Произошла ошибка при создании заказчика', HttpStatus.FORBIDDEN);
+    if (!customer) {
+      throw new HttpException(
+        "Произошла ошибка при создании заказчика",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     const countDealsInDay = await this.dealRepository.countDealsForToday();
     const date = new Date();
 
-    const deal_num = `${auth_user.id}-${date.getFullYear()}/${(date.getMonth() + 1).toString()
-      .padStart(2, '0')}/${date.getDate()
-      .toString().padStart(2, '0')}-${countDealsInDay+1}`;
+    const deal_num = `${auth_user.id}-${date.getFullYear()}/${(
+      date.getMonth() + 1
+    )
+      .toString()
+      .padStart(2, "0")}/${date
+      .getDate()
+      .toString()
+      .padStart(2, "0")}-${countDealsInDay + 1}`;
 
     createDealDto.purchase_date = new Date(createDealDto.purchase_date);
 
@@ -103,8 +133,8 @@ export class DealService {
       ...createDealDto,
       customer_id: customer.id,
       creator_id: auth_user.id,
-      deal_num
-    }
+      deal_num,
+    };
 
     if (dealData.customer_id) {
       delete dealData.customer;
@@ -112,11 +142,21 @@ export class DealService {
 
     const savedDeal = await this.dealRepository.save(dealData);
 
-    this.sendLeadToBitrix24(savedDeal, customer, distributor, auth_user).catch(error => {
-      this.logger.error(`Ошибка отправки лида для сделки ${savedDeal.id} в Bitrix24:`, error);
-    });
+    this.sendLeadToBitrix24(savedDeal, customer, distributor, auth_user).catch(
+      (error) => {
+        this.logger.error(
+          `Ошибка отправки лида для сделки ${savedDeal.id} в Bitrix24:`,
+          error,
+        );
+      },
+    );
 
-    await this.notifyAdminsAboutNewDeal(savedDeal, customer, distributor, auth_user);
+    await this.notifyAdminsAboutNewDeal(
+      savedDeal,
+      customer,
+      distributor,
+      auth_user,
+    );
 
     return savedDeal;
   }
@@ -125,21 +165,23 @@ export class DealService {
     deal: any,
     customer: any,
     distributor: any,
-    creator: UserEntity
+    creator: UserEntity,
   ) {
     try {
       const superAdmins = await this.userRepository.find({
         where: { role_id: 1 },
       });
-      const creatorWithInfo = await this.userRepository.findByIdWithUserInfo(creator.id);
+      const creatorWithInfo = await this.userRepository.findByIdWithUserInfo(
+        creator.id,
+      );
 
       for (const admin of superAdmins) {
         await this.emailConfirmerService.emailSend({
           email: admin.email,
-          subject: 'Создана новая сделка',
-          template: 'admin-new-deal-notification',
+          subject: "Создана новая сделка",
+          template: "admin-new-deal-notification",
           context: {
-            adminName: admin.info?.first_name || 'Администратор',
+            adminName: admin.info?.first_name || "Администратор",
             dealNumber: deal.deal_num,
             dealId: deal.id,
             customerFirstName: customer.first_name,
@@ -148,12 +190,16 @@ export class DealService {
             customerPhone: customer.phone,
             distributorName: distributor.name,
             distributorId: distributor.id,
-            creatorName: creatorWithInfo.user_info?.first_name && creatorWithInfo.user_info?.last_name
-            ? `${creatorWithInfo.user_info.first_name} ${creatorWithInfo.user_info.last_name}`
-            : creatorWithInfo.email,
+            creatorName:
+              creatorWithInfo.user_info?.first_name &&
+              creatorWithInfo.user_info?.last_name
+                ? `${creatorWithInfo.user_info.first_name} ${creatorWithInfo.user_info.last_name}`
+                : creatorWithInfo.email,
             creatorEmail: creatorWithInfo.email,
-            creationDate: new Date().toLocaleDateString('ru-RU'),
-            purchaseDate: deal.purchase_date ? new Date(deal.purchase_date).toLocaleDateString('ru-RU') : null,
+            creationDate: new Date().toLocaleDateString("ru-RU"),
+            purchaseDate: deal.purchase_date
+              ? new Date(deal.purchase_date).toLocaleDateString("ru-RU")
+              : null,
             amount: deal.amount,
             status: deal.status,
             description: deal.description,
@@ -161,28 +207,41 @@ export class DealService {
         });
       }
     } catch (error) {
-      console.error('Ошибка отправки уведомления админам о новой сделке:', error);
+      console.error(
+        "Ошибка отправки уведомления админам о новой сделке:",
+        error,
+      );
     }
   }
 
   /**
    * Отправка лида в Bitrix24
    */
-  private async sendLeadToBitrix24(deal: any, customer: any, distributor?: any, creator?: UserEntity): Promise<void> {
+  private async sendLeadToBitrix24(
+    deal: any,
+    customer: any,
+    distributor?: any,
+    creator?: UserEntity,
+  ): Promise<void> {
     try {
       this.logger.log(`Отправка лида для сделки ${deal.id} в Bitrix24...`);
 
-      const distributorName = distributor?.name || distributor?.company_name || `Distributor_${deal.distributor_id}`;
+      const distributorName =
+        distributor?.name ||
+        distributor?.company_name ||
+        `Distributor_${deal.distributor_id}`;
 
       let dealCreator = creator;
       if (!dealCreator && deal.creator_id) {
-        dealCreator = await this.userRepository.findByIdWithUserInfo(deal.creator_id);
+        dealCreator = await this.userRepository.findByIdWithUserInfo(
+          deal.creator_id,
+        );
       }
 
       if (!dealCreator) {
         this.logger.error(`Не удалось найти создателя сделки ${deal.id}`);
         await this.dealRepository.update(deal.id, {
-          bitrix24_sync_status: Bitrix24SyncStatus.FAILED
+          bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
         });
         return;
       }
@@ -190,29 +249,40 @@ export class DealService {
       const dealWithPartner = {
         ...deal,
         partner: dealCreator,
-        customer: customer
+        customer: customer,
       };
 
-      const leadId = await this.bitrix24Service.createLead(dealWithPartner, customer, distributorName);
+      const leadId = await this.bitrix24Service.createLead(
+        dealWithPartner,
+        customer,
+        distributorName,
+      );
 
       if (leadId) {
         await this.dealRepository.update(deal.id, {
           bitrix24_deal_id: leadId,
           bitrix24_sync_status: Bitrix24SyncStatus.SYNCED,
-          bitrix24_synced_at: new Date()
+          bitrix24_synced_at: new Date(),
         });
-        this.logger.log(`Лид для сделки ${deal.id} успешно создан в Bitrix24 с ID: ${leadId}`);
+        this.logger.log(
+          `Лид для сделки ${deal.id} успешно создан в Bitrix24 с ID: ${leadId}`,
+        );
       } else {
         await this.dealRepository.update(deal.id, {
-          bitrix24_sync_status: Bitrix24SyncStatus.FAILED
+          bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
         });
-        this.logger.warn(`Не удалось создать лид для сделки ${deal.id} в Bitrix24`);
+        this.logger.warn(
+          `Не удалось создать лид для сделки ${deal.id} в Bitrix24`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Ошибка при отправке лида для сделки ${deal.id} в Bitrix24:`, error);
+      this.logger.error(
+        `Ошибка при отправке лида для сделки ${deal.id} в Bitrix24:`,
+        error,
+      );
 
       await this.dealRepository.update(deal.id, {
-        bitrix24_sync_status: Bitrix24SyncStatus.FAILED
+        bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
       });
     }
   }
@@ -229,13 +299,13 @@ export class DealService {
       case RoleTypes.Partner:
       case RoleTypes.Employee:
         deals = await this.dealRepository.findDealsWithFilters(entry);
-        deals = deals.filter(deal => deal.creator_id === auth_user.id);
+        deals = deals.filter((deal) => deal.creator_id === auth_user.id);
         break;
 
       default:
         deals = [];
         break;
-      }
+    }
 
     return deals;
   }
@@ -243,8 +313,8 @@ export class DealService {
   async findOne(id: number, auth_user: UserEntity) {
     const deal = await this.dealRepository.findById(id);
 
-    if(!deal) {
-      throw new HttpException('Сделка не найдена', HttpStatus.NOT_FOUND);
+    if (!deal) {
+      throw new HttpException("Сделка не найдена", HttpStatus.NOT_FOUND);
     }
 
     switch (auth_user.role.name) {
@@ -253,22 +323,34 @@ export class DealService {
 
       case RoleTypes.EmployeeAdmin:
       case RoleTypes.Partner:
-        const companyWithEmployees = await this.companyRepository.findByIdWithEmployees(auth_user?.company_employee?.company_id);
+        const companyWithEmployees =
+          await this.companyRepository.findByIdWithEmployees(
+            auth_user?.company_employee?.company_id,
+          );
 
         if (auth_user.id === deal.creator_id) {
           return deal;
         }
 
-        throw new HttpException('У вашей компании недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
+        throw new HttpException(
+          "У вашей компании недостаточно прав для получения деталей данной сделки",
+          HttpStatus.FORBIDDEN,
+        );
 
       case RoleTypes.Employee:
         if (auth_user.id === deal.creator_id) {
           return deal;
         }
-        throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
+        throw new HttpException(
+          "У вас недостаточно прав для получения деталей данной сделки",
+          HttpStatus.FORBIDDEN,
+        );
 
       default:
-        throw new HttpException('У вас недостаточно прав для получения деталей данной сделки', HttpStatus.FORBIDDEN);
+        throw new HttpException(
+          "У вас недостаточно прав для получения деталей данной сделки",
+          HttpStatus.FORBIDDEN,
+        );
     }
   }
 
@@ -276,11 +358,14 @@ export class DealService {
     const dealsData = await this.findAll(auth_user);
     const statistic: DealStatisticsResponseDto = {
       allCount: dealsData.length,
-      canceled: dealsData.filter(el => el.status === DealStatus.Canceled).length,
-      registered: dealsData.filter(el => el.status === DealStatus.Registered).length,
-      moderation: dealsData.filter(el => el.status === DealStatus.Moderation).length,
-      win: dealsData.filter(el => el.status === DealStatus.Win).length,
-      loose: dealsData.filter(el => el.status === DealStatus.Lose).length,
+      canceled: dealsData.filter((el) => el.status === DealStatus.Canceled)
+        .length,
+      registered: dealsData.filter((el) => el.status === DealStatus.Registered)
+        .length,
+      moderation: dealsData.filter((el) => el.status === DealStatus.Moderation)
+        .length,
+      win: dealsData.filter((el) => el.status === DealStatus.Win).length,
+      loose: dealsData.filter((el) => el.status === DealStatus.Lose).length,
     };
 
     return statistic;
@@ -289,28 +374,35 @@ export class DealService {
   async createDeletionRequest(
     dealId: number,
     auth_user: UserEntity,
-    createDeletionRequestDto: CreateDealDeletionRequestDto
+    createDeletionRequestDto: CreateDealDeletionRequestDto,
   ): Promise<DealDeletionRequestResponseDto> {
     const deal = await this.findOne(dealId, auth_user);
 
     if (deal.creator_id !== auth_user.id) {
-      throw new HttpException('Вы можете подавать заявку на удаление только своих сделок', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        "Вы можете подавать заявку на удаление только своих сделок",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (deal.deletedAt) {
-      throw new HttpException('Сделка уже удалена', HttpStatus.BAD_REQUEST);
+      throw new HttpException("Сделка уже удалена", HttpStatus.BAD_REQUEST);
     }
 
-    const hasPendingRequest = await this.dealDeletionRequestRepository.hasPendingRequestForDeal(dealId);
+    const hasPendingRequest =
+      await this.dealDeletionRequestRepository.hasPendingRequestForDeal(dealId);
     if (hasPendingRequest) {
-      throw new HttpException('Уже существует активная заявка на удаление этой сделки', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        "Уже существует активная заявка на удаление этой сделки",
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const deletionRequest = await this.dealDeletionRequestRepository.save({
       deal_id: dealId,
       requester_id: auth_user.id,
       deletion_reason: createDeletionRequestDto.deletion_reason,
-      status: DealDeletionStatus.PENDING
+      status: DealDeletionStatus.PENDING,
     });
 
     await this.notifyAdminsAboutDeletionRequest(deletionRequest);
@@ -318,160 +410,221 @@ export class DealService {
     return this.mapDeletionRequestToResponse(deletionRequest);
   }
 
-  async getDeletionRequests(auth_user: UserEntity): Promise<DealDeletionRequestResponseDto[]> {
+  async getDeletionRequests(
+    auth_user: UserEntity,
+  ): Promise<DealDeletionRequestResponseDto[]> {
     let requests: DealDeletionRequestEntity[];
 
     if (auth_user.role_id === 1) {
-      requests = await this.dealDeletionRequestRepository.findAllWithRelations();
+      requests =
+        await this.dealDeletionRequestRepository.findAllWithRelations();
     } else {
-      requests = await this.dealDeletionRequestRepository.findByRequesterId(auth_user.id);
+      requests = await this.dealDeletionRequestRepository.findByRequesterId(
+        auth_user.id,
+      );
     }
 
-    return requests.map(request => this.mapDeletionRequestToResponse(request));
+    return requests.map((request) =>
+      this.mapDeletionRequestToResponse(request),
+    );
   }
 
-  async getPendingDeletionRequests(auth_user: UserEntity): Promise<DealDeletionRequestResponseDto[]> {
+  async getPendingDeletionRequests(
+    auth_user: UserEntity,
+  ): Promise<DealDeletionRequestResponseDto[]> {
     if (auth_user.role_id !== 1) {
-      throw new HttpException('Недостаточно прав для просмотра ожидающих заявок', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        "Недостаточно прав для просмотра ожидающих заявок",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
-    const requests = await this.dealDeletionRequestRepository.findPendingRequests();
-    return requests.map(request => this.mapDeletionRequestToResponse(request));
+    const requests =
+      await this.dealDeletionRequestRepository.findPendingRequests();
+    return requests.map((request) =>
+      this.mapDeletionRequestToResponse(request),
+    );
   }
 
   async processDeletionRequest(
     requestId: number,
     auth_user: UserEntity,
-    processDto: ProcessDealDeletionRequestDto
+    processDto: ProcessDealDeletionRequestDto,
   ): Promise<{ message: string }> {
     if (auth_user.role_id !== 1) {
-      throw new HttpException('Недостаточно прав для обработки заявок на удаление', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        "Недостаточно прав для обработки заявок на удаление",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
-    const request = await this.dealDeletionRequestRepository.findById(requestId);
+    const request =
+      await this.dealDeletionRequestRepository.findById(requestId);
     if (!request) {
-      throw new HttpException('Заявка на удаление не найдена', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "Заявка на удаление не найдена",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     if (request.status !== DealDeletionStatus.PENDING) {
-      throw new HttpException('Заявка уже обработана', HttpStatus.BAD_REQUEST);
+      throw new HttpException("Заявка уже обработана", HttpStatus.BAD_REQUEST);
     }
 
     await this.dealDeletionRequestRepository.update(requestId, {
       status: processDto.status,
       processed_by_id: auth_user.id,
-      processed_at: new Date()
+      processed_at: new Date(),
     });
 
     if (processDto.status === DealDeletionStatus.APPROVED) {
       await this.dealRepository.softDelete(request.deal_id);
     }
 
-    await this.notifyUserAboutDeletionRequestResult(request, processDto.status, auth_user);
+    await this.notifyUserAboutDeletionRequestResult(
+      request,
+      processDto.status,
+      auth_user,
+    );
 
-    const statusText = processDto.status === DealDeletionStatus.APPROVED ? 'одобрена' : 'отклонена';
+    const statusText =
+      processDto.status === DealDeletionStatus.APPROVED
+        ? "одобрена"
+        : "отклонена";
     return { message: `Заявка на удаление ${statusText}` };
   }
 
-  private async notifyAdminsAboutDeletionRequest(request: DealDeletionRequestEntity) {
+  private async notifyAdminsAboutDeletionRequest(
+    request: DealDeletionRequestEntity,
+  ) {
     try {
       const superAdmins = await this.userRepository.find({
         where: { role_id: 1 },
       });
 
-      const requestWithRelations = await this.dealDeletionRequestRepository.findById(request.id);
+      const requestWithRelations =
+        await this.dealDeletionRequestRepository.findById(request.id);
       if (!requestWithRelations) {
-        this.logger.error(`Не удалось найти заявку ${request.id} для отправки уведомления`);
+        this.logger.error(
+          `Не удалось найти заявку ${request.id} для отправки уведомления`,
+        );
         return;
       }
 
       for (const admin of superAdmins) {
         await this.emailConfirmerService.emailSend({
           email: admin.email,
-          subject: 'Новая заявка на удаление сделки',
-          template: 'admin-deletion-request-notification',
+          subject: "Новая заявка на удаление сделки",
+          template: "admin-deletion-request-notification",
           context: {
-            adminName: admin.info?.first_name || 'Администратор',
-            dealNumber: requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
+            adminName: admin.info?.first_name || "Администратор",
+            dealNumber:
+              requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
             dealId: requestWithRelations.deal?.id || request.deal_id,
-            requesterEmail: requestWithRelations.requester?.email || 'Неизвестно',
+            requesterEmail:
+              requestWithRelations.requester?.email || "Неизвестно",
             deletionReason: request.deletion_reason,
-            requestDate: new Date().toLocaleDateString('ru-RU'),
+            requestDate: new Date().toLocaleDateString("ru-RU"),
             requestId: request.id,
-            link: 'https://partner-admin.trinity.ru/'
+            link: "https://partner-admin.trinity.ru/",
           },
         });
       }
     } catch (error) {
-      console.error('Ошибка отправки уведомления админам о заявке на удаление:', error);
+      console.error(
+        "Ошибка отправки уведомления админам о заявке на удаление:",
+        error,
+      );
     }
   }
 
   private async notifyUserAboutDeletionRequestResult(
     request: DealDeletionRequestEntity,
     status: DealDeletionStatus,
-    processedBy: UserEntity
+    processedBy: UserEntity,
   ) {
     try {
-      const requestWithRelations = await this.dealDeletionRequestRepository.findById(request.id);
+      const requestWithRelations =
+        await this.dealDeletionRequestRepository.findById(request.id);
       if (!requestWithRelations) {
-        this.logger.error(`Не удалось найти заявку ${request.id} для отправки уведомления`);
+        this.logger.error(
+          `Не удалось найти заявку ${request.id} для отправки уведомления`,
+        );
         return;
       }
 
-      const statusText = status === DealDeletionStatus.APPROVED ? 'одобрена' : 'отклонена';
+      const statusText =
+        status === DealDeletionStatus.APPROVED ? "одобрена" : "отклонена";
 
       await this.emailConfirmerService.emailSend({
-        email: requestWithRelations.requester?.email || '',
+        email: requestWithRelations.requester?.email || "",
         subject: `Заявка на удаление сделки ${statusText}`,
-        template: 'user-deletion-request-result',
+        template: "user-deletion-request-result",
         context: {
           link: this.hostname,
-          userName: requestWithRelations.requester?.info?.first_name || 'Пользователь',
-          dealNumber: requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
+          userName:
+            requestWithRelations.requester?.info?.first_name || "Пользователь",
+          dealNumber:
+            requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
           status: statusText,
           isApproved: status === DealDeletionStatus.APPROVED,
           processedByEmail: processedBy.email,
-          processedDate: new Date().toLocaleDateString('ru-RU')
+          processedDate: new Date().toLocaleDateString("ru-RU"),
         },
       });
     } catch (error) {
-      console.error('Ошибка отправки уведомления пользователю о результате заявки:', error);
+      console.error(
+        "Ошибка отправки уведомления пользователю о результате заявки:",
+        error,
+      );
     }
   }
 
-  private mapDeletionRequestToResponse(request: DealDeletionRequestEntity): DealDeletionRequestResponseDto {
+  private mapDeletionRequestToResponse(
+    request: DealDeletionRequestEntity,
+  ): DealDeletionRequestResponseDto {
     return {
       id: request.id,
       deal_id: request.deal_id,
-      deal_num: request.deal?.deal_num || '',
+      deal_num: request.deal?.deal_num || "",
       requester_id: request.requester_id,
-      requester_email: request.requester?.email || '',
+      requester_email: request.requester?.email || "",
       deletion_reason: request.deletion_reason,
       status: request.status,
       processed_by_id: request.processed_by_id,
       processed_by_email: request.processed_by?.email,
       processed_at: request.processed_at,
       created_at: request.created_at,
-      updated_at: request.updated_at
+      updated_at: request.updated_at,
     };
   }
 
   /**
    * Обновление статуса сделки (с синхронизацией лида в Bitrix24)
    */
-  async updateDealStatus(dealId: number, status: DealStatus, auth_user: UserEntity): Promise<any> {
+  async updateDealStatus(
+    dealId: number,
+    status: DealStatus,
+    auth_user: UserEntity,
+  ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
 
     const updatedDeal = await this.dealRepository.update(dealId, { status });
 
     if (deal.bitrix24_deal_id) {
-      const distributor = await this.distributorRepository.findById(deal.distributor_id);
+      const distributor = await this.distributorRepository.findById(
+        deal.distributor_id,
+      );
       const distributorName = distributor?.name || distributor?.name;
 
-      this.bitrix24Service.updateLead(deal.bitrix24_deal_id, deal, distributorName).catch(error => {
-        this.logger.error(`Ошибка обновления лида ${dealId} в Bitrix24:`, error);
-      });
+      this.bitrix24Service
+        .updateLead(deal.bitrix24_deal_id, deal, distributorName)
+        .catch((error) => {
+          this.logger.error(
+            `Ошибка обновления лида ${dealId} в Bitrix24:`,
+            error,
+          );
+        });
     }
 
     return updatedDeal;
@@ -484,59 +637,85 @@ export class DealService {
     const deal = await this.findOne(dealId, auth_user);
 
     if (!deal.bitrix24_deal_id) {
-      throw new HttpException('Лид не найден в Bitrix24', HttpStatus.NOT_FOUND);
+      throw new HttpException("Лид не найден в Bitrix24", HttpStatus.NOT_FOUND);
     }
 
     try {
-      const result = await this.bitrix24Service.convertLead(deal.bitrix24_deal_id);
+      const result = await this.bitrix24Service.convertLead(
+        deal.bitrix24_deal_id,
+      );
 
       if (result?.dealId) {
-        this.logger.log(`Лид ${deal.bitrix24_deal_id} конвертирован в сделку ${result.dealId}`);
+        this.logger.log(
+          `Лид ${deal.bitrix24_deal_id} конвертирован в сделку ${result.dealId}`,
+        );
 
         return {
           success: true,
           leadId: deal.bitrix24_deal_id,
           dealId: result.dealId,
-          contactId: result.contactId
+          contactId: result.contactId,
         };
       }
 
-      throw new HttpException('Не удалось конвертировать лид', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Не удалось конвертировать лид",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     } catch (error) {
       this.logger.error(`Ошибка конвертации лида ${dealId}:`, error);
-      throw new HttpException('Ошибка конвертации лида', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Ошибка конвертации лида",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   /**
    * Принудительная отправка лида в Bitrix24
    */
-  async forceSendToBitrix24(dealId: number, auth_user: UserEntity): Promise<any> {
+  async forceSendToBitrix24(
+    dealId: number,
+    auth_user: UserEntity,
+  ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
     const customer = await this.customerRepository.findById(deal.customer_id);
-    const distributor = await this.distributorRepository.findById(deal.distributor_id);
+    const distributor = await this.distributorRepository.findById(
+      deal.distributor_id,
+    );
 
-    const creator = await this.userRepository.findByIdWithUserInfo(deal.creator_id);
+    const creator = await this.userRepository.findByIdWithUserInfo(
+      deal.creator_id,
+    );
 
     if (!customer) {
-      throw new HttpException('Клиент не найден', HttpStatus.NOT_FOUND);
+      throw new HttpException("Клиент не найден", HttpStatus.NOT_FOUND);
     }
 
     if (!creator) {
-      throw new HttpException('Создатель сделки не найден', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "Создатель сделки не найден",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     try {
       await this.dealRepository.update(dealId, {
-        bitrix24_sync_status: Bitrix24SyncStatus.PENDING
+        bitrix24_sync_status: Bitrix24SyncStatus.PENDING,
       });
 
       await this.sendLeadToBitrix24(deal, customer, distributor, creator);
 
-      return { success: true, message: 'Лид отправлен в Bitrix24' };
+      return { success: true, message: "Лид отправлен в Bitrix24" };
     } catch (error) {
-      this.logger.error(`Ошибка принудительной отправки лида ${dealId}:`, error);
-      throw new HttpException('Ошибка отправки лида', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Ошибка принудительной отправки лида ${dealId}:`,
+        error,
+      );
+      throw new HttpException(
+        "Ошибка отправки лида",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -550,7 +729,10 @@ export class DealService {
   /**
    * Получение статуса синхронизации лида
    */
-  async getBitrix24SyncStatus(dealId: number, auth_user: UserEntity): Promise<any> {
+  async getBitrix24SyncStatus(
+    dealId: number,
+    auth_user: UserEntity,
+  ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
 
     return {
@@ -558,19 +740,22 @@ export class DealService {
       bitrix24Id: deal.bitrix24_deal_id,
       syncStatus: deal.bitrix24_sync_status,
       syncedAt: deal.bitrix24_synced_at,
-      isLead: true
+      isLead: true,
     };
   }
 
   async remove(id: number, auth_user: UserEntity): Promise<void> {
     if (auth_user.role_id !== 1) {
-      throw new HttpException('У вас недостаточно прав для удаления сделки', HttpStatus.FORBIDDEN);
+      throw new HttpException(
+        "У вас недостаточно прав для удаления сделки",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     const deal = await this.dealRepository.findById(id);
 
     if (!deal) {
-      throw new HttpException('Сделка не найдена', HttpStatus.NOT_FOUND);
+      throw new HttpException("Сделка не найдена", HttpStatus.NOT_FOUND);
     }
 
     await this.dealRepository.softDelete(id);

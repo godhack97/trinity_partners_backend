@@ -15,7 +15,7 @@ export class DistributorRepository extends Repository<DistributorEntity> {
   public async findAll() {
     return await this.find({
       where: {
-         deleted_at: IsNull(),
+        deleted_at: IsNull(),
       },
     });
   }

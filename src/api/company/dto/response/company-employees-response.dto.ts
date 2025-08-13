@@ -29,9 +29,8 @@ export class CompanyEmployeesResponseDto {
 }
 
 export class CompanyEmployeesWithEmpoloyeeResponseDto extends CompanyEmployeesResponseDto {
-
   @ApiProperty()
   @Expose()
   @Type(() => EmployeeDto)
-  employee:EmployeeDto 
+  employee: EmployeeDto;
 }

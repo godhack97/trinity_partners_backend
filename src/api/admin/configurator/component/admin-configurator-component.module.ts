@@ -5,6 +5,6 @@ import { AdminConfiguratorComponentService } from "./admin-configurator-componen
 @Module({
   controllers: [AdminConfiguratorComponentController],
   providers: [AdminConfiguratorComponentService],
-  exports: [AdminConfiguratorComponentService]
+  exports: [AdminConfiguratorComponentService],
 })
 export class AdminConfiguratorComponentModule {}

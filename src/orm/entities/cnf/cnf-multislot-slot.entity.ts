@@ -1,6 +1,13 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Timestamp, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Timestamp,
+  UpdateDateColumn,
+} from "typeorm";
 
-@Entity({ name: 'cnf_multislot_slots' })
+@Entity({ name: "cnf_multislot_slots" })
 export class CnfMultislotSlotEntity {
   @PrimaryGeneratedColumn()
   id: string;

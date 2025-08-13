@@ -3,19 +3,18 @@ import { BasisEntity } from "./basis.entity";
 import { DealEntity, UserEntity } from ".";
 
 export enum DealDeletionStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected'
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
 }
 
 @Entity({
   name: "deal_deletion_requests",
   orderBy: {
-    id: "DESC"
-  }
+    id: "DESC",
+  },
 })
 export class DealDeletionRequestEntity extends BasisEntity {
-
   @Column({ type: "int", unsigned: true })
   deal_id: number;
 
@@ -36,7 +35,7 @@ export class DealDeletionRequestEntity extends BasisEntity {
   @Column({
     type: "enum",
     enum: DealDeletionStatus,
-    default: DealDeletionStatus.PENDING
+    default: DealDeletionStatus.PENDING,
   })
   status: DealDeletionStatus;
 

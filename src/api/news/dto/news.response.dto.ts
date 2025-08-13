@@ -40,5 +40,3 @@ export class NewsResponseDto extends NewsResponseListDto {
   @Expose()
   updated_at: string;
 }
-
-

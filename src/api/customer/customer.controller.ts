@@ -1,12 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors } from '@nestjs/common';
-import { CustomerService } from './customer.service';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CustomerResponseDto } from './dto/response/customer.response.dto';
-import { TransformResponse } from '@interceptors/transform-response.interceptor';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseInterceptors,
+} from "@nestjs/common";
+import { CustomerService } from "./customer.service";
+import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { CustomerResponseDto } from "./dto/response/customer.response.dto";
+import { TransformResponse } from "@interceptors/transform-response.interceptor";
 
-@ApiTags('customer')
+@ApiTags("customer")
 @ApiBearerAuth()
-@Controller('customer')
+@Controller("customer")
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
@@ -16,5 +25,4 @@ export class CustomerController {
   findAll() {
     return this.customerService.findAll();
   }
-
 }

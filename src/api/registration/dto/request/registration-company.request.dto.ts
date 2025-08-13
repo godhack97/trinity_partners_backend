@@ -1,5 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmailRu, IsNotEmptyRu, IsUrlRu, MinLengthRu } from "@decorators/validate";
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsEmailRu,
+  IsNotEmptyRu,
+  IsUrlRu,
+  MinLengthRu,
+} from "@decorators/validate";
 
 export class RegistrationCompanyRequestDto {
   @ApiProperty()

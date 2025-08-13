@@ -3,15 +3,15 @@ import {
   DeleteDateColumn,
   Entity,
   JoinColumn,
-  ManyToOne
+  ManyToOne,
 } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 
 @Entity({
   name: "news",
   orderBy: {
-    id: "DESC"
-  }
+    id: "DESC",
+  },
 })
 export class NewsEntity extends BasisEntity {
   @Column()

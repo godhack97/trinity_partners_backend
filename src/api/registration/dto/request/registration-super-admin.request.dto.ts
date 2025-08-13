@@ -1,5 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmailRu, IsNotEmptyRu, MinLengthRu } from "../../../../decorators/validate";
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsEmailRu,
+  IsNotEmptyRu,
+  MinLengthRu,
+} from "../../../../decorators/validate";
 
 export class RegistrationSuperAdminDto {
   @ApiProperty()
@@ -11,10 +15,9 @@ export class RegistrationSuperAdminDto {
   @IsNotEmptyRu()
   @MinLengthRu(6)
   password: string;
-
 }
 
-export class RegistrationSuperAdminWithSecretDto extends RegistrationSuperAdminDto{
+export class RegistrationSuperAdminWithSecretDto extends RegistrationSuperAdminDto {
   @ApiProperty()
   @IsNotEmptyRu()
   @MinLengthRu(6)

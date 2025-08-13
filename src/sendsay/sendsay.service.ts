@@ -3,63 +3,61 @@ import { Injectable } from "@nestjs/common";
 import axios from "axios";
 
 type SendMail = {
-  from?:string,
-  to: string,
-  subject: string,
-  html?: string,
-  template?: string,
-  context?: object,
-}
+  from?: string;
+  to: string;
+  subject: string;
+  html?: string;
+  template?: string;
+  context?: object;
+};
 
 @Injectable()
 export class SendsayService {
-  constructor(
-    private readonly hbsViewService: HbsViewService,
-  ) {}
+  constructor(private readonly hbsViewService: HbsViewService) {}
 
-  senderlogin = 'trinity'
+  senderlogin = "trinity";
 
-  apikey = '1_Hu8bVe4JYXgUAIOL985_PERxfp_oS_ykxkpwjfPA9i50Zq-mOrW'
+  apikey = "1_Hu8bVe4JYXgUAIOL985_PERxfp_oS_ykxkpwjfPA9i50Zq-mOrW";
 
-  URL = 'https://api.sendsay.ru/general/api/v100/json/'
+  URL = "https://api.sendsay.ru/general/api/v100/json/";
 
-  from: 'partner@trinity.ru'
+  from: "partner@trinity.ru";
 
   async sendMail(data: SendMail) {
-    const body = this.createData(data)
+    const body = this.createData(data);
 
     const endpoint = `${this.URL}${this.senderlogin}`;
-    return await axios.post(endpoint, body)
+    return await axios.post(endpoint, body);
   }
 
   async sendFake(data: SendMail) {
     let message = this.createMessage(data);
-    return message.html
+    return message.html;
   }
 
-  private createData({ to , subject, html, template, context }: SendMail) {
-    const message  = this.createMessage({ html, template, context })
+  private createData({ to, subject, html, template, context }: SendMail) {
+    const message = this.createMessage({ html, template, context });
 
     return {
       action: "issue.send",
-      group: 'personal',
+      group: "personal",
       email: to,
-      sendwhen: 'now',
+      sendwhen: "now",
       apikey: this.apikey,
       letter: {
-        "from.email": 'partner@trinity.ru',
+        "from.email": "partner@trinity.ru",
         subject,
-        message
-      }
-    }
+        message,
+      },
+    };
   }
 
   createMessage({ html, template, context }: Partial<SendMail>) {
-    if(template) {
+    if (template) {
       return {
-        html: this.hbsViewService.createHtml({ template, context })
-      }
+        html: this.hbsViewService.createHtml({ template, context }),
+      };
     }
-    return { html }
+    return { html };
   }
 }

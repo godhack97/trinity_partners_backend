@@ -1,7 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-  NotificationIconType,
-} from "@orm/entities";
+import { NotificationIconType } from "@orm/entities";
 import { Expose } from "class-transformer";
 
 export class NotificationsResponseDto {

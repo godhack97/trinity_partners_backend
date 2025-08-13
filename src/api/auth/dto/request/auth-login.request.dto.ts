@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from "@nestjs/swagger";
 import { IsEmailRu, MinLengthRu } from "../../../../decorators/validate";
 
 export class AuthLoginRequestDto {
@@ -8,7 +8,7 @@ export class AuthLoginRequestDto {
 
   @ApiProperty()
   @MinLengthRu(6, {
-    message: 'Пароль должен быть длиннее или равен $constraint1 символам'
+    message: "Пароль должен быть длиннее или равен $constraint1 символам",
   })
   password: string;
 }
