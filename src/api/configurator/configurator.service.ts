@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import {
   CnfMultislotRepository,
   CnfProcessorGenerationRepository,
@@ -11,6 +11,8 @@ import { CnfServerRepository } from "src/orm/repositories/cnf/cnf-server.reposit
 import { CnfServerboxHeightRepository } from "src/orm/repositories/cnf/cnf-serverbox-height.repository";
 import { CnfSlotRepository } from "src/orm/repositories/cnf/cnf-slot.repository";
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
+import { CreateComponentTypeDto } from "./dto/request/create-component-type.dto";
+import { UpdateComponentTypeDto } from "./dto/request/update-component-type.dto";
 
 @Injectable()
 export class ConfiguratorService {
@@ -48,6 +50,10 @@ export class ConfiguratorService {
 
   async getComponentsCount(): Promise<number> {
     return await this.cnfComponentRepository.count();
+  }
+
+  async componentstypesCount(): Promise<number> {
+    return await this.cnfComponentTypeRepository.count();
   }
 
   // Существующие методы
@@ -240,5 +246,66 @@ export class ConfiguratorService {
       where: { id },
       relations: ["slots"],
     });
+  }
+
+  // CRUD операции для ComponentType
+  async createComponentType(dto: CreateComponentTypeDto) {
+    const existingType = await this.cnfComponentTypeRepository.findOne({
+      where: { name: dto.name },
+    });
+
+    if (existingType) {
+      throw new BadRequestException(`Тип компонента с именем "${dto.name}" уже существует`);
+    }
+
+    const componentType = this.cnfComponentTypeRepository.create(dto);
+    return await this.cnfComponentTypeRepository.save(componentType);
+  }
+
+  async updateComponentType(id: string, dto: UpdateComponentTypeDto) {
+    const componentType = await this.cnfComponentTypeRepository.findOne({
+      where: { id },
+    });
+
+    if (!componentType) {
+      throw new NotFoundException(`Тип компонента с id "${id}" не найден`);
+    }
+
+    if (dto.name && dto.name !== componentType.name) {
+      const existingType = await this.cnfComponentTypeRepository.findOne({
+        where: { name: dto.name },
+      });
+
+      if (existingType) {
+        throw new BadRequestException(`Тип компонента с именем "${dto.name}" уже существует`);
+      }
+    }
+
+    Object.assign(componentType, dto);
+    return await this.cnfComponentTypeRepository.save(componentType);
+  }
+
+  async deleteComponentType(id: string) {
+    const componentType = await this.cnfComponentTypeRepository.findOne({
+      where: { id },
+    });
+
+    if (!componentType) {
+      throw new NotFoundException(`Тип компонента с id "${id}" не найден`);
+    }
+
+    // Проверяем, используется ли тип в компонентах
+    const componentsCount = await this.cnfComponentRepository.count({
+      where: { type_id: id },
+    });
+
+    if (componentsCount > 0) {
+      throw new BadRequestException(
+        `Невозможно удалить тип компонента "${componentType.name}", так как он используется в ${componentsCount} компонентах`,
+      );
+    }
+
+    await this.cnfComponentTypeRepository.remove(componentType);
+    return { message: `Тип компонента "${componentType.name}" успешно удален` };
   }
 }

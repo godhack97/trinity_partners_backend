@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags, ApiResponse } from "@nestjs/swagger";
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from "@nestjs/swagger";
 import { ConfiguratorService } from "./configurator.service";
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
+import { CreateComponentTypeDto } from "./dto/request/create-component-type.dto";
+import { UpdateComponentTypeDto } from "./dto/request/update-component-type.dto";
 
 @ApiTags("configurator")
 @Controller("configurator")
@@ -80,6 +82,24 @@ export class ConfiguratorController {
   @Get("componentType")
   getComponentTypes() {
     return this.configuratorService.getComponentTypes();
+  }
+
+  @Post("componentType")
+  @ApiOperation({ summary: "Создать новый тип компонента" })
+  createComponentType(@Body() dto: CreateComponentTypeDto) {
+    return this.configuratorService.createComponentType(dto);
+  }
+
+  @Patch("componentType/:id")
+  @ApiOperation({ summary: "Обновить тип компонента" })
+  updateComponentType(@Param("id") id: string, @Body() dto: UpdateComponentTypeDto) {
+    return this.configuratorService.updateComponentType(id, dto);
+  }
+
+  @Delete("componentType/:id")
+  @ApiOperation({ summary: "Удалить тип компонента" })
+  deleteComponentType(@Param("id") id: string) {
+    return this.configuratorService.deleteComponentType(id);
   }
 
   @Get("component")

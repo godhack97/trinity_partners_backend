@@ -50,6 +50,7 @@ export class AdminCountsController {
       serversCount,
       processorGenerationsCount,
       componentsCount,
+      componentstypesCount,
       distributorsCount,
 
       allDealsCount,
@@ -82,6 +83,7 @@ export class AdminCountsController {
       this.configuratorService.getServersCount(),
       this.configuratorService.getProcessorGenerationsCount(),
       this.configuratorService.getComponentsCount(),
+      this.configuratorService.componentstypesCount(),
       this.distributorService.getCount(),
 
       this.dealService.getCount(),
@@ -115,6 +117,7 @@ export class AdminCountsController {
         servers: serversCount,
         processorGenerations: processorGenerationsCount,
         components: componentsCount,
+        componentstypes: componentstypesCount,
       },
       deals: {
         distributors: distributorsCount,
