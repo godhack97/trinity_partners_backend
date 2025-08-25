@@ -10,3 +10,5 @@ export * from "./cnf-multislot-slot.entity";
 export * from "./cnf-server-multislot.entity";
 export * from "./cnf-server-generation.entity";
 export * from "./cnf-processor-generation.entity";
+export * from "./cnf-component-backup.entity";
+export * from "./cnf-component-backup-data.entity";

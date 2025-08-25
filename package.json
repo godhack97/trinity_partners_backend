@@ -52,7 +52,8 @@
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.20",
     "typeorm-cli": "^1.0.7",
-    "typeorm-ts-node-commonjs": "^0.3.20"
+    "typeorm-ts-node-commonjs": "^0.3.20",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

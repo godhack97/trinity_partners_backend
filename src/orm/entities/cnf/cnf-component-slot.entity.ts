@@ -1,6 +1,7 @@
 import { BasisEntity } from "src/orm/entities/basis.entity";
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { CnfComponentEntity } from "./cnf-component.entity";
+import { CnfSlotEntity } from "./cnf-slot.entity";
 
 @Entity({
   name: "cnf_component_slots",
@@ -39,6 +40,10 @@ export class CnfComponentSlotEntity extends BasisEntity {
   )
   @JoinColumn({ name: "component_id" })
   component: CnfComponentEntity;
+
+  @ManyToOne(() => CnfSlotEntity)
+  @JoinColumn({ name: "slot_id" })
+  slot: CnfSlotEntity;
 
   static init(data: object) {
     const instance = new this();
