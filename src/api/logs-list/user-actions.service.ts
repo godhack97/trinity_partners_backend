@@ -51,6 +51,9 @@ export class UserActionsService {
     @InjectRepository(entities.CnfComponentEntity)
     private readonly CnfComponentRepo: Repository<entities.CnfComponentEntity>,
 
+    @InjectRepository(entities.CnfComponentBackup)
+    private readonly CnfComponentBackupRepo: Repository<entities.CnfComponentBackup>,
+
     @InjectRepository(entities.CnfMultislotEntity)
     private readonly CnfMultislotRepo: Repository<entities.CnfMultislotEntity>,
 
@@ -103,6 +106,10 @@ export class UserActionsService {
         field: "name",
       },
       cnf_slots: { repo: this.CnfSlotRepo, field: "name" },
+      cnf_component_backups: {
+        repo: this.CnfComponentBackupRepo,
+        field: (entity) => `${entity.name} ${entity.components_count}шт`
+      },
     };
   }
 
@@ -117,20 +124,23 @@ export class UserActionsService {
       const details =
         typeof log.details === "string" ? JSON.parse(log.details) : log.details;
 
+      const entityId = details?.params?.backupId ||details?.params?.id;
+
       if (
         details?.entity &&
-        details?.params?.id &&
+        entityId &&
         this.entityRepoMap[details.entity]
       ) {
         const { repo, field } = this.entityRepoMap[details.entity];
-        const entity = await repo.findOne({ where: { id: details.params.id } });
+        const entity = await repo.findOne({ where: { id: entityId } });
+
         if (entity) {
           entityName =
             typeof field === "function" ? field(entity) : entity[field];
         } else if (details.deleted.name) {
           entityName = details.deleted.name;
         } else {
-          entityName = `ID: ${details.params.id}`;
+          entityName = `ID: ${entityId}`;
         }
       }
 

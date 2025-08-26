@@ -55,10 +55,12 @@ export class LogActionInterceptor implements NestInterceptor {
     const userId = req.auth_user?.id;
     let snapshotPromise: Promise<any> = Promise.resolve(null);
 
-    if (logMeta.entity && req.params?.id && req.params.id.trim() !== "") {
+    const entityId = req?.params?.backupId || req?.params?.id;
+
+    if (logMeta.entity && entityId && entityId.trim() !== "") {
       try {
         const repository = this.dataSource.getRepository(logMeta.entity);
-        const idValue = isNaN(+req.params.id) ? req.params.id : +req.params.id;
+        const idValue = isNaN(+entityId) ? entityId : +entityId;
         snapshotPromise = repository.findOne({ where: { id: idValue } });
       } catch (e) {
         snapshotPromise = Promise.resolve(null);

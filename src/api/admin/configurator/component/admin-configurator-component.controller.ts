@@ -20,6 +20,7 @@ export class AdminConfiguratorComponentController {
   ) {}
   
   @Get("/export")
+  @LogAction("configurator_component_export", "cnf_components")
   async getComponents(@Res() res: any) {
     const components = await this.adminConfiguratorComponentService.exportExcel();
     const xlsxFile = await this.xlsxService.createXlsxFile(components);
@@ -29,6 +30,7 @@ export class AdminConfiguratorComponentController {
   }
 
   @Post("/import")
+  @LogAction("configurator_component_import", "cnf_components")
   @UseInterceptors(FileInterceptor("file", { storage: multerStorage.files }))
   async importComponents(@UploadedFile() file: Express.Multer.File, @Res() res: any, @Req() req: any) {
     const userId = req.user?.id; // Передаем userId для автобекапа
@@ -43,6 +45,7 @@ export class AdminConfiguratorComponentController {
   }
 
   @Post("/backup")
+  @LogAction("configurator_component_backup", "cnf_component_backups")
   async createComponentBackup(
     @Body() body: { name: string },
     @Req() req: any
@@ -52,11 +55,13 @@ export class AdminConfiguratorComponentController {
   }
   
   @Post("/restore/:backupId")
+  @LogAction("configurator_component_restore_backup", "cnf_component_backups")
   async restoreComponentBackup(@Param('backupId') backupId: string) {
     return await this.adminConfiguratorComponentService.restoreFromBackup(backupId);
   }
 
   @Delete("/backup/:backupId")
+  @LogAction("configurator_component_backup_delete", "cnf_component_backups")
   async deleteComponentBackup(@Param('backupId') backupId: string) {
     return await this.adminConfiguratorComponentService.deleteBackup(backupId);
   }
