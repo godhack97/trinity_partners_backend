@@ -18,7 +18,7 @@ import { UserActionsService } from "@api/logs-list/user-actions.service";
 @ApiTags("admin/counts")
 @ApiBearerAuth()
 @Controller("admin")
-@Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
+@Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager, RoleTypes.EmployeeAdmin])
 export class AdminCountsController {
   constructor(
     private readonly newsService: NewsService,
