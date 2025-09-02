@@ -24,6 +24,15 @@ export class UsersController {
     return this.usersService.getCount();
   }
 
+  @Get("/all")
+  async findAll(): Promise<UserEntity[]> {
+    try {
+      return await this.usersService.findAll();
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
+  }
+
   @Get()
   async find(): Promise<UserEntity[]> {
     try {

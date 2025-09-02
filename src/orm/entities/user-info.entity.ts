@@ -9,7 +9,7 @@ export class UserInfoEntity extends BasisEntity {
   @Column()
   user_id: number;
 
-  @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
+  @OneToOne(() => UserEntity, (user: UserEntity) => user.user_info)
   @JoinColumn({ name: "user_id" })
   user: UserEntity;
 
@@ -19,13 +19,13 @@ export class UserInfoEntity extends BasisEntity {
   @Column()
   last_name: string;
 
-  @Column()
+  @Column({ nullable: true })
   company_name: string;
 
-  @Column()
+  @Column({ nullable: true })
   job_title: string;
 
-  @Column()
+  @Column({ nullable: true })
   phone: string;
 
   @Column({

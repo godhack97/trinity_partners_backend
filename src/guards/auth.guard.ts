@@ -46,20 +46,24 @@ export class AuthGuard implements CanActivate {
 
     const token = _token.substring(7);
 
-    // console.log('token:', token);
-    // console.log('clientId:', clientId);
-
     // Ищем токен в таблице user_tokens по token + client_id
     const userToken = await this.userTokenRepository.findOne({
       where: { token, client_id: clientId },
-      relations: ["user"],
+      relations: ["user", "user.role", "user.role.permissions", "user.user_info"],
     });
 
     if (!userToken || !userToken.user)
       throw new UnauthorizedException(ERROR_MSG);
 
-    // Устанавливаем пользователя в запрос
+    // Проверяем что пользователь активен
+    if (!userToken.user.is_activated) 
+      throw new UnauthorizedException('Пользователь не активирован');
+
+    // Устанавливаем пользователя в запрос для совместимости с существующим кодом
     request["auth_user"] = userToken.user;
+    
+    // Также устанавливаем в request.user для PermissionsGuard
+    request["user"] = userToken.user;
 
     return true;
   }

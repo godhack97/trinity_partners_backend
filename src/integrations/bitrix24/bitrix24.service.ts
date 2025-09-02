@@ -382,7 +382,7 @@ export class Bitrix24Service {
     }
 
     try {
-      const creatorInfo = dealData.partner?.info;
+      const creatorInfo = dealData.partner?.user_info;
       const creatorUser = dealData.partner;
 
       const leadTitle = `Лид по сделке "${dealData.title ?? dealData.deal_num}"`;
@@ -491,15 +491,15 @@ export class Bitrix24Service {
     const comments = [];
 
     comments.push("=== ИНФОРМАЦИЯ О ПАРТНЕРЕ (СОЗДАТЕЛЬ СДЕЛКИ) ===");
-    if (creatorData?.info) {
+    if (creatorData?.user_info) {
       comments.push(
-        `Имя: ${creatorData.info.first_name} ${creatorData.info.last_name}`,
+        `Имя: ${creatorData.user_info.first_name} ${creatorData.user_info.last_name}`,
       );
-      if (creatorData.info.company_name) {
-        comments.push(`Компания: ${creatorData.info.company_name}`);
+      if (creatorData.user_info.company_name) {
+        comments.push(`Компания: ${creatorData.user_info.company_name}`);
       }
-      if (creatorData.info.phone) {
-        comments.push(`Телефон: ${creatorData.info.phone}`);
+      if (creatorData.user_info.phone) {
+        comments.push(`Телефон: ${creatorData.user_info.phone}`);
       }
     }
     if (creatorData?.email) {

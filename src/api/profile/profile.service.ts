@@ -98,7 +98,7 @@ export class ProfileService {
     };
 
     const updateResult = await this.userInfoRepository.update(
-      user.info.id,
+      user.user_info.id,
       params,
     );
 

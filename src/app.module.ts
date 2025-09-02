@@ -43,12 +43,14 @@ import { LogActionInterceptor } from "./logs/log-action.interceptor";
 import { LogsModule } from "./logs/logs.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { ForbiddenInnModule } from "./api/admin/forbidden-inns/forbidden-inns.module";
+import { AdminPermissionsModule } from './api/admin/permissions/admin-permissions.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == "prod");
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
 
 @Module({
   imports: [
+    AdminPermissionsModule,
     ForbiddenInnModule,
     LogsModule,
     ConfigModule.forRoot({

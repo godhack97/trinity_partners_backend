@@ -183,9 +183,9 @@ export class EmailConfirmerService {
           },
         });
         await this.notifySuperAdminsAboutNewPartner({
-          company_name: user.info?.company_name,
-          first_name: user.info?.first_name,
-          last_name: user.info?.last_name,
+          company_name: user.user_info?.company_name,
+          first_name: user.user_info?.first_name,
+          last_name: user.user_info?.last_name,
           email: user?.email,
         });
         break;

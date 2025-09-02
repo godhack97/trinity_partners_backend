@@ -33,7 +33,6 @@ export class AuthService {
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly notificationService: NotificationService,
     private readonly newsService: NewsService,
-
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
   ) {}
@@ -43,7 +42,7 @@ export class AuthService {
     clientId: string,
     req?: Request,
   ) {
-    let user = await this.userRepository.findByEmail(authLoginDto.email);
+    let user = await this.userRepository.findByEmailWithPermissions(authLoginDto.email);
     if (!user) throw new UnauthorizedException();
 
     const isVerify = await verifyPassword({
@@ -111,7 +110,7 @@ export class AuthService {
     });
     if (!tokenEntity) throw new UnauthorizedException();
 
-    const user = await this.userRepository.findByIdWithCompanyEmployees(
+    const user = await this.userRepository.findByIdWithPermissions(
       tokenEntity.user_id,
     );
     if (!user)
@@ -137,6 +136,25 @@ export class AuthService {
       notifications_settings,
       news,
     };
+  }
+
+  // метод для получения пользователя с разрешениями по токену
+  async getUserWithPermissionsByToken(authorization: string, clientId: string) {
+    const token = authorization.substring(7);
+
+    const tokenEntity = await this.userTokenRepository.findOneBy({
+      token,
+      client_id: clientId,
+    });
+    if (!tokenEntity) throw new UnauthorizedException();
+
+    const user = await this.userRepository.findByIdWithPermissions(
+      tokenEntity.user_id,
+    );
+    if (!user)
+      throw new HttpException(`Пользователь не найден`, HttpStatus.NOT_FOUND);
+
+    return user;
   }
 
   async updatePassword(

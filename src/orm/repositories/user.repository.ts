@@ -16,6 +16,34 @@ export class UserRepository {
     private readonly userTokenRepository: Repository<UserToken>,
   ) {}
 
+  // методы для управления правами
+  async findByEmailWithPermissions(email: string) {
+    return this.findOne({
+      where: { email, deleted_at: null },
+      relations: ['role', 'role.permissions', 'user_info']
+    });
+  }
+
+  async findByIdWithPermissions(id: number) {
+    return this.findOne({
+      where: { id, deleted_at: null },
+      relations: ['role', 'role.permissions', 'user_info']
+    });
+  }
+
+  async findByIdWithCompanyEmployeesAndPermissions(id: number) {
+    return this.findOne({
+      where: { id, deleted_at: null },
+      relations: [
+        'role', 
+        'role.permissions', 
+        'user_info', 
+        'company_employees',
+        'company_employees.company'
+      ]
+    });
+  }
+
   // ======== Стандартные CRUD ========
   public async find(options?: Parameters<Repository<UserEntity>["find"]>[0]) {
     return await this.repo.find(options);

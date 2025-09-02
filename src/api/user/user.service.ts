@@ -121,6 +121,19 @@ export class UserService {
     return newUser;
   }
 
+  async updateRole(id: number, updateRoleDto: any) {
+    await this.userRepository.update(id, { 
+      role_id: updateRoleDto.role_id 
+    });
+
+    const updatedUser = await this.userRepository.findOne({
+      where: { id },
+      relations: ['role']
+    });
+    
+    return updatedUser;
+  }
+
   private async notifyPartnerAboutNewEmployee(
     company: CompanyEntity,
     employee: UserEntity,

@@ -181,7 +181,7 @@ export class DealService {
           subject: "Создана новая сделка",
           template: "admin-new-deal-notification",
           context: {
-            adminName: admin.info?.first_name || "Администратор",
+            adminName: admin.user_info?.first_name || "Администратор",
             dealNumber: deal.deal_num,
             dealId: deal.id,
             customerFirstName: customer.first_name,
@@ -517,7 +517,7 @@ export class DealService {
           subject: "Новая заявка на удаление сделки",
           template: "admin-deletion-request-notification",
           context: {
-            adminName: admin.info?.first_name || "Администратор",
+            adminName: admin?.user_info?.first_name || "Администратор",
             dealNumber:
               requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
             dealId: requestWithRelations.deal?.id || request.deal_id,
@@ -563,7 +563,7 @@ export class DealService {
         context: {
           link: this.hostname,
           userName:
-            requestWithRelations.requester?.info?.first_name || "Пользователь",
+            requestWithRelations.requester?.user_info?.first_name || "Пользователь",
           dealNumber:
             requestWithRelations.deal?.deal_num || `ID: ${request.deal_id}`,
           status: statusText,

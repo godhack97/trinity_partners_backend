@@ -42,6 +42,12 @@ export class UsersService {
     return users;
   }
 
+  async findAll(): Promise<UserEntity[]> {
+    return await this.usersRepository.find({
+      relations: ["user_info", "role"],
+    });
+  }
+
   async find(filters: UserFilterRequestDto) {
     const current_page = filters.current_page || 1;
     const limit = filters.limit || defaultFilter.limit;
