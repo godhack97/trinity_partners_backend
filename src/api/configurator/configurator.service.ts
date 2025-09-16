@@ -241,6 +241,12 @@ export class ConfiguratorService {
     return await this.cnfComponentTypeRepository.find();
   }
 
+  async getComponentType(id: string) {
+    return await this.cnfComponentTypeRepository.findOne({
+      where: { id },
+    });
+  }
+
   async getComponent(id: string) {
     return await this.cnfComponentRepository.findOne({
       where: { id },

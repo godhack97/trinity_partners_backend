@@ -1,5 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { CnfServerboxHeightRepository } from "../../../../orm/repositories";
+import { QueryFailedError } from 'typeorm';
+import { BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class AdminConfiguratorServerHeightService {
@@ -27,19 +29,33 @@ export class AdminConfiguratorServerHeightService {
     const serverHeight = await this.cnfServerboxHeightRepository.findOneBy({
       id,
     });
-
+  
     if (!serverHeight)
       throw new HttpException(
         `Высота сервера ${id} не найдена`,
         HttpStatus.NOT_FOUND,
       );
-
-    return await this.cnfServerboxHeightRepository.update(id, {
-      name,
-    });
+  
+    try {
+      return await this.cnfServerboxHeightRepository.update(id, {
+        name,
+      });
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.message.includes('Data too long for column')) {
+        throw new BadRequestException('Название слишком длинное');
+      }
+      throw error;
+    }
   }
 
   async deleteServerHeight(id: string) {
-    return await this.cnfServerboxHeightRepository.delete(id);
+    try {
+      return await this.cnfServerboxHeightRepository.delete(id);
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.message.includes('foreign key constraint fails')) {
+        throw new BadRequestException('Невозможно удалить: запись используется серверами');
+      }
+      throw error;
+    }
   }
 }

@@ -34,7 +34,7 @@ export class AdminUserAdminService {
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
 
-  allowed_roles = [RoleTypes.SuperAdmin, RoleTypes.ContentManager];
+  allowed_roles = [RoleTypes.SuperAdmin, RoleTypes.ContentManager, RoleTypes.EmployeeAdmin];
 
   async getCount(): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
@@ -65,9 +65,9 @@ export class AdminUserAdminService {
 
   async getArchivedCount(): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
+    queryBuilder.withDeleted();
     queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
     queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
-    queryBuilder.withDeleted();
     queryBuilder.andWhere("u.deleted_at IS NOT NULL");
 
     return await queryBuilder.getCount();
@@ -90,7 +90,7 @@ export class AdminUserAdminService {
     }
 
     // Фильтрация по archive (deleted_at)
-    if (entry?.archive === true) {
+    if (entry?.archive === 'true') {
       queryBuilder.withDeleted();
       queryBuilder.andWhere("u.deleted_at IS NOT NULL");
     }

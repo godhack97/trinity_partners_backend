@@ -20,5 +20,5 @@ export class SearchAdminDto {
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === "true" || value === true)
-  archive?: boolean;
+  archive?: string;
 }

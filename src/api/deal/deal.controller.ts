@@ -22,6 +22,9 @@ import { DealResponseDto } from "./dto/response/deal-response.dto";
 import { SearchDealDto } from "./dto/request/search-deal.dto";
 import { DealStatisticsResponseDto } from "./dto/response/deal-statistics-response.dto";
 import { CheckUserOrCompanyStatusGuard } from "@app/guards/check-user-or-company-status.guard";
+import { AuthGuard } from "@app/guards/auth.guard";
+import { PermissionsGuard } from "@app/guards/permissions.guard";
+import { RequirePermissions } from "@decorators/permissions.decorator";
 import { LogAction } from "src/logs/log-action.decorator";
 import { Delete } from "@nestjs/common";
 import { CreateDealDeletionRequestDto } from "./dto/request/create-deal-deletion-request.dto";
@@ -30,11 +33,12 @@ import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-req
 
 @ApiTags("deal")
 @ApiBearerAuth()
-@UseGuards(CheckUserOrCompanyStatusGuard)
+@UseGuards(CheckUserOrCompanyStatusGuard, AuthGuard, PermissionsGuard)
 @Controller("deal")
 export class DealController {
   constructor(private readonly dealService: DealService) {}
 
+  // Все методы получения количества - требуют права на чтение сделок
   @Get("/count")
   @ApiResponse({ type: Number })
   async getCount(@AuthUser() auth_user: UserEntity) {
@@ -77,7 +81,9 @@ export class DealController {
     return this.dealService.getLooseCount();
   }
 
+  // Создание сделки - требует права на создание
   @Post()
+  @RequirePermissions('api.deals.write')
   @LogAction("deal_add", "deals")
   @ApiBody({ type: () => CreateDealDto })
   create(
@@ -87,7 +93,9 @@ export class DealController {
     return this.dealService.create(auth_user, createDealDto);
   }
 
+  // Тестирование интеграции Bitrix24
   @Get("bitrix24/test")
+  @RequirePermissions('system.integrations.write')
   @ApiResponse({
     description: "Проверка подключения к Bitrix24",
     schema: {
@@ -98,6 +106,7 @@ export class DealController {
       },
     },
   })
+
   async testBitrix24Connection() {
     const isConnected = await this.dealService.checkBitrix24Connection();
 
@@ -110,15 +119,18 @@ export class DealController {
     };
   }
 
+  // Получение всех сделок - требует права на чтение
   @Get()
+  @RequirePermissions('api.deals.read')
   @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto, isArray: true })
   findAll(@AuthUser() auth_user: UserEntity, @Query() entry?: SearchDealDto) {
     return this.dealService.findAll(auth_user, entry);
   }
 
+  // Получение статистики - требует права на чтение
   @Get("statistic")
-  //@UseInterceptors(new TransformResponse(DealStatisticsResponseDto))
+  @RequirePermissions('api.deals.read')
   @ApiResponse({ type: DealStatisticsResponseDto })
   getDealStatistic(
     @AuthUser() auth_user: UserEntity,
@@ -126,7 +138,9 @@ export class DealController {
     return this.dealService.getDealStatistic(auth_user);
   }
 
+  // Заявки на удаление - требует права на чтение
   @Get("deletion-requests")
+  @RequirePermissions('api.deals.read')
   @ApiResponse({
     description: "Список заявок на удаление",
     type: DealDeletionRequestResponseDto,
@@ -136,7 +150,9 @@ export class DealController {
     return this.dealService.getDeletionRequests(auth_user);
   }
 
+  // Ожидающие заявки на удаление - чтение
   @Get("deletion-requests/pending")
+  @RequirePermissions('api.deals.read')
   @ApiResponse({
     description: "Список ожидающих заявок на удаление (только для админов)",
     type: DealDeletionRequestResponseDto,
@@ -146,12 +162,14 @@ export class DealController {
     return this.dealService.getPendingDeletionRequests(auth_user);
   }
 
+  // Создание заявки на удаление - не требует прав, это делают партнеры
   @Post(":id/deletion-request")
   @ApiBody({ type: CreateDealDeletionRequestDto })
   @ApiResponse({
     description: "Заявка на удаление создана",
     type: DealDeletionRequestResponseDto,
   })
+
   async createDeletionRequest(
     @Param("id") id: string,
     @AuthUser() auth_user: UserEntity,
@@ -164,7 +182,9 @@ export class DealController {
     );
   }
 
+  // Обработка заявки на удаление - только для админов/модераторов - запись
   @Put("deletion-requests/:requestId/process")
+  @RequirePermissions('api.deals.write')
   @LogAction("deal_deletion_request_process", "deal_deletion_requests")
   @ApiBody({ type: ProcessDealDeletionRequestDto })
   @ApiResponse({
@@ -188,14 +208,18 @@ export class DealController {
     );
   }
 
+  // Получение конкретной сделки - требует права на чтение
   @Get(":id")
+  @RequirePermissions('api.deals.read')
   @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto })
   findOne(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
     return this.dealService.findOne(+id, auth_user);
   }
 
+  // Удаление сделки - требует права на удаление
   @Delete(":id")
+  @RequirePermissions('api.deals.remove')
   @LogAction("deal_delete", "deals")
   @ApiResponse({
     description: "Сделка успешно удалена",

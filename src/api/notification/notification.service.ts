@@ -53,20 +53,31 @@ export class NotificationService {
   };
   async send(data: NotificationSendDto) {
     const { user_id, title, text } = data;
-
+  
+    if (!user_id) {
+      Logger.error('User ID is null or undefined in NotificationService.send');
+      return;
+    }
+  
     const user = await this.userRepository.findById(user_id);
+    
+    if (!user) {
+      Logger.error(`User not found with ID: ${user_id}`);
+      return;
+    }
+  
     const userSettingEntities = await this.userSettingRepository.findBy({
       user_id,
       type: In(NotificationSettingsTypes),
     });
-
+  
     const filteredSettingTypes = userSettingEntities.filter(
       (userSetting) => userSetting.value === UserNotificationType.Yes,
     );
-
+  
     for (const filteredSetting of filteredSettingTypes) {
       const type = mapSettingToNotificationType[filteredSetting.type];
-
+  
       await this.actionByType[type]({
         user_id: user.id,
         email: user.email,

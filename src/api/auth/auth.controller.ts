@@ -20,11 +20,13 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiBody,
 } from "@nestjs/swagger";
 
 @Controller("auth")
+@ApiTags("Auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   private extractClientId(query: any, body: any, headers: any): string {
     return (
@@ -38,6 +40,9 @@ export class AuthController {
 
   @Post("login")
   @Public()
+  @ApiOperation({ summary: "Вход в систему" })
+  @ApiBody({ type: AuthLoginRequestDto })
+  @ApiResponse({ status: 201, description: "Успешный вход" })
   async login(
     @Body() dto: AuthLoginRequestDto,
     @Query() query,
@@ -49,6 +54,8 @@ export class AuthController {
   }
 
   @Post("logout")
+  @ApiOperation({ summary: "Выход из системы" })
+  @ApiResponse({ status: 201, description: "Успешный выход" })
   async logout(@Headers() headers, @Query() query, @Req() req: Request) {
     const authorization = headers.authorization;
     const clientId = this.extractClientId(query, {}, headers);
@@ -56,6 +63,7 @@ export class AuthController {
   }
 
   @Get("check")
+  @ApiOperation({ summary: "Проверка токена" })
   @ApiResponse({ status: 200, type: AuthCheckResponseDto })
   async check(@Headers() headers, @Query() query, @Req() req: Request) {
     const authorization = headers.authorization;
@@ -64,6 +72,8 @@ export class AuthController {
   }
 
   @Post("update-password")
+  @ApiOperation({ summary: "Обновление пароля" })
+  @ApiResponse({ status: 201, description: "Пароль обновлен" })
   @LogAction("auth_update_password", "users")
   async updatePassword(
     @Body() body,
@@ -78,6 +88,8 @@ export class AuthController {
 
   @Post("forgot-password")
   @Public()
+  @ApiOperation({ summary: "Забыл пароль" })
+  @ApiResponse({ status: 201, description: "Письмо отправлено" })
   async forgotPassword(@Body() body) {
     return this.authService.forgotPassword(body);
   }
@@ -85,12 +97,16 @@ export class AuthController {
   @Post("change-forgot-password")
   @LogAction("auth_recovery_password", "users")
   @Public()
+  @ApiOperation({ summary: "Восстановление пароля" })
+  @ApiResponse({ status: 201, description: "Пароль восстановлен" })
   async recoveryPassword(@Body() body) {
     return this.authService.recoveryPassword(body);
   }
 
   @Get("user-activity/:userId")
   @ApiParam({ name: "userId", type: "number" })
+  @ApiOperation({ summary: "Активность пользователя" })
+  @ApiResponse({ status: 200, description: "История активности" })
   async getUserActivity(@Param("userId") userId: number) {
     return this.authService.getUserActivity(userId);
   }

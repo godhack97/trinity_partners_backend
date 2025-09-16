@@ -64,14 +64,34 @@ export class AdminDealService {
   }
 
   private async changeStatusNotify({ deal }) {
+    if (!deal) {
+      console.error('Deal is null in changeStatusNotify');
+      return;
+    }
+    
+    if (!deal.creator_id) {
+      console.error('Deal creator_id is null', { dealId: deal.id });
+      return;
+    }
+  
     await this.notificationService.send({
       user_id: deal.creator_id,
       title: "Статус сделки",
       text: `Обновление статуса Сделка №${deal.deal_num} - сделка ${DealStatusRu[deal.status]}`,
     });
   }
-
+  
   private async specialDiscountNotify({ deal }) {
+    if (!deal) {
+      console.error('Deal is null in specialDiscountNotify');
+      return;
+    }
+    
+    if (!deal.creator_id) {
+      console.error('Deal creator_id is null', { dealId: deal.id });
+      return;
+    }
+  
     await this.notificationService.send({
       user_id: deal.creator_id,
       title: "Выдана скидка",

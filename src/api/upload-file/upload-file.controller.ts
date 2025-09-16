@@ -18,7 +18,7 @@ export class UploadFileController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: multerStorage.files,
-      limits: { fileSize: 10 * 1024 * 1024 },
+      limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         if (!allowedMimeTypes.includes(file.mimetype)) {
           return cb(new BadRequestException("Неверный тип файла"), false);
