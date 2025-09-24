@@ -20,13 +20,25 @@ import { RequirePermissions } from "src/decorators/permissions.decorator";
 @ApiBearerAuth()
 @Controller("user")
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Get()
   @UseInterceptors(new TransformResponse(UserResponseDto, true))
   @ApiResponse({ type: [UserResponseDto] })
   findAll() {
     return this.userService.findAll();
+  }
+
+  @Patch(':id')
+  @RequirePermissions('api.users.write')
+  @UseInterceptors(new TransformResponse(UserResponseDto))
+  @ApiOperation({ summary: 'Обновить данные пользователя' })
+  @ApiResponse({ status: 200, description: 'Пользователь обновлен', type: UserResponseDto })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateData: Record<string, any>
+  ) {
+    return this.userService.update(id, updateData);
   }
 
   @Get(":id")
@@ -40,7 +52,7 @@ export class UserController {
   @RequirePermissions('api.roles.write')
   @ApiOperation({ summary: 'Обновить роль пользователю' })
   @ApiResponse({ status: 200, description: 'Роль обновлена' })
-  update(
+  updateRole(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: {
       role_id: number;

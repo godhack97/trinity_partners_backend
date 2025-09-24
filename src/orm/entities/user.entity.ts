@@ -33,6 +33,9 @@ export class UserEntity extends BasisEntity {
   @Column()
   role_id: number;
 
+  @Column({ nullable: true })
+  manager_id: number;
+
   @OneToOne(
     () => CompanyEmployeeEntity,
     (CompanyEmployee) => CompanyEmployee.employee,
@@ -45,6 +48,13 @@ export class UserEntity extends BasisEntity {
   @ManyToOne(() => RoleEntity, (role: RoleEntity) => role.id, { eager: true })
   @JoinColumn({ name: "role_id" })
   role: RoleEntity;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id)
+  @JoinColumn({ name: "manager_id" })
+  manager: UserEntity;
+
+  @OneToMany(() => UserEntity, (user: UserEntity) => user.manager)
+  managed_users: UserEntity[];
 
   @Column({ default: false })
   email_confirmed: boolean;

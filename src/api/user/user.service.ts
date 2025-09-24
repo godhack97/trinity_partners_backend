@@ -57,7 +57,7 @@ export class UserService {
     private readonly emailConfirmerService: EmailConfirmerService,
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
-  ) {}
+  ) { }
 
   async createEmployee(
     registrationEmployeeDto: RegistrationEmployeeRequestDto,
@@ -122,15 +122,15 @@ export class UserService {
   }
 
   async updateRole(id: number, updateRoleDto: any) {
-    await this.userRepository.update(id, { 
-      role_id: updateRoleDto.role_id 
+    await this.userRepository.update(id, {
+      role_id: updateRoleDto.role_id
     });
 
     const updatedUser = await this.userRepository.findOne({
       where: { id },
       relations: ['role']
     });
-    
+
     return updatedUser;
   }
 
@@ -292,6 +292,17 @@ export class UserService {
     }
 
     return await this.createSuperAdmin(data);
+  }
+
+  async update(id: number, updateData: Partial<UserEntity>) {
+    await this.userRepository.update(id, updateData);
+
+    const updatedUser = await this.userRepository.findOne({
+      where: { id },
+      relations: ['role', 'manager']
+    });
+
+    return updatedUser;
   }
 
   async createSuperAdmin(data: RegistrationSuperAdminDto) {

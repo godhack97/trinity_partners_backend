@@ -1,5 +1,3 @@
-// user.repository.ts
-
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -93,7 +91,7 @@ export class UserRepository {
   async findByIdWithUserInfo(id: number): Promise<UserEntity> {
     return await this.findOne({
       where: { id },
-      relations: ["user_info", "owner_company"],
+      relations: ["user_info", "owner_company", 'manager'],
     });
   }
 
@@ -108,7 +106,7 @@ export class UserRepository {
   public async findByToken(token: string): Promise<UserEntity> {
     const userToken = await this.userTokenRepository.findOne({
       where: { token },
-      relations: ["user"],
+      relations: ["user", 'manager'],
     });
     return userToken?.user || null;
   }
@@ -116,21 +114,21 @@ export class UserRepository {
   public async findByEmailWithCompanyEmployees(email: string) {
     return await this.repo.findOne({
       where: { email },
-      relations: ["company_employee", "user_info"],
+      relations: ["company_employee", "user_info", 'manager'],
     });
   }
 
   public async findByIdWithCompanyEmployees(id: number) {
     return await this.repo.findOne({
       where: { id },
-      relations: ["company_employee", "user_info"],
+      relations: ["company_employee", "user_info", 'manager'],
     });
   }
 
   public async findByTokenWithCompanyEmployees(token: string) {
     const userToken = await this.userTokenRepository.findOne({
       where: { token },
-      relations: ["user", "user.company_employee"],
+      relations: ["user", "user.company_employee", 'manager'],
     });
     return userToken?.user || null;
   }
@@ -143,6 +141,7 @@ export class UserRepository {
         "user.company_employee",
         "user.company_employee.company",
         "user.user_info",
+        'manager'
       ],
     });
     return userToken?.user || null;

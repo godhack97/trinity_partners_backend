@@ -42,4 +42,8 @@ export class PartnerResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   status: string;
+
+  @ApiProperty()
+  @Expose()
+  manager_id: number;
 }

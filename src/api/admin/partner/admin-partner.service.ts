@@ -43,26 +43,33 @@ export default class AdminPartnerService {
 
   async getAll(filters: PartnerFilterRequestDto) {
     const qb = this.companyRepository.createQueryBuilder("cmp");
-
+  
     qb.leftJoinAndMapOne("cmp.owner", "users", "usr", "usr.id = cmp.owner_id");
-
+  
     qb.leftJoinAndMapOne(
       "usr.info",
       "users_info",
       "uinf",
       "uinf.user_id = usr.id",
     );
-
+  
+    qb.leftJoinAndMapOne(
+      "usr.manager",
+      "users",
+      "mgr",
+      "mgr.id = usr.manager_id",
+    );
+  
     qb.andWhere("usr.email_confirmed = 1");
-
+  
     filters?.status && qb.andWhere("cmp.status = :s", { s: filters.status });
-
+  
     const companies = await qb.getMany();
-
+  
     // Получаем ID пользователей и компаний для агрегации
     const userIds = companies.map((c) => c.owner.id);
     const companyIds = companies.map((c) => c.id);
-
+  
     // Подсчет сделок по создателям
     const dealsCount =
       userIds.length > 0
@@ -74,7 +81,7 @@ export default class AdminPartnerService {
             .groupBy("deals.creator_id")
             .getRawMany()
         : [];
-
+  
     // Подсчет активных сотрудников по компаниям
     const employeesCount =
       companyIds.length > 0
@@ -87,7 +94,7 @@ export default class AdminPartnerService {
             .groupBy("ce.company_id")
             .getRawMany()
         : [];
-
+  
     // Создаем карты для быстрого поиска
     const dealsMap = new Map(
       dealsCount.map((d) => [d.creator_id, parseInt(d.count)]),
@@ -95,7 +102,7 @@ export default class AdminPartnerService {
     const employeesMap = new Map(
       employeesCount.map((e) => [e.company_id, parseInt(e.count)]),
     );
-
+  
     // Добавляем данные к компаниям
     return companies.map((company) => ({
       ...company,
