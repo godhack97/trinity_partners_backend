@@ -85,6 +85,12 @@ export class DealService {
     });
   }
 
+  async getRequestDeletedCount(): Promise<number> {
+    return await this.dealDeletionRequestRepository.count({
+      where: { status: DealDeletionStatus.PENDING },
+    });
+  }
+
   async create(auth_user: UserEntity, createDealDto: CreateDealDto) {
     const distributor = await this.distributorRepository.findById(
       createDealDto.distributor_id,

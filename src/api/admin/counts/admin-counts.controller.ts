@@ -4,16 +4,14 @@ import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { NewsService } from "@api/news/news.service";
 import { DistributorService } from "@api/distributor/distributor.service";
-import {
-  AdminUserAdminService,
-  SearchRoleAdminTypes,
-} from "@api/admin/user/admin/admin-user-admin.service";
+import { AdminUserAdminService } from "@api/admin/user/admin/admin-user-admin.service";
 import AdminPartnerService from "@api/admin/partner/admin-partner.service";
 import { ConfiguratorService } from "@api/configurator/configurator.service";
 import { CompanyStatus } from "@orm/entities";
 import { UsersService } from "@api/users/users.service";
 import { DealService } from "@api/deal/deal.service";
 import { UserActionsService } from "@api/logs-list/user-actions.service";
+import { request } from "http";
 
 @ApiTags("admin/counts")
 @ApiBearerAuth()
@@ -36,9 +34,11 @@ export class AdminCountsController {
   async getAllCounts() {
     const [
       newsCount,
+      // adminCount,
+      // superAdminCount,
+      // contentManagerCount,
       adminCount,
-      superAdminCount,
-      contentManagerCount,
+      rolesCounts,
       archivedCount,
       partnersUsersCount,
       partnerRequestsCount,
@@ -59,17 +59,14 @@ export class AdminCountsController {
       canceledCount,
       winCount,
       looseCount,
+      requestDeletedCount,
+
       logsCount,
     ] = await Promise.all([
       this.newsService.getCount(),
 
       this.adminUserAdminService.getCount(),
-      this.adminUserAdminService.getCountByRole(
-        SearchRoleAdminTypes.SuperAdmin,
-      ),
-      this.adminUserAdminService.getCountByRole(
-        SearchRoleAdminTypes.ContentManager,
-      ),
+      this.adminUserAdminService.getCountsByAllRoles(),
       this.adminUserAdminService.getArchivedCount(),
 
       this.usersService.getCount(),
@@ -92,6 +89,7 @@ export class AdminCountsController {
       this.dealService.getCanceledCount(),
       this.dealService.getWinCount(),
       this.dealService.getLooseCount(),
+      this.dealService.getRequestDeletedCount(),
 
       this.userActionsService.getCount(),
     ]);
@@ -100,9 +98,8 @@ export class AdminCountsController {
       news: newsCount,
       admins: {
         all: adminCount,
-        superAdmin: superAdminCount,
-        contentManager: contentManagerCount,
         archived: archivedCount,
+        byRole: rolesCounts, // <- добавить все роли
       },
       partners: {
         users: partnersUsersCount,
@@ -127,6 +124,7 @@ export class AdminCountsController {
         canceled: canceledCount,
         win: winCount,
         loose: looseCount,
+        requestDeleted: requestDeletedCount,
       },
       tools: {
         logs: logsCount,

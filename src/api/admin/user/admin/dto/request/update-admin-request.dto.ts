@@ -1,11 +1,13 @@
-import { RoleAdminTypes } from "@api/admin/user/admin/admin-user-admin.service";
 import { IsNotEmptyRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum } from "class-validator";
+import { IsString } from "class-validator";
 
 export class UpdateAdminRequestDto {
-  @ApiProperty({ enum: RoleAdminTypes })
+  @ApiProperty({
+    description: "Роль пользователя",
+    example: "super_admin"
+  })
   @IsNotEmptyRu()
-  @IsEnum(RoleAdminTypes)
-  role: RoleAdminTypes;
+  @IsString()
+  role: string;
 }

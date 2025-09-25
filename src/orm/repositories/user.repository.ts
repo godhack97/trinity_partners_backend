@@ -141,7 +141,7 @@ export class UserRepository {
         "user.company_employee",
         "user.company_employee.company",
         "user.user_info",
-        'manager'
+        'user.manager'
       ],
     });
     return userToken?.user || null;

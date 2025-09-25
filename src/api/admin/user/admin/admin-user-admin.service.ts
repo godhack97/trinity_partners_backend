@@ -15,16 +15,6 @@ import {
 
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
 
-export enum SearchRoleAdminTypes {
-  SuperAdmin = RoleTypes.SuperAdmin,
-  ContentManager = RoleTypes.ContentManager,
-  ALL = "all",
-}
-
-export enum RoleAdminTypes {
-  SuperAdmin = RoleTypes.SuperAdmin,
-  ContentManager = RoleTypes.ContentManager,
-}
 @Injectable()
 export class AdminUserAdminService {
   constructor(
@@ -34,30 +24,27 @@ export class AdminUserAdminService {
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
 
-  allowed_roles = [RoleTypes.SuperAdmin, RoleTypes.ContentManager, RoleTypes.EmployeeAdmin];
-
-  async getCount(): Promise<number> {
-    let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
-    queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
-
-    return await queryBuilder.getCount();
+  async getCountsByAllRoles(): Promise<Record<string, number>> {
+    const roles = await this.roleRepository.find();
+    const counts: Record<string, number> = {};
+    
+    for (const role of roles) {
+      counts[role.name] = await this.getCountByRole(role.name);
+    }
+    
+    return counts;
   }
 
-  async getCountByRole(role: SearchRoleAdminTypes): Promise<number> {
+  async getCount(): Promise<number> {
+    return await this.userRepository.createQueryBuilder("u").getCount();
+  }
+
+  async getCountByRole(role?: string): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
 
-    switch (role) {
-      case SearchRoleAdminTypes.SuperAdmin:
-      case SearchRoleAdminTypes.ContentManager:
-        queryBuilder.andWhere("r.name = :name", { name: role });
-        break;
-      case SearchRoleAdminTypes.ALL:
-      default:
-        queryBuilder.andWhere("r.name IN (:...name)", {
-          name: this.allowed_roles,
-        });
+    if (role && role !== 'all') {
+      queryBuilder.andWhere("r.name = :name", { name: role });
     }
 
     return await queryBuilder.getCount();
@@ -66,10 +53,7 @@ export class AdminUserAdminService {
   async getArchivedCount(): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.withDeleted();
-    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
-    queryBuilder.andWhere("r.name IN (:...name)", { name: this.allowed_roles });
     queryBuilder.andWhere("u.deleted_at IS NOT NULL");
-
     return await queryBuilder.getCount();
   }
 
@@ -77,17 +61,11 @@ export class AdminUserAdminService {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
 
-    switch (entry?.role) {
-      case SearchRoleAdminTypes.SuperAdmin:
-      case SearchRoleAdminTypes.ContentManager:
-        queryBuilder.andWhere("r.name = :name", { name: entry.role });
-        break;
-      case SearchRoleAdminTypes.ALL:
-      default:
-        queryBuilder.andWhere("r.name IN (:...name)", {
-          name: this.allowed_roles,
-        });
+    // Универсальная фильтрация по роли
+    if (entry?.role && entry.role !== 'all') {
+      queryBuilder.andWhere("r.name = :name", { name: entry.role });
     }
+    // Если role === 'all' или не передан - возвращаем всех пользователей
 
     // Фильтрация по archive (deleted_at)
     if (entry?.archive === 'true') {
@@ -129,16 +107,19 @@ export class AdminUserAdminService {
   async update(id: number, data: UpdateAdminRequestDto) {
     const isUserAdmin = await this.userRepository.findById(id);
 
-    if (!this.allowed_roles.includes(isUserAdmin.role.name as RoleTypes)) {
-      throw new HttpException("Это не администратор!", HttpStatus.FORBIDDEN);
+    if (!isUserAdmin) {
+      throw new HttpException("Пользователь не найден!", HttpStatus.NOT_FOUND);
     }
 
     const { role } = data;
+    const roleEntity = await this.roleRepository.findOneBy({ name: role });
 
-    const roleSuperAdmin = await this.roleRepository.findOneBy({ name: role });
+    if (!roleEntity) {
+      throw new HttpException("Роль не найдена!", HttpStatus.NOT_FOUND);
+    }
 
     await this.userRepository.update(id, {
-      role: roleSuperAdmin,
+      role: roleEntity,
     });
 
     return await this.userRepository.findById(id);

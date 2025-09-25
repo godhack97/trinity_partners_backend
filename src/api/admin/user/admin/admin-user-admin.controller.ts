@@ -9,10 +9,7 @@ import {
   ApiParam,
   ApiResponse,
 } from "@nestjs/swagger";
-import {
-  AdminUserAdminService,
-  SearchRoleAdminTypes,
-} from "./admin-user-admin.service";
+import { AdminUserAdminService } from "./admin-user-admin.service";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { LogAction } from "src/logs/log-action.decorator";
@@ -31,22 +28,12 @@ export class AdminUserAdminController {
     return this.adminUserAdminService.getCount();
   }
 
-  @Get("/count/super-admin")
+  @Get("/count/:role")
   @ApiBearerAuth()
+  @ApiParam({ name: "role", type: String, description: "Роль пользователя или 'all' для всех" })
   @ApiResponse({ type: Number })
-  async getSuperAdminCount() {
-    return this.adminUserAdminService.getCountByRole(
-      SearchRoleAdminTypes.SuperAdmin,
-    );
-  }
-
-  @Get("/count/content-manager")
-  @ApiBearerAuth()
-  @ApiResponse({ type: Number })
-  async getContentManagerCount() {
-    return this.adminUserAdminService.getCountByRole(
-      SearchRoleAdminTypes.ContentManager,
-    );
+  async getCountByRole(@Param("role") role: string) {
+    return this.adminUserAdminService.getCountByRole(role);
   }
 
   @Get("/count/archived")
