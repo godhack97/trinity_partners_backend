@@ -18,19 +18,19 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.role) {
+    if (!user) {
       throw new ForbiddenException('Нет доступа к ресурсу');
     }
 
     // Суперадмин имеет все права
-    if (user.role.name === 'super_admin') {
+    if (this.isSuperAdmin(user)) {
       return true;
     }
 
-    // Проверяем разрешения пользователя
-    const userPermissions = user.role.permissions?.map(p => p.name) || [];
-    
-    const hasPermission = requiredPermissions.every(permission => 
+    // Собираем все permissions из всех ролей пользователя
+    const userPermissions = this.getAllUserPermissions(user);
+
+    const hasPermission = requiredPermissions.every(permission =>
       userPermissions.includes(permission)
     );
 
@@ -39,5 +39,23 @@ export class PermissionsGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private isSuperAdmin(user: any): boolean {
+    return user.roles?.some(role => role.name === 'super_admin') || false;
+  }
+
+  private getAllUserPermissions(user: any): string[] {
+    const permissions = new Set<string>();
+
+    if (user.roles) {
+      user.roles.forEach(role => {
+        if (role.permissions) {
+          role.permissions.forEach(p => permissions.add(p.name));
+        }
+      });
+    }
+
+    return Array.from(permissions);
   }
 }
