@@ -2,7 +2,7 @@ import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.serv
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
 import { UserToken } from "src/orm/entities/user-token.entity";
-import { Repository } from "typeorm";
+import { Repository, In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { emailSendConfig } from "@api/email-confirmer/config";
 
@@ -34,14 +34,13 @@ import {
   RegistrationSuperAdminDto,
   RegistrationSuperAdminWithSecretDto,
 } from "../registration/dto/request/registration-super-admin.request.dto";
+import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 
 const USER_SECRET = "Неправильно введен СЕКРЕТ";
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
 const USER_PHONE_EXISTS = "Пользователь с таким телефоном уже существует";
 const INN_EXISTS = "Пользователь с таким ИНН уже существует";
-//Можно перенести в .env
 const SECRET_KEY = "askhl32423ksajdhgfa!!dsfljnfla232fsafsdnn!21412";
-
 const INN_FORBIDDEN = "ИНН запрещён к регистрации.";
 
 @Injectable()
@@ -57,6 +56,8 @@ export class UserService {
     private readonly emailConfirmerService: EmailConfirmerService,
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
+    @InjectRepository(UserRoleEntity)
+    private readonly userRoleRepository: Repository<UserRoleEntity>,
   ) { }
 
   async createEmployee(
@@ -93,6 +94,11 @@ export class UserService {
       role: roleEmployee,
     });
 
+    await this.userRoleRepository.save({
+      user_id: newUser.id,
+      role_id: roleEmployee.id,
+    });
+
     await this._createNotificationSettings(newUser.id);
 
     await this.userInfoRepository.save({
@@ -126,9 +132,55 @@ export class UserService {
       role_id: updateRoleDto.role_id
     });
 
+    await this.userRoleRepository.delete({ user_id: id });
+
+    await this.userRoleRepository.save({
+      user_id: id,
+      role_id: updateRoleDto.role_id,
+    });
+
     const updatedUser = await this.userRepository.findOne({
       where: { id },
-      relations: ['role']
+      relations: ['role', 'user_roles', 'user_roles.role']
+    });
+
+    return updatedUser;
+  }
+
+  async updateRoles(id: number, updateRolesDto: { role_ids: number[] }) {
+    if (!updateRolesDto.role_ids || updateRolesDto.role_ids.length === 0) {
+      throw new BadRequestException("Необходимо указать хотя бы одну роль");
+    }
+
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new HttpException("Пользователь не найден", HttpStatus.NOT_FOUND);
+    }
+
+    const roles = await this.roleRepository.find({
+      where: { id: In(updateRolesDto.role_ids) }
+    });
+
+    if (roles.length !== updateRolesDto.role_ids.length) {
+      throw new BadRequestException("Одна или несколько ролей не найдены");
+    }
+
+    await this.userRepository.update(id, {
+      role_id: updateRolesDto.role_ids[0]
+    });
+
+    await this.userRoleRepository.delete({ user_id: id });
+
+    const userRoles = updateRolesDto.role_ids.map(role_id => ({
+      user_id: id,
+      role_id: role_id,
+    }));
+
+    await this.userRoleRepository.save(userRoles);
+
+    const updatedUser = await this.userRepository.findOne({
+      where: { id },
+      relations: ['role', 'user_roles', 'user_roles.role']
     });
 
     return updatedUser;
@@ -181,11 +233,14 @@ export class UserService {
     last_name?: string;
     email: string;
   }) {
-    const superAdmins = await this.userRepository.find({
-      where: { role_id: 1 },
-    });
+    const qb = this.userRepository.createQueryBuilder("u");
+    qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r", "ur.role_id = r.id")
+      .leftJoin("roles", "r2", "u.role_id = r2.id")
+      .where("(r.id = 1 OR r2.id = 1)");
 
-    // Автоматически определяем имя партнёра
+    const superAdmins = await qb.getMany();
+
     const partnerName =
       company_name ||
       [first_name, last_name].filter(Boolean).join(" ") ||
@@ -247,6 +302,11 @@ export class UserService {
       role: rolePartner,
     });
 
+    await this.userRoleRepository.save({
+      user_id: newUser.id,
+      role_id: rolePartner.id,
+    });
+
     await this._createNotificationSettings(newUser.id);
 
     await this.userInfoRepository.save({
@@ -299,7 +359,7 @@ export class UserService {
 
     const updatedUser = await this.userRepository.findOne({
       where: { id },
-      relations: ['role', 'manager']
+      relations: ['role', 'manager', 'user_roles', 'user_roles.role']
     });
 
     return updatedUser;
@@ -320,6 +380,11 @@ export class UserService {
       email,
       password,
       role: roleSuperAdmin,
+    });
+
+    await this.userRoleRepository.save({
+      user_id: user.id,
+      role_id: roleSuperAdmin.id,
     });
 
     await this._createNotificationSettings(user.id);

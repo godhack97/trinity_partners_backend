@@ -43,6 +43,17 @@ export class DealService {
     return this.configService.get<string>("HOSTNAME") || "localhost";
   }
 
+  private hasRole(user: UserEntity, roleName: string): boolean {
+    if (user.role?.name === roleName) {
+      return true;
+    }
+    return user.roles?.some(role => role.name === roleName) || false;
+  }
+
+  private isSuperAdmin(user: UserEntity): boolean {
+    return this.hasRole(user, RoleTypes.SuperAdmin);
+  }
+
   async getCount(): Promise<number> {
     return await this.dealRepository.count();
   }
@@ -174,9 +185,14 @@ export class DealService {
     creator: UserEntity,
   ) {
     try {
-      const superAdmins = await this.userRepository.find({
-        where: { role_id: 1 },
-      });
+      const qb = this.userRepository.createQueryBuilder("u");
+      qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
+        .leftJoin("roles", "r", "ur.role_id = r.id")
+        .leftJoin("roles", "r2", "u.role_id = r2.id")
+        .where("(r.id = 1 OR r2.id = 1)");
+
+      const superAdmins = await qb.getMany();
+
       const creatorWithInfo = await this.userRepository.findByIdWithUserInfo(
         creator.id,
       );
@@ -220,9 +236,6 @@ export class DealService {
     }
   }
 
-  /**
-   * Отправка лида в Bitrix24
-   */
   private async sendLeadToBitrix24(
     deal: any,
     customer: any,
@@ -296,21 +309,17 @@ export class DealService {
   async findAll(auth_user: UserEntity, entry?: SearchDealDto) {
     let deals: any[];
 
-    switch (auth_user.role.name) {
-      case RoleTypes.SuperAdmin:
-        deals = await this.dealRepository.findDealsWithFilters(entry);
-        break;
-
-      case RoleTypes.EmployeeAdmin:
-      case RoleTypes.Partner:
-      case RoleTypes.Employee:
-        deals = await this.dealRepository.findDealsWithFilters(entry);
-        deals = deals.filter((deal) => deal.creator_id === auth_user.id);
-        break;
-
-      default:
-        deals = [];
-        break;
+    if (this.isSuperAdmin(auth_user)) {
+      deals = await this.dealRepository.findDealsWithFilters(entry);
+    } else if (
+      this.hasRole(auth_user, RoleTypes.EmployeeAdmin) ||
+      this.hasRole(auth_user, RoleTypes.Partner) ||
+      this.hasRole(auth_user, RoleTypes.Employee)
+    ) {
+      deals = await this.dealRepository.findDealsWithFilters(entry);
+      deals = deals.filter((deal) => deal.creator_id === auth_user.id);
+    } else {
+      deals = [];
     }
 
     return deals;
@@ -323,41 +332,43 @@ export class DealService {
       throw new HttpException("Сделка не найдена", HttpStatus.NOT_FOUND);
     }
 
-    switch (auth_user.role.name) {
-      case RoleTypes.SuperAdmin:
-        return deal;
-
-      case RoleTypes.EmployeeAdmin:
-      case RoleTypes.Partner:
-        const companyWithEmployees =
-          await this.companyRepository.findByIdWithEmployees(
-            auth_user?.company_employee?.company_id,
-          );
-
-        if (auth_user.id === deal.creator_id) {
-          return deal;
-        }
-
-        throw new HttpException(
-          "У вашей компании недостаточно прав для получения деталей данной сделки",
-          HttpStatus.FORBIDDEN,
-        );
-
-      case RoleTypes.Employee:
-        if (auth_user.id === deal.creator_id) {
-          return deal;
-        }
-        throw new HttpException(
-          "У вас недостаточно прав для получения деталей данной сделки",
-          HttpStatus.FORBIDDEN,
-        );
-
-      default:
-        throw new HttpException(
-          "У вас недостаточно прав для получения деталей данной сделки",
-          HttpStatus.FORBIDDEN,
-        );
+    if (this.isSuperAdmin(auth_user)) {
+      return deal;
     }
+
+    if (
+      this.hasRole(auth_user, RoleTypes.EmployeeAdmin) ||
+      this.hasRole(auth_user, RoleTypes.Partner)
+    ) {
+      const companyWithEmployees =
+        await this.companyRepository.findByIdWithEmployees(
+          auth_user?.company_employee?.company_id,
+        );
+
+      if (auth_user.id === deal.creator_id) {
+        return deal;
+      }
+
+      throw new HttpException(
+        "У вашей компании недостаточно прав для получения деталей данной сделки",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (this.hasRole(auth_user, RoleTypes.Employee)) {
+      if (auth_user.id === deal.creator_id) {
+        return deal;
+      }
+      throw new HttpException(
+        "У вас недостаточно прав для получения деталей данной сделки",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    throw new HttpException(
+      "У вас недостаточно прав для получения деталей данной сделки",
+      HttpStatus.FORBIDDEN,
+    );
   }
 
   async getDealStatistic(auth_user: UserEntity) {
@@ -421,7 +432,7 @@ export class DealService {
   ): Promise<DealDeletionRequestResponseDto[]> {
     let requests: DealDeletionRequestEntity[];
 
-    if (auth_user.role_id === 1) {
+    if (this.isSuperAdmin(auth_user)) {
       requests =
         await this.dealDeletionRequestRepository.findAllWithRelations();
     } else {
@@ -438,7 +449,7 @@ export class DealService {
   async getPendingDeletionRequests(
     auth_user: UserEntity,
   ): Promise<DealDeletionRequestResponseDto[]> {
-    if (auth_user.role_id !== 1) {
+    if (!this.isSuperAdmin(auth_user)) {
       throw new HttpException(
         "Недостаточно прав для просмотра ожидающих заявок",
         HttpStatus.FORBIDDEN,
@@ -457,7 +468,7 @@ export class DealService {
     auth_user: UserEntity,
     processDto: ProcessDealDeletionRequestDto,
   ): Promise<{ message: string }> {
-    if (auth_user.role_id !== 1) {
+    if (!this.isSuperAdmin(auth_user)) {
       throw new HttpException(
         "Недостаточно прав для обработки заявок на удаление",
         HttpStatus.FORBIDDEN,
@@ -504,9 +515,13 @@ export class DealService {
     request: DealDeletionRequestEntity,
   ) {
     try {
-      const superAdmins = await this.userRepository.find({
-        where: { role_id: 1 },
-      });
+      const qb = this.userRepository.createQueryBuilder("u");
+      qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
+        .leftJoin("roles", "r", "ur.role_id = r.id")
+        .leftJoin("roles", "r2", "u.role_id = r2.id")
+        .where("(r.id = 1 OR r2.id = 1)");
+
+      const superAdmins = await qb.getMany();
 
       const requestWithRelations =
         await this.dealDeletionRequestRepository.findById(request.id);
@@ -605,9 +620,6 @@ export class DealService {
     };
   }
 
-  /**
-   * Обновление статуса сделки (с синхронизацией лида в Bitrix24)
-   */
   async updateDealStatus(
     dealId: number,
     status: DealStatus,
@@ -636,9 +648,6 @@ export class DealService {
     return updatedDeal;
   }
 
-  /**
-   * Конвертация лида в сделку в Bitrix24
-   */
   async convertLeadToDeal(dealId: number, auth_user: UserEntity): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
 
@@ -677,9 +686,6 @@ export class DealService {
     }
   }
 
-  /**
-   * Принудительная отправка лида в Bitrix24
-   */
   async forceSendToBitrix24(
     dealId: number,
     auth_user: UserEntity,
@@ -725,16 +731,10 @@ export class DealService {
     }
   }
 
-  /**
-   * Проверка подключения к Bitrix24
-   */
   async checkBitrix24Connection(): Promise<boolean> {
     return this.bitrix24Service.checkConnection();
   }
 
-  /**
-   * Получение статуса синхронизации лида
-   */
   async getBitrix24SyncStatus(
     dealId: number,
     auth_user: UserEntity,
@@ -751,7 +751,7 @@ export class DealService {
   }
 
   async remove(id: number, auth_user: UserEntity): Promise<void> {
-    if (auth_user.role_id !== 1) {
+    if (!this.isSuperAdmin(auth_user)) {
       throw new HttpException(
         "У вас недостаточно прав для удаления сделки",
         HttpStatus.FORBIDDEN,

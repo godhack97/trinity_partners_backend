@@ -12,6 +12,9 @@ import {
   UserRepository,
   UserSettingRepository,
 } from "@orm/repositories";
+import { UserRoleEntity } from "@orm/entities/user-roles.entity";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
 
@@ -22,16 +25,18 @@ export class AdminUserAdminService {
     private readonly userSettingRepository: UserSettingRepository,
     private readonly roleRepository: RoleRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
+    @InjectRepository(UserRoleEntity)
+    private readonly userRoleRepository: Repository<UserRoleEntity>,
   ) {}
 
   async getCountsByAllRoles(): Promise<Record<string, number>> {
     const roles = await this.roleRepository.find();
     const counts: Record<string, number> = {};
-    
+
     for (const role of roles) {
       counts[role.name] = await this.getCountByRole(role.name);
     }
-    
+
     return counts;
   }
 
@@ -42,9 +47,11 @@ export class AdminUserAdminService {
   async getCountByRole(role?: string): Promise<number> {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
+    queryBuilder.leftJoin("user_roles", "ur", "u.id = ur.user_id");
+    queryBuilder.leftJoin("roles", "r2", "ur.role_id = r2.id");
 
     if (role && role !== 'all') {
-      queryBuilder.andWhere("r.name = :name", { name: role });
+      queryBuilder.andWhere("(r.name = :name OR r2.name = :name)", { name: role });
     }
 
     return await queryBuilder.getCount();
@@ -60,19 +67,30 @@ export class AdminUserAdminService {
   async findAll(entry?: SearchAdminDto) {
     let queryBuilder = this.userRepository.createQueryBuilder("u");
     queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
-
-    // Универсальная фильтрация по роли
+    queryBuilder.leftJoin("user_roles", "ur", "u.id = ur.user_id");
+    queryBuilder.leftJoin("roles", "r2", "ur.role_id = r2.id");
+    queryBuilder.leftJoinAndMapMany(
+      "u.user_roles",
+      "user_roles",
+      "ur2",
+      "u.id = ur2.user_id"
+    );
+    queryBuilder.leftJoinAndMapOne(
+      "ur2.role",
+      "roles",
+      "r3",
+      "ur2.role_id = r3.id"
+    );
+  
     if (entry?.role && entry.role !== 'all') {
-      queryBuilder.andWhere("r.name = :name", { name: entry.role });
+      queryBuilder.andWhere("(r.name = :name OR r2.name = :name)", { name: entry.role });
     }
-    // Если role === 'all' или не передан - возвращаем всех пользователей
-
-    // Фильтрация по archive (deleted_at)
+  
     if (entry?.archive === 'true') {
       queryBuilder.withDeleted();
       queryBuilder.andWhere("u.deleted_at IS NOT NULL");
     }
-
+  
     return queryBuilder.getMany();
   }
 
@@ -92,6 +110,11 @@ export class AdminUserAdminService {
       role: roleSuperAdmin,
       is_activated: true,
       email_confirmed: true,
+    });
+
+    await this.userRoleRepository.save({
+      user_id: user.id,
+      role_id: roleSuperAdmin.id,
     });
 
     await this._createNotificationSettings(user.id);
@@ -122,10 +145,16 @@ export class AdminUserAdminService {
       role: roleEntity,
     });
 
+    await this.userRoleRepository.delete({ user_id: id });
+
+    await this.userRoleRepository.save({
+      user_id: id,
+      role_id: roleEntity.id,
+    });
+
     return await this.userRepository.findById(id);
   }
 
-  // фиктивно удаляем (soft-delete)
   async delete(id: number): Promise<void> {
     const result = await this.userRepository.softDelete(id);
 
@@ -137,7 +166,6 @@ export class AdminUserAdminService {
     }
   }
 
-  // восстанавливаем, если фиктивно удалили
   async restore(id: number): Promise<object> {
     const result = await this.userRepository.restore(id);
 

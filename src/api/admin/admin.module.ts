@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminService } from "./admin.service";
 import { AdminController } from "./admin.controller";
 import { AdminCountsController } from "./counts/admin-counts.controller";
@@ -23,9 +24,11 @@ import { ConfiguratorService } from "@api/configurator/configurator.service";
 import { DistributorService } from "@api/distributor/distributor.service";
 import { DealService } from "@api/deal/deal.service";
 import { Bitrix24Service } from "../../integrations/bitrix24/bitrix24.service";
+import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([UserRoleEntity]),
     LogsListModule,
     NewsModule,
     AdminUserModule,

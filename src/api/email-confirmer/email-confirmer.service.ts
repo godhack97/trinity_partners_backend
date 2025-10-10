@@ -28,7 +28,6 @@ export class EmailConfirmerService {
     private readonly userRepository: UserRepository,
   ) {}
 
-  // Альтернатива: можно сделать геттеры
   get mail() {
     return this.configService.get("EMAIL_USERNAME");
   }
@@ -72,7 +71,6 @@ export class EmailConfirmerService {
       verify: hash,
     });
 
-    // Получаем hostname всегда в методе или через геттер
     const hostname = this.hostname;
     const link = `https://${hostname}/${method}?${qs}`;
 
@@ -127,7 +125,6 @@ export class EmailConfirmerService {
         ? `${template}--img-as-url.hbs`
         : `${template}--img-as-base64.hbs`;
 
-      // Получаем email отправителя всегда через геттер
       return await this.mailerService.sendMail({
         from: `${this.mail}`,
         to: email,
@@ -149,58 +146,59 @@ export class EmailConfirmerService {
 
   private async _registrationAction({ resetHashEntity }: ActionParams) {
     await this._deleteResetHashEntity({ resetHashEntity });
-
+  
     const updateUser = await this.userRepository.update(
       resetHashEntity.user_id,
       {
         email_confirmed: true,
       },
     );
-
+  
     if (updateUser.affected === 0) {
       throw new InternalServerErrorException(
         "Не удалось обновить пользователя",
       );
     }
-
+  
     const user = await this.userRepository.findById(resetHashEntity.user_id);
-
+  
     if (!user)
       throw new InternalServerErrorException("Не удалось найти пользователя");
-
+  
     const sendOpts = {
       email: user.email,
       subject: "Подтверждение почты!",
     };
-
-    switch (user.role.name) {
-      case RoleTypes.Partner:
-        await this._emailSend({
-          ...sendOpts,
-          template: "request-company-receive",
-          context: {
-            link: "https://partner.trinity.ru/",
-          },
-        });
-        await this.notifySuperAdminsAboutNewPartner({
-          company_name: user.user_info?.company_name,
-          first_name: user.user_info?.first_name,
-          last_name: user.user_info?.last_name,
-          email: user?.email,
-        });
-        break;
-
-      case RoleTypes.Employee:
-        await this._emailSend({
-          ...sendOpts,
-          template: "registration-employee",
-          context: {
-            link: "https://partner.trinity.ru/",
-          },
-        });
-        break;
-      default:
-        break;
+  
+    const hasRole = (roleName: string): boolean => {
+      if (user.role?.name === roleName) {
+        return true;
+      }
+      return user.roles?.some(role => role.name === roleName) || false;
+    };
+  
+    if (hasRole(RoleTypes.Partner)) {
+      await this._emailSend({
+        ...sendOpts,
+        template: "request-company-receive",
+        context: {
+          link: "https://partner.trinity.ru/",
+        },
+      });
+      await this.notifySuperAdminsAboutNewPartner({
+        company_name: user.user_info?.company_name,
+        first_name: user.user_info?.first_name,
+        last_name: user.user_info?.last_name,
+        email: user?.email,
+      });
+    } else if (hasRole(RoleTypes.Employee)) {
+      await this._emailSend({
+        ...sendOpts,
+        template: "registration-employee",
+        context: {
+          link: "https://partner.trinity.ru/",
+        },
+      });
     }
   }
 
@@ -215,11 +213,14 @@ export class EmailConfirmerService {
     last_name?: string;
     email: string;
   }) {
-    const superAdmins = await this.userRepository.find({
-      where: { role_id: 1 },
-    });
+    const qb = this.userRepository.createQueryBuilder("u");
+    qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r", "ur.role_id = r.id")
+      .leftJoin("roles", "r2", "u.role_id = r2.id")
+      .where("(r.id = 1 OR r2.id = 1)");
 
-    // Автоматически определяем имя партнёра
+    const superAdmins = await qb.getMany();
+
     const partnerName =
       company_name ||
       [first_name, last_name].filter(Boolean).join(" ") ||
