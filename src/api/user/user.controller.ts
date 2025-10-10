@@ -61,6 +61,19 @@ export class UserController {
     return this.userService.updateRole(id, updateRoleDto);
   }
 
+  @Post('update-roles/:id')
+  @RequirePermissions('api.roles.write')
+  @ApiOperation({ summary: 'Обновить роли пользователю (множественные)' })
+  @ApiResponse({ status: 200, description: 'Роли обновлены' })
+  updateRoles(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateRolesDto: {
+      role_ids: number[];
+    }
+  ) {
+    return this.userService.updateRoles(id, updateRolesDto);
+  }
+
   @Delete(":id")
   @LogAction("user_archive", "users")
   remove(@Param("id") id: string) {

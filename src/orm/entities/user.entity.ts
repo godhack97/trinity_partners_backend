@@ -13,6 +13,7 @@ import { BasisEntity } from "./basis.entity";
 import { CompanyEmployeeEntity } from "./company-employee.entity";
 import { CompanyEntity } from "@orm/entities/company.entity";
 import { UserInfoEntity } from "@orm/entities/user-info.entity";
+import { UserRoleEntity } from "./user-roles.entity";
 
 @Entity({
   name: "users",
@@ -48,6 +49,9 @@ export class UserEntity extends BasisEntity {
   @ManyToOne(() => RoleEntity, (role: RoleEntity) => role.id, { eager: true })
   @JoinColumn({ name: "role_id" })
   role: RoleEntity;
+
+  @OneToMany(() => UserRoleEntity, (userRole) => userRole.user)
+  user_roles: UserRoleEntity[];
 
   @ManyToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: "manager_id" })
@@ -106,4 +110,11 @@ export class UserEntity extends BasisEntity {
     device: string;
     os: string;
   } | null;
+
+  get roles(): RoleEntity[] {
+    if (this.user_roles && this.user_roles.length > 0) {
+      return this.user_roles.map(ur => ur.role);
+    }
+    return this.role ? [this.role] : [];
+  }
 }

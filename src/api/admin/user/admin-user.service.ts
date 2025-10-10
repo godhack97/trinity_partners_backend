@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { UserRepository } from "@orm/repositories";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
+
 const defaultFilter = {
   limit: 10,
   page: 1,
 };
+
 @Injectable()
 export class AdminUserService {
   constructor(private readonly userRepository: UserRepository) {}
@@ -16,15 +18,17 @@ export class AdminUserService {
 
     const qb = this.userRepository.createQueryBuilder("u");
     qb.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id")
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r2", "ur.role_id = r2.id")
       .leftJoin("company_employees", "ce", "ce.employee_id = u.id")
       .leftJoinAndMapOne("u.company", "companies", "c", "c.id = ce.company_id");
 
     if (filters.role_name) {
-      qb.andWhere("r.name = :name", { name: filters.role_name });
+      qb.andWhere("(r.name = :name OR r2.name = :name)", { name: filters.role_name });
     }
 
     if (filters.is_activated) {
-      qb.andWhere("u.is_activated", { is_activated: filters.is_activated });
+      qb.andWhere("u.is_activated = :is_activated", { is_activated: filters.is_activated });
     }
 
     if (filters.email) {

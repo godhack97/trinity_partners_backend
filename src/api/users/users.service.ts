@@ -23,17 +23,21 @@ export class UsersService {
   }
 
   async findUsersByRoleIdGreaterThanOne(): Promise<UserEntity[]> {
-    const users = await this.usersRepository.find({
-      where: { role_id: MoreThan(1) },
-      select: [
-        "id",
-        "email",
-        "role_id",
-        "is_activated",
-        "email_confirmed",
-        "lastActivity",
-      ],
-    });
+    const qb = this.usersRepository.createQueryBuilder("u");
+    qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r", "ur.role_id = r.id")
+      .leftJoin("roles", "r2", "u.role_id = r2.id")
+      .where("(u.role_id > 1 OR r.id > 1)")
+      .select([
+        "u.id",
+        "u.email",
+        "u.role_id",
+        "u.is_activated",
+        "u.email_confirmed",
+        "u.lastActivity",
+      ]);
+
+    const users = await qb.getMany();
 
     if (!users.length) {
       throw new NotFoundException("No users found with role_id > 1");
@@ -44,7 +48,7 @@ export class UsersService {
 
   async findAll(): Promise<UserEntity[]> {
     return await this.usersRepository.find({
-      relations: ["user_info", "role"],
+      relations: ["user_info", "role", "user_roles", "user_roles.role"],
     });
   }
 
@@ -55,15 +59,17 @@ export class UsersService {
 
     const qb = this.userRepository.createQueryBuilder("u");
     qb.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id")
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r2", "ur.role_id = r2.id")
       .leftJoin("company_employees", "ce", "ce.employee_id = u.id")
       .leftJoinAndMapOne("u.company", "companies", "c", "c.id = ce.company_id");
 
     if (filters.role_name) {
-      qb.andWhere("r.name = :name", { name: filters.role_name });
+      qb.andWhere("(r.name = :name OR r2.name = :name)", { name: filters.role_name });
     }
 
-    if (filters.is_activated) {
-      qb.andWhere("u.is_activated", { is_activated: filters.is_activated });
+    if (typeof filters.is_activated === "boolean") {
+      qb.andWhere("u.is_activated = :is_activated", { is_activated: filters.is_activated });
     }
 
     if (filters.email) {
