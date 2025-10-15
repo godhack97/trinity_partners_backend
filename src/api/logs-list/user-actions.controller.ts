@@ -9,12 +9,23 @@ import { Roles } from "@decorators/Roles";
 @ApiBearerAuth()
 @Roles([RoleTypes.SuperAdmin])
 export class UserActionsController {
-  constructor(private readonly userActionsService: UserActionsService) {}
+  constructor(private readonly userActionsService: UserActionsService) { }
 
   @Get("/count")
   @ApiResponse({ type: Number })
   async getCount() {
     return this.userActionsService.getCount();
+  }
+
+  @Get("entity")
+  async getEntityHistory(
+    @Query("entity") entity,
+    @Query("id") id,
+  ) {
+    if (!entity || !id) {
+      throw new Error("entity and id are required");
+    }
+    return this.userActionsService.findByEntity(entity, id);
   }
 
   // Все логи

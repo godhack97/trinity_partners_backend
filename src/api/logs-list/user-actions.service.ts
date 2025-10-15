@@ -124,7 +124,7 @@ export class UserActionsService {
       const details =
         typeof log.details === "string" ? JSON.parse(log.details) : log.details;
 
-      const entityId = details?.params?.backupId ||details?.params?.id;
+      const entityId = details?.params?.backupId || details?.params?.id;
 
       if (
         details?.entity &&
@@ -198,6 +198,99 @@ export class UserActionsService {
       logs: await Promise.all(logs.map((log) => this.enrichLogWithEntity(log))),
       total,
     };
+  }
+
+  async findByEntity(entity, entityId) {
+    const logs = await this.userActionRepo
+      .createQueryBuilder("action")
+      .leftJoinAndSelect("action.user", "user")
+      .where("JSON_EXTRACT(action.details, '$.entity') = :entity", { entity })
+      .andWhere(
+        "(JSON_EXTRACT(action.details, '$.params.id') = :entityId OR JSON_EXTRACT(action.details, '$.body.id') = :entityId)",
+        { entityId }
+      )
+      .orderBy("action.created_at", "DESC")
+      .getMany();
+  
+    return Promise.all(logs.map((log) => this.structureEntityLog(log)));
+  }
+  
+  private async structureEntityLog(log) {
+    const enriched = await this.enrichLogWithEntity(log);
+    const details = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
+  
+    let userName = 'Неизвестный пользователь';
+  
+    if (log.user_id) {
+      const userInfo = await this.UserInfoRepo.findOne({
+        where: { user_id: log.user_id }
+      });
+  
+      if (userInfo && userInfo.first_name && userInfo.last_name) {
+        userName = `${userInfo.first_name} ${userInfo.last_name}`;
+      } else {
+        const user = await this.UserRepo.findOne({
+          where: { id: log.user_id }
+        });
+        if (user && user.email) {
+          userName = user.email;
+        }
+      }
+    }
+  
+    const changes = this.extractChanges(details);
+  
+    return {
+      название: enriched.actionLabel,
+      поля: changes,
+      кем: userName,
+      когда: this.getRelativeTime(log.created_at),
+      дата: log.created_at,
+    };
+  }
+  
+  private extractChanges(details) {
+    const changes = {};
+  
+    if (!details.body || !details.query) {
+      return changes;
+    }
+  
+    const oldValues = details.query;
+    const newValues = details.body;
+  
+    for (const key in newValues) {
+      if (oldValues.hasOwnProperty(key) && oldValues[key] !== newValues[key]) {
+        changes[key] = [oldValues[key], newValues[key]];
+      }
+    }
+  
+    return changes;
+  }
+  
+  private getRelativeTime(date) {
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+  
+    const isToday = now.toDateString() === past.toDateString();
+  
+    if (!isToday) {
+      const months = [
+        'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+      ];
+      const day = past.getDate();
+      const month = months[past.getMonth()];
+      const year = past.getFullYear();
+      return `${day} ${month} ${year}`;
+    }
+  
+    if (diffMins < 1) return 'только что';
+    if (diffMins < 60) return `${diffMins} мин назад`;
+    return `${diffHours} ч назад`;
   }
 
   async findPagedByAction(
