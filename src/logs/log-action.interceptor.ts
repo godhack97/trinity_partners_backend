@@ -44,6 +44,28 @@ export class LogActionInterceptor implements NestInterceptor {
       return obj;
     }
 
+    function calculateChanges(oldEntity: any, newData: any): any {
+      if (!oldEntity || !newData) return {};
+    
+      const changes: any = {};
+      const excludeFields = ['created_at', 'updated_at', 'component_slots', 'slots', 'typeId'];
+    
+      for (const key in newData) {
+        if (excludeFields.includes(key)) continue;
+    
+        if (oldEntity.hasOwnProperty(key)) {
+          if (JSON.stringify(oldEntity[key]) !== JSON.stringify(newData[key])) {
+            changes[key] = {
+              old: oldEntity[key],
+              new: newData[key]
+            };
+          }
+        }
+      }
+    
+      return changes;
+    }
+
     const logMeta = this.reflector.get<{ action: string; entity?: string }>(
       LOG_ACTION_KEY,
       context.getHandler(),
@@ -77,6 +99,7 @@ export class LogActionInterceptor implements NestInterceptor {
               body: removePasswords(req.body),
               query: req.query,
             };
+
             if (entitySnapshot) {
               details.deleted = {};
               if ("id" in entitySnapshot)
@@ -85,7 +108,10 @@ export class LogActionInterceptor implements NestInterceptor {
                 details.deleted.name = entitySnapshot.name;
               if ("email" in entitySnapshot)
                 details.deleted.email = entitySnapshot.email;
+
+              details.changes = calculateChanges(entitySnapshot, req.body);
             }
+
             this.userActions.log(userId, logMeta.action, details);
           }),
         ),

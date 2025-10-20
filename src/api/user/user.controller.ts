@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { TransformResponse } from "src/interceptors/transform-response.interceptor";
 import { UserResponseDto } from "./dto/response/user.response.dto";
+import { UpdatePartnerDto } from "./dto/request/update-partner.request.dto";
 import { UserService } from "./user.service";
 import { LogAction } from "src/logs/log-action.decorator";
 import { RequirePermissions } from "src/decorators/permissions.decorator";
@@ -29,10 +30,24 @@ export class UserController {
     return this.userService.findAll();
   }
 
+  @Patch('/partner/:id')
+  @RequirePermissions('api.users.write')
+  @UseInterceptors(new TransformResponse(UserResponseDto))
+  @ApiOperation({ summary: 'Обновить менеджера партнера' })
+  @LogAction('partner_edit_manager', 'users')
+  @ApiResponse({ status: 200, description: 'Менеджер партнера обновлен', type: UserResponseDto })
+  updatePartner(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateData: UpdatePartnerDto
+  ) {
+    return this.userService.update(id, updateData);
+  }
+
   @Patch(':id')
   @RequirePermissions('api.users.write')
   @UseInterceptors(new TransformResponse(UserResponseDto))
   @ApiOperation({ summary: 'Обновить данные пользователя' })
+  @LogAction("update_user", "users")
   @ApiResponse({ status: 200, description: 'Пользователь обновлен', type: UserResponseDto })
   update(
     @Param('id', ParseIntPipe) id: number,

@@ -200,6 +200,143 @@ export class UserActionsService {
     };
   }
 
+  async findEntityBackupOperations() {
+    const bulkActions = [
+      "configurator_component_export",
+      "configurator_component_import",
+      "configurator_component_backup",
+      "configurator_component_restore_backup",
+      "configurator_component_backup_delete",
+    ];
+
+    const logs = await this.userActionRepo
+      .createQueryBuilder("action")
+      .leftJoinAndSelect("action.user", "user")
+      .andWhere("action.action IN (:...bulkActions)", { bulkActions })
+      .orderBy("action.created_at", "DESC")
+      .getMany();
+
+    return Promise.all(logs.map((log) => this.structureEntityLog(log)));
+  }
+
+  async findByEntity(entity, entityId) {
+    const queryBuilder = this.userActionRepo
+      .createQueryBuilder("action")
+      .leftJoinAndSelect("action.user", "user")
+      .where("JSON_EXTRACT(action.details, '$.entity') = :entity", { entity });
+
+    if (entityId) {
+      queryBuilder.andWhere(
+        "(JSON_EXTRACT(action.details, '$.params.id') = :entityId OR JSON_EXTRACT(action.details, '$.body.id') = :entityId)",
+        { entityId }
+      );
+    } else {
+      queryBuilder.andWhere(
+        "(JSON_EXTRACT(action.details, '$.params.id') IS NULL AND JSON_EXTRACT(action.details, '$.body.id') IS NULL)"
+      );
+    }
+
+    const logs = await queryBuilder
+      .orderBy("action.created_at", "DESC")
+      .getMany();
+
+    return Promise.all(logs.map((log) => this.structureEntityLog(log)));
+  }
+  
+  private async structureEntityLog(log) {
+    const enriched = await this.enrichLogWithEntity(log);
+    let details = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
+  
+    let userName = 'Неизвестный пользователь';
+  
+    if (log.user_id) {
+      const userInfo = await this.UserInfoRepo.findOne({
+        where: { user_id: log.user_id }
+      });
+  
+      if (userInfo && userInfo.first_name && userInfo.last_name) {
+        userName = `${userInfo.first_name} ${userInfo.last_name}`;
+      } else {
+        const user = await this.UserRepo.findOne({
+          where: { id: log.user_id }
+        });
+        if (user && user.email) {
+          userName = user.email;
+        }
+      }
+    }
+
+    if (details?.changes?.manager_id) {
+      const managerOldInfo = await this.UserInfoRepo.findOne({
+        where: { user_id: details?.changes?.manager_id?.old }
+      });
+      const managerNewInfo = await this.UserInfoRepo.findOne({
+        where: { user_id: details?.changes?.manager_id?.new }
+      });
+
+      if (managerOldInfo && managerOldInfo.first_name && managerOldInfo.last_name) {
+        details.changes.manager_id.old = `${managerOldInfo.first_name} ${managerOldInfo.last_name}`;
+      }
+
+      if (managerNewInfo && managerNewInfo.first_name && managerNewInfo.last_name) {
+        details.changes.manager_id.new = `${managerNewInfo.first_name} ${managerNewInfo.last_name}`;
+      }
+
+      details.changes['Менеджер'] = details.changes.manager_id;
+      delete details.changes.manager_id;
+    }
+  
+    const changes = this.extractChanges(details);
+  
+    return {
+      action: enriched.actionLabel,
+      changes: changes,
+      userName: userName,
+      date_format: this.getRelativeTime(log.created_at),
+      date: log.created_at,
+    };
+  }
+  
+  private extractChanges(details) {
+    if (details.changes) {
+      const formatted = {};
+      for (const key in details.changes) {
+        formatted[key] = [details.changes[key].old, details.changes[key].new];
+      }
+      return formatted;
+    }
+  
+    return {};
+  }
+  
+  private getRelativeTime(date) {
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+  
+    const isToday = now.toDateString() === past.toDateString();
+  
+    if (!isToday) {
+      const months = [
+        'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+      ];
+      const day = past.getDate();
+      const month = months[past.getMonth()];
+      const year = past.getFullYear();
+      const hours = past.getHours();
+      const minutes = past.getMinutes();
+      return `${day} ${month} ${year} в ${hours}:${minutes}`;
+    }
+  
+    if (diffMins < 1) return 'только что';
+    if (diffMins < 60) return `${diffMins} мин назад`;
+    return `${diffHours} ч назад`;
+  }
+
+
   async findPagedByAction(
     action: string,
     skip = 0,
