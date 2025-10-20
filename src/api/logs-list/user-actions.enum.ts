@@ -43,6 +43,7 @@ export enum UserActionType {
 
   PARTNER_ACCEPT = "partner_accept",
   PARTNER_REJECT = "partner_reject",
+  PARTNER_EDIT_MANAGER = "partner_edit_manager",
 
   CREATE_USER = "create_user",
   UPDATE_USER = "update_user",
@@ -162,6 +163,7 @@ export const UserActionLabels: Record<UserActionType, string> = {
 
   [UserActionType.PARTNER_ACCEPT]: "Принята новая заявка от партнёра",
   [UserActionType.PARTNER_REJECT]: "Отклонена заявка от партнёра",
+  [UserActionType.PARTNER_EDIT_MANAGER]: "Изменен ответственный менеджер партнера",
 
   [UserActionType.CREATE_USER]: "Создан пользователь",
   [UserActionType.UPDATE_USER]: "Обновлён пользователь",

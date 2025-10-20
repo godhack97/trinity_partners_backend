@@ -200,24 +200,52 @@ export class UserActionsService {
     };
   }
 
-  async findByEntity(entity, entityId) {
+  async findEntityBackupOperations() {
+    const bulkActions = [
+      "configurator_component_export",
+      "configurator_component_import",
+      "configurator_component_backup",
+      "configurator_component_restore_backup",
+      "configurator_component_backup_delete",
+    ];
+
     const logs = await this.userActionRepo
       .createQueryBuilder("action")
       .leftJoinAndSelect("action.user", "user")
-      .where("JSON_EXTRACT(action.details, '$.entity') = :entity", { entity })
-      .andWhere(
-        "(JSON_EXTRACT(action.details, '$.params.id') = :entityId OR JSON_EXTRACT(action.details, '$.body.id') = :entityId)",
-        { entityId }
-      )
+      .andWhere("action.action IN (:...bulkActions)", { bulkActions })
       .orderBy("action.created_at", "DESC")
       .getMany();
-  
+
+    return Promise.all(logs.map((log) => this.structureEntityLog(log)));
+  }
+
+  async findByEntity(entity, entityId) {
+    const queryBuilder = this.userActionRepo
+      .createQueryBuilder("action")
+      .leftJoinAndSelect("action.user", "user")
+      .where("JSON_EXTRACT(action.details, '$.entity') = :entity", { entity });
+
+    if (entityId) {
+      queryBuilder.andWhere(
+        "(JSON_EXTRACT(action.details, '$.params.id') = :entityId OR JSON_EXTRACT(action.details, '$.body.id') = :entityId)",
+        { entityId }
+      );
+    } else {
+      queryBuilder.andWhere(
+        "(JSON_EXTRACT(action.details, '$.params.id') IS NULL AND JSON_EXTRACT(action.details, '$.body.id') IS NULL)"
+      );
+    }
+
+    const logs = await queryBuilder
+      .orderBy("action.created_at", "DESC")
+      .getMany();
+
     return Promise.all(logs.map((log) => this.structureEntityLog(log)));
   }
   
   private async structureEntityLog(log) {
     const enriched = await this.enrichLogWithEntity(log);
-    const details = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
+    let details = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
   
     let userName = 'Неизвестный пользователь';
   
@@ -237,35 +265,48 @@ export class UserActionsService {
         }
       }
     }
+
+    if (details?.changes?.manager_id) {
+      const managerOldInfo = await this.UserInfoRepo.findOne({
+        where: { user_id: details?.changes?.manager_id?.old }
+      });
+      const managerNewInfo = await this.UserInfoRepo.findOne({
+        where: { user_id: details?.changes?.manager_id?.new }
+      });
+
+      if (managerOldInfo && managerOldInfo.first_name && managerOldInfo.last_name) {
+        details.changes.manager_id.old = `${managerOldInfo.first_name} ${managerOldInfo.last_name}`;
+      }
+
+      if (managerNewInfo && managerNewInfo.first_name && managerNewInfo.last_name) {
+        details.changes.manager_id.new = `${managerNewInfo.first_name} ${managerNewInfo.last_name}`;
+      }
+
+      details.changes['Менеджер'] = details.changes.manager_id;
+      delete details.changes.manager_id;
+    }
   
     const changes = this.extractChanges(details);
   
     return {
-      название: enriched.actionLabel,
-      поля: changes,
-      кем: userName,
-      когда: this.getRelativeTime(log.created_at),
-      дата: log.created_at,
+      action: enriched.actionLabel,
+      changes: changes,
+      userName: userName,
+      date_format: this.getRelativeTime(log.created_at),
+      date: log.created_at,
     };
   }
   
   private extractChanges(details) {
-    const changes = {};
-  
-    if (!details.body || !details.query) {
-      return changes;
-    }
-  
-    const oldValues = details.query;
-    const newValues = details.body;
-  
-    for (const key in newValues) {
-      if (oldValues.hasOwnProperty(key) && oldValues[key] !== newValues[key]) {
-        changes[key] = [oldValues[key], newValues[key]];
+    if (details.changes) {
+      const formatted = {};
+      for (const key in details.changes) {
+        formatted[key] = [details.changes[key].old, details.changes[key].new];
       }
+      return formatted;
     }
   
-    return changes;
+    return {};
   }
   
   private getRelativeTime(date) {
@@ -285,13 +326,16 @@ export class UserActionsService {
       const day = past.getDate();
       const month = months[past.getMonth()];
       const year = past.getFullYear();
-      return `${day} ${month} ${year}`;
+      const hours = past.getHours();
+      const minutes = past.getMinutes();
+      return `${day} ${month} ${year} в ${hours}:${minutes}`;
     }
   
     if (diffMins < 1) return 'только что';
     if (diffMins < 60) return `${diffMins} мин назад`;
     return `${diffHours} ч назад`;
   }
+
 
   async findPagedByAction(
     action: string,

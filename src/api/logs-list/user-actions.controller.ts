@@ -17,15 +17,38 @@ export class UserActionsController {
     return this.userActionsService.getCount();
   }
 
+  @Get("entity/backup-operations")
+  async getEntityBulkOperations( ) {
+    return this.userActionsService.findEntityBackupOperations();
+  }
+
   @Get("entity")
   async getEntityHistory(
     @Query("entity") entity,
     @Query("id") id,
   ) {
-    if (!entity || !id) {
-      throw new Error("entity and id are required");
+    if (!entity) {
+      throw new Error("entity is required");
     }
-    return this.userActionsService.findByEntity(entity, id);
+  
+    const entities = Array.isArray(entity) ? entity : [entity];
+    const ids = Array.isArray(id) ? id : [id];
+  
+    if (entities.length !== ids.length) {
+      throw new Error("entity и id должны быть одинаковой длины");
+    }
+  
+    const results = await Promise.all(
+      entities.map((ent, idx) =>
+        this.userActionsService.findByEntity(ent, ids[idx])
+      )
+    );
+  
+    return results.flat().sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
   }
 
   // Все логи
