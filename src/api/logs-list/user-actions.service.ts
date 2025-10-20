@@ -124,7 +124,7 @@ export class UserActionsService {
       const details =
         typeof log.details === "string" ? JSON.parse(log.details) : log.details;
 
-      const entityId = details?.params?.backupId ||details?.params?.id;
+      const entityId = details?.params?.backupId || details?.params?.id;
 
       if (
         details?.entity &&
