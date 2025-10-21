@@ -77,7 +77,8 @@ export class AdminDealService {
     await this.notificationService.send({
       user_id: deal.creator_id,
       title: "Статус сделки",
-      text: `Обновление статуса Сделка №${deal.deal_num} - сделка ${DealStatusRu[deal.status]}`,
+      text: `Обновлён статус Сделки №${deal.deal_num} - новый статус "${DealStatusRu[deal.status]}"`,
+      email: 'partner@trinity.ru',
     });
   }
   
@@ -96,6 +97,7 @@ export class AdminDealService {
       user_id: deal.creator_id,
       title: "Выдана скидка",
       text: `По сделке №${deal.deal_num} выдана скидка на ${deal.special_discount} ${deal.special_discount.indexOf("%") > -1 ? "процентов" : CURRENCY}`,
+      email: 'partner@trinity.ru',
     });
   }
 }

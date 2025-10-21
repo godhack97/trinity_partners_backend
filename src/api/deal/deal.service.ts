@@ -185,49 +185,39 @@ export class DealService {
     creator: UserEntity,
   ) {
     try {
-      const qb = this.userRepository.createQueryBuilder("u");
-      qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
-        .leftJoin("roles", "r", "ur.role_id = r.id")
-        .leftJoin("roles", "r2", "u.role_id = r2.id")
-        .where("(r.id = 1 OR r2.id = 1)");
-
-      const superAdmins = await qb.getMany();
-
       const creatorWithInfo = await this.userRepository.findByIdWithUserInfo(
         creator.id,
       );
-
-      for (const admin of superAdmins) {
-        await this.emailConfirmerService.emailSend({
-          email: admin.email,
-          subject: "Создана новая сделка",
-          template: "admin-new-deal-notification",
-          context: {
-            adminName: admin.user_info?.first_name || "Администратор",
-            dealNumber: deal.deal_num,
-            dealId: deal.id,
-            customerFirstName: customer.first_name,
-            customerLastName: customer.last_name,
-            customerEmail: customer.email,
-            customerPhone: customer.phone,
-            distributorName: distributor.name,
-            distributorId: distributor.id,
-            creatorName:
-              creatorWithInfo.user_info?.first_name &&
-              creatorWithInfo.user_info?.last_name
-                ? `${creatorWithInfo.user_info.first_name} ${creatorWithInfo.user_info.last_name}`
-                : creatorWithInfo.email,
-            creatorEmail: creatorWithInfo.email,
-            creationDate: new Date().toLocaleDateString("ru-RU"),
-            purchaseDate: deal.purchase_date
-              ? new Date(deal.purchase_date).toLocaleDateString("ru-RU")
-              : null,
-            amount: deal.amount,
-            status: deal.status,
-            description: deal.description,
-          },
-        });
-      }
+  
+      await this.emailConfirmerService.emailSend({
+        email: "partner@trinity.ru",
+        subject: "Создана новая сделка",
+        template: "admin-new-deal-notification",
+        context: {
+          adminName: "Администратор",
+          dealNumber: deal.deal_num,
+          dealId: deal.id,
+          customerFirstName: customer.first_name,
+          customerLastName: customer.last_name,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          distributorName: distributor.name,
+          distributorId: distributor.id,
+          creatorName:
+            creatorWithInfo.user_info?.first_name &&
+            creatorWithInfo.user_info?.last_name
+              ? `${creatorWithInfo.user_info.first_name} ${creatorWithInfo.user_info.last_name}`
+              : creatorWithInfo.email,
+          creatorEmail: creatorWithInfo.email,
+          creationDate: new Date().toLocaleDateString("ru-RU"),
+          purchaseDate: deal.purchase_date
+            ? new Date(deal.purchase_date).toLocaleDateString("ru-RU")
+            : null,
+          amount: deal.amount,
+          status: deal.status,
+          description: deal.description,
+        },
+      });
     } catch (error) {
       console.error(
         "Ошибка отправки уведомления админам о новой сделке:",

@@ -51,8 +51,8 @@ export class NotificationService {
     [NotificationType.Site]: this.sendWeb.bind(this),
     [NotificationType.Email]: this.sendEmail.bind(this),
   };
-  async send(data: NotificationSendDto) {
-    const { user_id, title, text } = data;
+  async send(data: NotificationSendDto & { email?: string }) {
+    const { user_id, title, text, email: additionalEmail } = data;
   
     if (!user_id) {
       Logger.error('User ID is null or undefined in NotificationService.send');
@@ -60,7 +60,7 @@ export class NotificationService {
     }
   
     const user = await this.userRepository.findById(user_id);
-    
+  
     if (!user) {
       Logger.error(`User not found with ID: ${user_id}`);
       return;
@@ -85,6 +85,22 @@ export class NotificationService {
         text,
         type,
       });
+    }
+  
+    if (additionalEmail && additionalEmail !== user.email) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+  
+      for (const filteredSetting of filteredSettingTypes) {
+        const type = mapSettingToNotificationType[filteredSetting.type];
+  
+        await this.actionByType[type]({
+          user_id: user.id,
+          email: additionalEmail,
+          title,
+          text,
+          type,
+        });
+      }
     }
   }
 
