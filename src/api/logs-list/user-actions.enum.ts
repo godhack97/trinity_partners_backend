@@ -3,6 +3,10 @@ export enum UserActionType {
   CONFIGURATOR_COMPONENT_UPDATE = "configurator_component_update",
   CONFIGURATOR_COMPONENT_DELETE = "configurator_component_delete",
 
+  CONFIGURATOR_COMPONENTTYPE_ADD = "configurator_componenttype_add",
+  CONFIGURATOR_COMPONENTTYPE_UPDATE = "configurator_componenttype_update",
+  CONFIGURATOR_COMPONENTTYPE_DELETE = "configurator_componenttype_delete",
+
   CONFIGURATOR_COMPONENT_EXPORT = "configurator_component_export",
   CONFIGURATOR_COMPONENT_IMPORT = "configurator_component_import",
   CONFIGURATOR_COMPONENT_BACKUP = "configurator_component_backup",
@@ -93,6 +97,9 @@ export const UserActionLabels: Record<UserActionType, string> = {
  [UserActionType.CONFIGURATOR_COMPONENT_RESTORE_BACKUP] : "Восстановлен бекап компонент",
  [UserActionType.CONFIGURATOR_COMPONENT_BACKUP_DELETE] : "Удалён бекап компонент",
 
+  [UserActionType.CONFIGURATOR_COMPONENTTYPE_ADD] : "Добавлен тип компонента",
+  [UserActionType.CONFIGURATOR_COMPONENTTYPE_UPDATE] : "Обновлен тип компонента",
+  [UserActionType.CONFIGURATOR_COMPONENTTYPE_DELETE] : "Удален тип компонента",
 
   [UserActionType.BITRIX24_CONTACT_NOTFOUND]: "Контакт не найден для сделки",
   [UserActionType.BITRIX24_CONTACT_CREATED]: "Контакт создан в Bitrix24",

@@ -4,7 +4,7 @@ import { ConfiguratorService } from "./configurator.service";
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
 import { CreateComponentTypeDto } from "./dto/request/create-component-type.dto";
 import { UpdateComponentTypeDto } from "./dto/request/update-component-type.dto";
-
+import { LogAction } from "@app/logs/log-action.decorator";
 @ApiTags("configurator")
 @Controller("configurator")
 @ApiBearerAuth()
@@ -105,18 +105,21 @@ export class ConfiguratorController {
 
 
   @Post("componentType")
+  @LogAction("configurator_componenttype_add", "cnf_component_types")
   @ApiOperation({ summary: "Создать новый тип компонента" })
   createComponentType(@Body() dto: CreateComponentTypeDto) {
     return this.configuratorService.createComponentType(dto);
   }
 
   @Patch("componentType/:id")
+  @LogAction("configurator_componenttype_update", "cnf_component_types")
   @ApiOperation({ summary: "Обновить тип компонента" })
   updateComponentType(@Param("id") id: string, @Body() dto: UpdateComponentTypeDto) {
     return this.configuratorService.updateComponentType(id, dto);
   }
 
   @Delete("componentType/:id")
+  @LogAction("configurator_componenttype_delete", "cnf_component_types")
   @ApiOperation({ summary: "Удалить тип компонента" })
   deleteComponentType(@Param("id") id: string) {
     return this.configuratorService.deleteComponentType(id);
