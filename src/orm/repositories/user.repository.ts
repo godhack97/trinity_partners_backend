@@ -109,7 +109,7 @@ export class UserRepository {
   public async findByToken(token: string): Promise<UserEntity> {
     const userToken = await this.userTokenRepository.findOne({
       where: { token },
-      relations: ["user", 'manager'],
+      relations: ["user", 'user.manager'],
     });
     return userToken?.user || null;
   }
@@ -131,7 +131,7 @@ export class UserRepository {
   public async findByTokenWithCompanyEmployees(token: string) {
     const userToken = await this.userTokenRepository.findOne({
       where: { token },
-      relations: ["user", "user.company_employee", 'manager'],
+      relations: ["user", "user.company_employee", 'user.manager'],
     });
     return userToken?.user || null;
   }
