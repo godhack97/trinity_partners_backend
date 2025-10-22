@@ -30,6 +30,9 @@ export class UserActionsService {
     @InjectRepository(entities.DealEntity)
     private readonly DealRepo: Repository<entities.DealEntity>,
 
+    @InjectRepository(entities.DealDeletionRequestEntity)
+    private readonly DealDeletionRequestRepo: Repository<entities.DealDeletionRequestEntity>,
+
     @InjectRepository(entities.DistributorEntity)
     private readonly DistributorRepo: Repository<entities.DistributorEntity>,
 
@@ -42,11 +45,35 @@ export class UserActionsService {
     @InjectRepository(entities.RoleEntity)
     private readonly RoleRepo: Repository<entities.RoleEntity>,
 
+    @InjectRepository(entities.Permission)
+    private readonly PermissionRepo: Repository<entities.Permission>,
+
+    @InjectRepository(entities.RolePermission)
+    private readonly RolePermissionRepo: Repository<entities.RolePermission>,
+
     @InjectRepository(entities.UserInfoEntity)
     private readonly UserInfoRepo: Repository<entities.UserInfoEntity>,
 
     @InjectRepository(entities.UserEntity)
     private readonly UserRepo: Repository<entities.UserEntity>,
+
+    @InjectRepository(entities.UserRoleEntity)
+    private readonly UserRoleRepo: Repository<entities.UserRoleEntity>,
+
+    @InjectRepository(entities.UserSettingEntity)
+    private readonly UserSettingRepo: Repository<entities.UserSettingEntity>,
+
+    @InjectRepository(entities.UserTableSettingsEntity)
+    private readonly UserTableSettingsRepo: Repository<entities.UserTableSettingsEntity>,
+
+    @InjectRepository(entities.UserToken)
+    private readonly UserTokenRepo: Repository<entities.UserToken>,
+
+    @InjectRepository(entities.ResetHashEntity)
+    private readonly ResetHashRepo: Repository<entities.ResetHashEntity>,
+
+    @InjectRepository(entities.ForbiddenInn)
+    private readonly ForbiddenInnRepo: Repository<entities.ForbiddenInn>,
 
     @InjectRepository(entities.CnfComponentEntity)
     private readonly CnfComponentRepo: Repository<entities.CnfComponentEntity>,
@@ -54,8 +81,20 @@ export class UserActionsService {
     @InjectRepository(entities.CnfComponentBackup)
     private readonly CnfComponentBackupRepo: Repository<entities.CnfComponentBackup>,
 
+    @InjectRepository(entities.CnfComponentBackupData)
+    private readonly CnfComponentBackupDataRepo: Repository<entities.CnfComponentBackupData>,
+
+    @InjectRepository(entities.CnfComponentSlotEntity)
+    private readonly CnfComponentSlotRepo: Repository<entities.CnfComponentSlotEntity>,
+
+    @InjectRepository(entities.CnfComponentTypeEntity)
+    private readonly CnfComponentTypeRepo: Repository<entities.CnfComponentTypeEntity>,
+
     @InjectRepository(entities.CnfMultislotEntity)
     private readonly CnfMultislotRepo: Repository<entities.CnfMultislotEntity>,
+
+    @InjectRepository(entities.CnfMultislotSlotEntity)
+    private readonly CnfMultislotSlotRepo: Repository<entities.CnfMultislotSlotEntity>,
 
     @InjectRepository(entities.CnfProcessorGeneration)
     private readonly CnfProcessorGenerationRepo: Repository<entities.CnfProcessorGeneration>,
@@ -69,6 +108,12 @@ export class UserActionsService {
     @InjectRepository(entities.CnfServerboxHeightEntity)
     private readonly CnfServerboxHeightRepo: Repository<entities.CnfServerboxHeightEntity>,
 
+    @InjectRepository(entities.CnfServerMultislotEntity)
+    private readonly CnfServerMultislotRepo: Repository<entities.CnfServerMultislotEntity>,
+
+    @InjectRepository(entities.CnfServerSlotEntity)
+    private readonly CnfServerSlotRepo: Repository<entities.CnfServerSlotEntity>,
+
     @InjectRepository(entities.CnfSlotEntity)
     private readonly CnfSlotRepo: Repository<entities.CnfSlotEntity>,
   ) {
@@ -81,17 +126,67 @@ export class UserActionsService {
         repo: this.UserInfoRepo,
         field: (entity) => `${entity.first_name} ${entity.last_name}`,
       },
-      configurator_component: { repo: this.companyEmployeeRepo, field: "name" },
+      configurator_component: { repo: this.CnfComponentRepo, field: "name" },
       users: { repo: this.UserRepo, field: "email" },
       company_employees: { repo: this.companyEmployeeRepo, field: "company" },
       companies: { repo: this.CompanyRepo, field: "name" },
       deals: { repo: this.DealRepo, field: "deal_num" },
+      deal_deletion_requests: {
+        repo: this.DealDeletionRequestRepo,
+        field: "deletion_reason"
+      },
       distributors: { repo: this.DistributorRepo, field: "name" },
       news: { repo: this.NewsRepo, field: "name" },
       notifications: { repo: this.NotificationRepo, field: "title" },
       roles: { repo: this.RoleRepo, field: "name" },
+      permissions: { repo: this.PermissionRepo, field: "name" },
+      role_permissions: {
+        repo: this.RolePermissionRepo,
+        field: (entity) => `Роль: ${entity.role_id}, Право: ${entity.permission_id}`
+      },
+      user_roles: {
+        repo: this.UserRoleRepo,
+        field: (entity) => `User ID: ${entity.user_id}`
+      },
+      user_settings: {
+        repo: this.UserSettingRepo,
+        field: (entity) => `${entity.type}: ${entity.value}`
+      },
+      user_table_settings: {
+        repo: this.UserTableSettingsRepo,
+        field: "table_id"
+      },
+      user_tokens: {
+        repo: this.UserTokenRepo,
+        field: "client_id"
+      },
+      reset_hashs: {
+        repo: this.ResetHashRepo,
+        field: "email"
+      },
+      forbidden_inns: {
+        repo: this.ForbiddenInnRepo,
+        field: "inn"
+      },
       cnf_components: { repo: this.CnfComponentRepo, field: "name" },
+      cnf_component_backups: {
+        repo: this.CnfComponentBackupRepo,
+        field: (entity) => `${entity.name} ${entity.components_count}шт`
+      },
+      cnf_component_backup_data: {
+        repo: this.CnfComponentBackupDataRepo,
+        field: "backup_id"
+      },
+      cnf_component_slots: {
+        repo: this.CnfComponentSlotRepo,
+        field: (entity) => `Слот: ${entity.slot_id}, Компонент: ${entity.component_id}`
+      },
+      cnf_component_types: { repo: this.CnfComponentTypeRepo, field: "name" },
       cnf_multislots: { repo: this.CnfMultislotRepo, field: "name" },
+      cnf_multislot_slots: {
+        repo: this.CnfMultislotSlotRepo,
+        field: (entity) => `Мультислот: ${entity.multislot_id}, Слот: ${entity.slot_id}`
+      },
       cnf_processor_generation: {
         repo: this.CnfProcessorGenerationRepo,
         field: "name",
@@ -105,11 +200,15 @@ export class UserActionsService {
         repo: this.CnfServerboxHeightRepo,
         field: "name",
       },
-      cnf_slots: { repo: this.CnfSlotRepo, field: "name" },
-      cnf_component_backups: {
-        repo: this.CnfComponentBackupRepo,
-        field: (entity) => `${entity.name} ${entity.components_count}шт`
+      cnf_server_multislots: {
+        repo: this.CnfServerMultislotRepo,
+        field: (entity) => `Сервер: ${entity.server_id}, Мультислот: ${entity.multislot_id}`
       },
+      cnf_server_slots: {
+        repo: this.CnfServerSlotRepo,
+        field: (entity) => `Сервер: ${entity.server_id}, Слот: ${entity.slot_id}`
+      },
+      cnf_slots: { repo: this.CnfSlotRepo, field: "name" },
     };
   }
 
@@ -242,18 +341,18 @@ export class UserActionsService {
 
     return Promise.all(logs.map((log) => this.structureEntityLog(log)));
   }
-  
+
   private async structureEntityLog(log) {
     const enriched = await this.enrichLogWithEntity(log);
     let details = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
-  
+
     let userName = 'Неизвестный пользователь';
-  
+
     if (log.user_id) {
       const userInfo = await this.UserInfoRepo.findOne({
         where: { user_id: log.user_id }
       });
-  
+
       if (userInfo && userInfo.first_name && userInfo.last_name) {
         userName = `${userInfo.first_name} ${userInfo.last_name}`;
       } else {
@@ -285,9 +384,9 @@ export class UserActionsService {
       details.changes['Менеджер'] = details.changes.manager_id;
       delete details.changes.manager_id;
     }
-  
+
     const changes = this.extractChanges(details);
-  
+
     return {
       action: enriched.actionLabel,
       changes: changes,
@@ -296,7 +395,7 @@ export class UserActionsService {
       date: log.created_at,
     };
   }
-  
+
   private extractChanges(details) {
     if (details.changes) {
       const formatted = {};
@@ -305,19 +404,19 @@ export class UserActionsService {
       }
       return formatted;
     }
-  
+
     return {};
   }
-  
+
   private getRelativeTime(date) {
     const now = new Date();
     const past = new Date(date);
     const diffMs = now.getTime() - past.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
-  
+
     const isToday = now.toDateString() === past.toDateString();
-  
+
     if (!isToday) {
       const months = [
         'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -330,7 +429,7 @@ export class UserActionsService {
       const minutes = past.getMinutes();
       return `${day} ${month} ${year} в ${hours}:${minutes}`;
     }
-  
+
     if (diffMins < 1) return 'только что';
     if (diffMins < 60) return `${diffMins} мин назад`;
     return `${diffHours} ч назад`;

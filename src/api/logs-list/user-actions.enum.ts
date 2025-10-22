@@ -54,6 +54,7 @@ export enum UserActionType {
   ARCHIVE_USER = "archive_user",
   RESTORE_USER = "restore_user",
   USER_ARCHIVE = "user_archive",
+  USER_ROLE_UPDATE = "user_role_update",
 
   AUTH_UPDATE_PASSWORD = "auth_update_password",
   AUTH_RECOVERY_PASSWORD = "auth_recovery_password",
@@ -177,6 +178,8 @@ export const UserActionLabels: Record<UserActionType, string> = {
   [UserActionType.ARCHIVE_USER]: "Пользователь архивирован (удалён)",
   [UserActionType.RESTORE_USER]: "Восстановление пользователя из архива",
   [UserActionType.USER_ARCHIVE]: "Пользователь архивирован (удалён)",
+
+  [UserActionType.USER_ROLE_UPDATE]: "Обновлены роли пользователя",
 
   [UserActionType.AUTH_UPDATE_PASSWORD]: "Обновление пароля пользователя",
   [UserActionType.AUTH_RECOVERY_PASSWORD]: "Запрос на восстановление пароля",

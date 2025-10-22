@@ -16,7 +16,7 @@ export const DealStatusRu = {
   canceled: "не зарегистрирована",
   moderation: "на рассмотрении",
   win: "выиграна",
-  loose: "проиграла",
+  loose: "проиграна",
 };
 
 export enum Bitrix24SyncStatus {

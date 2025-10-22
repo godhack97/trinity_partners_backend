@@ -78,6 +78,7 @@ export class UserController {
 
   @Post('update-roles/:id')
   @RequirePermissions('api.roles.write')
+  @LogAction("user_role_update", "user_roles", ["user_id", "role_id"])
   @ApiOperation({ summary: 'Обновить роли пользователю (множественные)' })
   @ApiResponse({ status: 200, description: 'Роли обновлены' })
   updateRoles(
