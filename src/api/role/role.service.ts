@@ -41,7 +41,7 @@ export class RoleService {
   async findAll(): Promise<RoleEntity[]> {
     return this.roleRepository.find({
       where: { deleted_at: null },
-      relations: ['permissions'],
+      relations: ['permissions', 'users'],
       order: { created_at: 'DESC' }
     });
   }
