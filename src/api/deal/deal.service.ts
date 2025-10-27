@@ -330,11 +330,6 @@ export class DealService {
       this.hasRole(auth_user, RoleTypes.EmployeeAdmin) ||
       this.hasRole(auth_user, RoleTypes.Partner)
     ) {
-      const companyWithEmployees =
-        await this.companyRepository.findByIdWithEmployees(
-          auth_user?.company_employee?.company_id,
-        );
-
       if (auth_user.id === deal.creator_id) {
         return deal;
       }

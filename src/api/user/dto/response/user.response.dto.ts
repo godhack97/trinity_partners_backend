@@ -26,4 +26,9 @@ export class UserResponseDto extends WithIdDto {
   @Expose()
   @Type(() => PartnerResponseDto)
   owner_company?: PartnerResponseDto;
+
+  @ApiProperty()
+  @Expose()
+  @Type(() => UserResponseDto)
+  manager?: UserResponseDto;
 }

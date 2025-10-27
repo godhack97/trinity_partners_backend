@@ -46,6 +46,7 @@ export class DealRepository extends Repository<DealEntity> {
       .leftJoinAndSelect("deal.customer", "customer")
       .leftJoinAndSelect("deal.partner", "partner")
       .leftJoinAndSelect("partner.role", "role")
+      .leftJoinAndSelect("partner.manager", "manager")
       .leftJoin(
         "deal_deletion_requests",
         "deletion_request",
@@ -101,10 +102,9 @@ export class DealRepository extends Repository<DealEntity> {
         deal.partner.owner_company = partnerCompany;
       }
 
-      const dealWithStatus = {
-        ...deal,
+      const dealWithStatus = Object.assign(deal, {
         delete_request_status: raw.delete_request_status,
-      };
+      });
 
       deals.push(dealWithStatus);
     }
