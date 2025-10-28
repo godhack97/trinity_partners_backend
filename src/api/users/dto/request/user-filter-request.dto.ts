@@ -21,4 +21,8 @@ export class UserFilterRequestDto extends PaginationRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   company_id?: number; //(id компании для фильтрации принадлежности к компании)
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  search?: string; // Поиск по email, имени и фамилии
 }

@@ -46,10 +46,37 @@ export class UsersService {
     return users;
   }
 
-  async findAll(): Promise<UserEntity[]> {
-    return await this.usersRepository.find({
-      relations: ["user_info", "role", "user_roles", "user_roles.role"],
-    });
+  async findAll(filters?: UserFilterRequestDto) {
+    const current_page = filters?.current_page || 1;
+    const limit = filters?.limit || 20;
+    const skip = (current_page - 1) * limit;
+
+    const qb = this.usersRepository.createQueryBuilder("u")
+      .leftJoinAndSelect("u.user_info", "user_info")
+      .leftJoinAndSelect("u.role", "role")
+      .leftJoinAndSelect("u.user_roles", "user_roles")
+      .leftJoinAndSelect("user_roles.role", "ur_role");
+
+    if (filters?.search) {
+      qb.andWhere(
+        "(LOWER(u.email) LIKE LOWER(:search) OR LOWER(user_info.first_name) LIKE LOWER(:search) OR LOWER(user_info.last_name) LIKE LOWER(:search))",
+        { search: `%${filters.search}%` }
+      );
+    }
+
+    const [data, total] = await qb
+      .orderBy("u.id", "ASC")
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      current_page,
+      limit,
+      total,
+      pages_count: Math.ceil(total / limit),
+      data,
+    };
   }
 
   async find(filters: UserFilterRequestDto) {

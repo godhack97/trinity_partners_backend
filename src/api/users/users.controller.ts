@@ -8,8 +8,10 @@ import {
   UseInterceptors,
   HttpException,
   HttpStatus,
+  Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
 
 @Controller("users")
 @ApiTags("users")
@@ -25,9 +27,9 @@ export class UsersController {
   }
 
   @Get("/all")
-  async findAll(): Promise<UserEntity[]> {
+  async findAll(@Query() filters: UserFilterRequestDto) {
     try {
-      return await this.usersService.findAll();
+      return await this.usersService.findAll(filters);
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.NOT_FOUND);
     }
