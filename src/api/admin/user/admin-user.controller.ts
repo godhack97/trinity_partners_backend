@@ -7,7 +7,7 @@ import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 
-@ApiTags("admin/user")
+@ApiTags("user")
 @ApiBearerAuth()
 @Controller("admin/user")
 @Roles([RoleTypes.SuperAdmin])

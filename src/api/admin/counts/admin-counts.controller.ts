@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags, ApiResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from "@nestjs/swagger";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { NewsService } from "@api/news/news.service";
@@ -13,7 +13,7 @@ import { DealService } from "@api/deal/deal.service";
 import { UserActionsService } from "@api/logs-list/user-actions.service";
 import { request } from "http";
 
-@ApiTags("admin/counts")
+@ApiTags("counts")
 @ApiBearerAuth()
 @Controller("admin")
 @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager, RoleTypes.EmployeeAdmin])
@@ -30,6 +30,7 @@ export class AdminCountsController {
   ) {}
 
   @Get("/counts")
+  @ApiOperation({ summary: 'Получить количества сущностей' })
   @ApiResponse({ type: Object })
   async getAllCounts() {
     const [

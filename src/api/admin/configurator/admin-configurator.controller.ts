@@ -3,7 +3,7 @@ import { Controller } from "@nestjs/common";
 import { Roles } from "../../../decorators/Roles";
 import { RoleTypes } from "../../../types/RoleTypes";
 
-@ApiTags("admin/configurator")
+@ApiTags("configurator")
 @ApiBearerAuth()
 @Controller("admin/configurator")
 @Roles([RoleTypes.SuperAdmin])

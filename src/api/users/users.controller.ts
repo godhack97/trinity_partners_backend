@@ -10,7 +10,7 @@ import {
   HttpStatus,
   Query,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
 
 @Controller("users")
@@ -20,6 +20,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get("/count")
+  @ApiOperation({ summary: 'Получить кол-во пользователей' })
   @ApiBearerAuth()
   @ApiResponse({ type: Number })
   async getCount() {
@@ -27,6 +28,7 @@ export class UsersController {
   }
 
   @Get("/all")
+  @ApiOperation({ summary: 'Получить всех пользователей' })
   async findAll(@Query() filters: UserFilterRequestDto) {
     try {
       return await this.usersService.findAll(filters);
@@ -36,6 +38,7 @@ export class UsersController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Поиск пользователя' })
   async find(): Promise<UserEntity[]> {
     try {
       return await this.usersService.findUsersByRoleIdGreaterThanOne();

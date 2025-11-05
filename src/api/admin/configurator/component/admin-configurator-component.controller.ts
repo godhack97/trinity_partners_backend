@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Req, Get, Param, Post, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
@@ -9,7 +9,7 @@ import { LogAction } from "src/logs/log-action.decorator";
 import { XlsxService } from './xlsx.service';
 import { multerStorage } from "@config/multer_storage";
 
-@ApiTags("admin/configurator/component")
+@ApiTags("configurator/component")
 @ApiBearerAuth()
 @Controller("admin/configurator/component")
 @Roles([RoleTypes.SuperAdmin])
@@ -20,6 +20,7 @@ export class AdminConfiguratorComponentController {
   ) {}
   
   @Get("/export")
+  @ApiOperation({ summary: 'Экспорт компонент конфигуратора' })
   @LogAction("configurator_component_export", "cnf_components")
   async getComponents(@Res() res: any) {
     const components = await this.adminConfiguratorComponentService.exportExcel();
@@ -30,6 +31,7 @@ export class AdminConfiguratorComponentController {
   }
 
   @Post("/import")
+  @ApiOperation({ summary: 'Импорт компонент конфигуратора' })
   @LogAction("configurator_component_import", "cnf_components")
   @UseInterceptors(FileInterceptor("file", { storage: multerStorage.files }))
   async importComponents(@UploadedFile() file: Express.Multer.File, @Res() res: any, @Req() req: any) {
@@ -40,11 +42,13 @@ export class AdminConfiguratorComponentController {
   }
 
   @Get("/backups")
+  @ApiOperation({ summary: 'Создать бекап компонент конфигуратора' })
   async getComponentBackups() {
     return await this.adminConfiguratorComponentService.getBackups();
   }
 
   @Post("/backup")
+  @ApiOperation({ summary: 'Получить список бекапов компонент конфигуратора' })
   @LogAction("configurator_component_backup", "cnf_component_backups")
   async createComponentBackup(
     @Body() body: { name: string },
@@ -55,30 +59,35 @@ export class AdminConfiguratorComponentController {
   }
   
   @Post("/restore/:backupId")
+  @ApiOperation({ summary: 'Восстановить компоненты конфигуратора из бекапа' })
   @LogAction("configurator_component_restore_backup", "cnf_component_backups")
   async restoreComponentBackup(@Param('backupId') backupId: string) {
     return await this.adminConfiguratorComponentService.restoreFromBackup(backupId);
   }
 
   @Delete("/backup/:backupId")
+  @ApiOperation({ summary: 'Удалить бекап компонент конфигуратора' })
   @LogAction("configurator_component_backup_delete", "cnf_component_backups")
   async deleteComponentBackup(@Param('backupId') backupId: string) {
     return await this.adminConfiguratorComponentService.deleteBackup(backupId);
   }
   
   @Post()
+  @ApiOperation({ summary: 'Создать компонент конфигуратора' })
   @LogAction("configurator_component_add", "cnf_components")
   createComponent(@Body() data: CreateConfigurationComponentRequestDto) {
     return this.adminConfiguratorComponentService.createComponent(data);
   }
 
   @Post(":id/update")
+  @ApiOperation({ summary: 'Обновить компонент конфигуратора' })
   @LogAction("configurator_component_update", "cnf_components")
   update(@Param("id") id: string, @Body() data: any) {
     return this.adminConfiguratorComponentService.updateComponent(id, data);
   }
 
   @Post(":id/delete")
+  @ApiOperation({ summary: 'Удалить компонент конфигуратора' })
   @LogAction("configurator_component_delete", "cnf_components")
   deleteComponent(@Param("id") id: string) {
     return this.adminConfiguratorComponentService.deleteComponent(id);

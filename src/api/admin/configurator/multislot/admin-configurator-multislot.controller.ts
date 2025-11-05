@@ -1,4 +1,4 @@
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { AdminConfiguratorMultislotService } from "./admin-configurator-multislot.service";
 import { CreateMultislotRequestDto } from "./dto/request/create-multislot.request.dto";
@@ -7,7 +7,7 @@ import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { LogAction } from "src/logs/log-action.decorator";
 
-@ApiTags("admin/configurator/multislot")
+@ApiTags("configurator/multislot")
 @ApiBearerAuth()
 @Controller("admin/configurator/multislot")
 @Roles([RoleTypes.SuperAdmin])
@@ -17,17 +17,20 @@ export class AdminConfiguratorMultislotController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Получить список слотов конфигуратора' })
   getMultislots() {
     return this.adminConfiguratorMultislotService.getMultislots();
   }
 
   @Post("create")
+  @ApiOperation({ summary: 'Создать слот конфигуратора' })
   @LogAction("configurator_multislot_add", "cnf_multislots")
   createMultislot(@Body() data: CreateMultislotRequestDto) {
     return this.adminConfiguratorMultislotService.createMultislot(data);
   }
 
   @Post(":id/update")
+  @ApiOperation({ summary: 'Обновить слот конфигуратора' })
   @LogAction("configurator_multislot_update", "cnf_multislots")
   updateMultislot(
     @Param("id") id: string,
@@ -37,6 +40,7 @@ export class AdminConfiguratorMultislotController {
   }
 
   @Post(":id/delete")
+  @ApiOperation({ summary: 'Удалить слот конфигуратора' })
   @LogAction("configurator_multislot_delete", "cnf_multislots")
   deleteMultislot(@Param("id") id: string) {
     return this.adminConfiguratorMultislotService.deleteMultislot(id);

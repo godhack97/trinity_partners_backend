@@ -14,7 +14,7 @@ import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { LogAction } from "src/logs/log-action.decorator";
 
-@ApiTags("admin/user/admin")
+@ApiTags("user")
 @ApiBearerAuth()
 @Controller("admin/user/admin")
 @Roles([RoleTypes.SuperAdmin])
@@ -22,14 +22,14 @@ export class AdminUserAdminController {
   constructor(private readonly adminUserAdminService: AdminUserAdminService) {}
 
   @Get("/count")
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить кол-во пользователей' })
   @ApiResponse({ type: Number })
   async getCount() {
     return this.adminUserAdminService.getCount();
   }
 
   @Get("/count/:role")
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить кол-во пользователей с ролью' })
   @ApiParam({ name: "role", type: String, description: "Роль пользователя или 'all' для всех" })
   @ApiResponse({ type: Number })
   async getCountByRole(@Param("role") role: string) {
@@ -37,34 +37,34 @@ export class AdminUserAdminController {
   }
 
   @Get("/count/archived")
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить количество удалённых пользователей' })
   @ApiResponse({ type: Number })
   async getArchivedCount() {
     return this.adminUserAdminService.getArchivedCount();
   }
 
   @Get()
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить пользователей по коду роли' })
   findAll(@Query() entry?: SearchAdminDto) {
     return this.adminUserAdminService.findAll(entry);
   }
 
   @Post()
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Создать пользователя' })
   @LogAction("create_user", "users")
   async create(@Body() data: CreateAdminRequestDto) {
     return await this.adminUserAdminService.create(data);
   }
 
   @Post(":id/update")
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Обновить пользователя' })
   @LogAction("update_user", "users")
   async update(@Param("id") id: string, @Body() data: UpdateAdminRequestDto) {
     return await this.adminUserAdminService.update(+id, data);
   }
 
   @Post(":id/delete")
-  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Удалить пользователя' })
   @LogAction("archive_user", "users")
   async delete(@Param("id") id: string) {
     return await this.adminUserAdminService.delete(+id);

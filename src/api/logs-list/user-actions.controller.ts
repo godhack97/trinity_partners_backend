@@ -1,28 +1,32 @@
 // GET /logs/paged?skip=0&take=20&action=update_profile
 import { Controller, Get, Query } from "@nestjs/common";
 import { UserActionsService } from "./user-actions.service";
-import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { Roles } from "@decorators/Roles";
 
 @Controller("logs-list")
+@ApiTags('logs-list')
 @ApiBearerAuth()
 @Roles([RoleTypes.SuperAdmin])
 export class UserActionsController {
   constructor(private readonly userActionsService: UserActionsService) { }
 
   @Get("/count")
+  @ApiOperation({ summary: 'Получить количество логов системы' })
   @ApiResponse({ type: Number })
   async getCount() {
     return this.userActionsService.getCount();
   }
 
   @Get("entity/backup-operations")
+  @ApiOperation({ summary: 'Получить логи связанные с бекапами компонент' })
   async getEntityBulkOperations( ) {
     return this.userActionsService.findEntityBackupOperations();
   }
 
   @Get("entity")
+  @ApiOperation({ summary: 'Получить логи по сущности' })
   async getEntityHistory(
     @Query("entity") entity,
     @Query("id") id,
@@ -53,6 +57,7 @@ export class UserActionsController {
 
   // Все логи
   @Get()
+  @ApiOperation({ summary: 'Получить список логов' })
   async getAll() {
     return this.userActionsService.findAll();
   }

@@ -17,7 +17,7 @@ import { AuthGuard } from '../../guards/auth.guard';
 import { PermissionsGuard } from '../../guards/permissions.guard';
 import { RequirePermissions } from '../../decorators/permissions.decorator';
 
-@ApiTags('Roles')
+@ApiTags('role')
 @ApiBearerAuth()
 @Controller('role')
 @UseGuards(AuthGuard, PermissionsGuard)

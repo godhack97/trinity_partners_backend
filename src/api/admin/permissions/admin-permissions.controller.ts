@@ -5,7 +5,7 @@ import { RequirePermissions } from '../../../decorators/permissions.decorator';
 import { AuthGuard } from '../../../guards/auth.guard';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
-@ApiTags('Admin Permissions')
+@ApiTags('permissions')
 @Controller('admin/permissions')
 @UseGuards(AuthGuard, PermissionsGuard)
 export class AdminPermissionsController {

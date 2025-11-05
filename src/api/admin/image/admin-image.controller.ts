@@ -7,7 +7,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { AdminImageService } from "@api/admin/image/admin-image.service";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { Public } from "@decorators/Public";
@@ -15,8 +15,9 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { multerStorage } from "@config/multer_storage";
 import { createFilePipe } from "@app/pipes/parse-files.pipe";
 
-@ApiTags("admin/image")
+@ApiTags("image")
 @Controller("admin/image")
+@ApiBearerAuth()
 //Roles([RoleTypes.SuperAdmin])
 export class AdminImageController {
   constructor(private readonly adminImageService: AdminImageService) {}
@@ -25,6 +26,7 @@ export class AdminImageController {
   // @ts-ignore
   @UseInterceptors(FileInterceptor("file", { storage: multerStorage.images }))
   @Post()
+  @ApiOperation({ summary: 'Загрузить изображение' })
   async saveForm(@UploadedFile(createFilePipe()) file: Express.Multer.File) {
     return {
       filename: file.filename,

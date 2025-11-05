@@ -9,7 +9,10 @@ import {
 } from "@nestjs/common";
 import { UserTableSettingsService } from "./user-table-settings.service";
 import { UserTableSettingsEntity } from "../../orm/entities/user-table-settings.entity";
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@ApiTags('user-table-settings')
 @Controller("user-table-settings")
 export class UserTableSettingsController {
   constructor(
@@ -17,6 +20,7 @@ export class UserTableSettingsController {
   ) {}
 
   @Get(":userId/:tableId")
+  @ApiOperation({ summary: 'Получить настройки таблицы пользователя' })
   async getUserTableSettings(
     @Param("userId", ParseIntPipe) userId: number,
     @Param("tableId") tableId: string,
@@ -27,7 +31,6 @@ export class UserTableSettingsController {
     );
 
     if (!settings) {
-      console.log("Настройки не найдены");
       throw new NotFoundException("Настройки не найдены");
     }
 
@@ -35,6 +38,7 @@ export class UserTableSettingsController {
   }
 
   @Post(":userId/:tableId")
+  @ApiOperation({ summary: 'Записать настройки таблицы пользователя' })
   async upsertUserTableSettings(
     @Param("userId", ParseIntPipe) userId: number,
     @Param("tableId") tableId: string,
