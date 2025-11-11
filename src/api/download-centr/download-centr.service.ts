@@ -11,7 +11,48 @@ export class DownloadCentrService {
   constructor(
     @InjectRepository(DownloadCentr)
     private downloadCentrRepository: Repository<DownloadCentr>,
-  ) {}
+  ) { }
+
+  async update(
+    id: number,
+    updateDto: UpdateDownloadCentrDto,
+    file?: Express.Multer.File,
+  ): Promise<DownloadCentr> {
+    const existingFile = await this.findOne(id);
+
+    if (file) {
+      const oldFilePath = path.join(process.cwd(), existingFile.filePath);
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
+      }
+
+      const uploadDir = path.join(process.cwd(), 'upload', 'centr');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileName = `${Date.now()}_${file.originalname}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      fs.writeFileSync(filePath, file.buffer);
+
+      existingFile.filePath = `/upload/centr/${fileName}`;
+    }
+
+    if (updateDto.name !== undefined) {
+      existingFile.name = updateDto.name;
+    }
+
+    if (updateDto.description !== undefined) {
+      existingFile.description = updateDto.description;
+    }
+
+    if (updateDto.tags !== undefined) {
+      existingFile.tags = updateDto.tags;
+    }
+
+    return await this.downloadCentrRepository.save(existingFile);
+  }
 
   async create(
     createDto: CreateDownloadCentrDto,

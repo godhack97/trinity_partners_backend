@@ -3,6 +3,7 @@ import {
     Get,
     Post,
     Delete,
+    Put,
     Param,
     Body,
     Query,
@@ -57,6 +58,32 @@ export class DownloadCentrController {
         return await this.downloadCentrService.create(createDto, file);
     }
 
+    @Put(':id')
+    @ApiOperation({ summary: 'Обновить файл' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string' },
+                description: { type: 'string' },
+                tags: { type: 'string' },
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
+    @UseInterceptors(FileInterceptor('file'))
+    async update(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() updateDto: CreateDownloadCentrDto,
+        @UploadedFile() file?: Express.Multer.File,
+    ) {
+        return await this.downloadCentrService.update(id, updateDto, file);
+    }
+
     @Get()
     @ApiOperation({ summary: 'Получить все файлы' })
     @ApiQuery({ name: 'search', required: false, description: 'Поиск по названию и описанию' })
@@ -73,23 +100,23 @@ export class DownloadCentrController {
     async getAllTags() {
         return await this.downloadCentrService.getAllTags();
     }
-  
+
     @Get('download/:id')
     @ApiOperation({ summary: 'Скачать файл по ID' })
     async downloadFile(
-      @Param('id', ParseIntPipe) id: number,
-      @Res({ passthrough: true }) res: Response,
+        @Param('id', ParseIntPipe) id: number,
+        @Res({ passthrough: true }) res: Response,
     ) {
-      const file = await this.downloadCentrService.findOne(id);
-      const filePath = join(process.cwd(), file.filePath);
-      const fileStream = createReadStream(filePath);
-  
-      res.set({
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
-      });
-  
-      return new StreamableFile(fileStream);
+        const file = await this.downloadCentrService.findOne(id);
+        const filePath = join(process.cwd(), file.filePath);
+        const fileStream = createReadStream(filePath);
+
+        res.set({
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
+        });
+
+        return new StreamableFile(fileStream);
     }
 
     @Get(':id')
