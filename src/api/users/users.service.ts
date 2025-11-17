@@ -48,7 +48,7 @@ export class UsersService {
 
   async findAll(filters?: UserFilterRequestDto) {
     const current_page = filters?.current_page || 1;
-    const limit = filters?.limit || 20;
+    const limit = filters?.limit || 0;
     const skip = (current_page - 1) * limit;
 
     const qb = this.usersRepository.createQueryBuilder("u")
