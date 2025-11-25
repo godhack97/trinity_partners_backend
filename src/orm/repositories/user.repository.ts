@@ -25,7 +25,7 @@ export class UserRepository {
   async findByIdWithPermissions(id: number) {
     return this.findOne({
       where: { id, deleted_at: null },
-      relations: ['role', 'role.permissions', 'user_info', 'user_roles', 'user_roles.role', 'user_roles.role.permissions']
+      relations: ['manager', 'manager.user_info', 'role', 'role.permissions', 'user_info', 'user_roles', 'user_roles.role', 'user_roles.role.permissions']
     });
   }
 
