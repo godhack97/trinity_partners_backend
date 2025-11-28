@@ -37,6 +37,16 @@ export class UsersController {
     }
   }
 
+  @Get('/by-email')
+  @ApiOperation({ summary: 'Поиск пользователя' })
+  async findbyEmail(@Query() filters: UserFilterRequestDto): Promise<UserEntity> {
+    try {
+      return await this.usersService.findByEmail(filters);
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
+  }
+
   @Get()
   @ApiOperation({ summary: 'Поиск пользователя' })
   async find(): Promise<UserEntity[]> {

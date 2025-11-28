@@ -78,6 +78,37 @@ export class UsersService {
       data,
     };
   }
+  async findByEmail(filters: UserFilterRequestDto) {
+    console.log(filters);
+
+    const qb = this.userRepository.createQueryBuilder("u");
+    qb.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id")
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoinAndSelect("u.user_info", "user_info")
+      .leftJoin("roles", "r2", "ur.role_id = r2.id")
+      .leftJoin("company_employees", "ce", "ce.employee_id = u.id")
+      .leftJoinAndMapOne("u.company", "companies", "c", "c.id = ce.company_id");
+
+    if (filters.role_name) {
+      qb.andWhere("(r.name = :name OR r2.name = :name)", { name: filters.role_name });
+    }
+
+    if (typeof filters.is_activated === "boolean") {
+      qb.andWhere("u.is_activated = :is_activated", { is_activated: filters.is_activated });
+    }
+
+    if (filters.email) {
+      qb.andWhere("u.email like :email", { email: `${filters.email}%` });
+    }
+
+    if (filters.company_id) {
+      qb.andWhere("ce.company_id = :company_id", {
+        company_id: filters.company_id,
+      });
+    }
+
+    return await qb.withDeleted().getOne();
+  }
 
   async find(filters: UserFilterRequestDto) {
     const current_page = filters.current_page || 1;
