@@ -24,7 +24,7 @@ import { PermissionsGuard } from "@app/guards/permissions.guard";
 import { createReadStream } from 'fs';
 import { join } from 'path';
 import { Response } from 'express';
-
+import { LogAction } from "src/logs/log-action.decorator";
 
 @ApiTags('download-centr')
 @ApiBearerAuth()
@@ -35,6 +35,7 @@ export class DownloadCentrController {
 
     @Post()
     @ApiOperation({ summary: 'Загрузить файл в центр загрузок' })
+    @LogAction("download_centr_add", "download_centr")
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {
@@ -60,6 +61,7 @@ export class DownloadCentrController {
 
     @Put(':id')
     @ApiOperation({ summary: 'Обновить файл' })
+    @LogAction("download_centr_update", "download_centr")
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {
@@ -126,6 +128,7 @@ export class DownloadCentrController {
     }
 
     @Delete(':id')
+    @LogAction("download_centr_delete", "download_centr")
     @ApiOperation({ summary: 'Удалить файл' })
     async remove(@Param('id', ParseIntPipe) id: number) {
         await this.downloadCentrService.remove(id);

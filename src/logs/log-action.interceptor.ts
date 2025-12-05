@@ -50,8 +50,8 @@ export class LogActionInterceptor implements NestInterceptor {
       // Если oldEntity - массив
       if (Array.isArray(oldEntity)) {
         // Проверяем, это связь многие-ко-многим или одиночная сущность
-        const isSingleEntity = oldEntity.length === 1 && !newData.hasOwnProperty(Object.keys(oldEntity[0]).find(k => k.endsWith('_ids')) || '');
-    
+        const isSingleEntity = oldEntity.length === 1 && !Object.keys(newData).some(k => k.endsWith('_ids'));
+
         if (isSingleEntity) {
           // Массив с одним элементом - распаковываем
           oldEntity = oldEntity[0];
@@ -96,7 +96,7 @@ export class LogActionInterceptor implements NestInterceptor {
       const changes: any = {};
       const excludeFields = ['created_at', 'updated_at', 'component_slots', 'slots', 'typeId'];
     
-      for (const key in newData) {
+      for (const key in oldEntity) {
         if (excludeFields.includes(key)) continue;
     
         if (oldEntity.hasOwnProperty(key)) {

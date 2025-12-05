@@ -41,6 +41,10 @@ export enum UserActionType {
   DEAL_ADD = "deal_add",
   DEAL_DELETE = "deal_delete",
 
+  DOWNLOAD_CENTR_ADD = "download_centr_add",
+  DOWNLOAD_CENTR_UPDATE = "download_centr_update",
+  DOWNLOAD_CENTR_DELETE = "download_centr_delete",
+
   DISTRIBUTOR_ADD = "distributor_add",
   DISTRIBUTOR_UPDATE = "distributor_update",
   DISTRIBUTOR_DELETE = "distributor_delete",
@@ -164,6 +168,11 @@ export const UserActionLabels: Record<UserActionType, string> = {
   [UserActionType.DEAL_UPDATE]: "Обновлена  сделка",
   [UserActionType.DEAL_ADD]: "Добавлена сделка",
   [UserActionType.DEAL_DELETE]: "Удалена сделка",
+
+
+  [UserActionType.DOWNLOAD_CENTR_ADD]: "Добавлен файл в центр загрузок",
+  [UserActionType.DOWNLOAD_CENTR_UPDATE]: "Обновлён файл в центре загрузок",
+  [UserActionType.DOWNLOAD_CENTR_DELETE]: "Удалён файл из центра загрузок",
 
   [UserActionType.DISTRIBUTOR_ADD]: "Добавлен дистрибьютор",
   [UserActionType.DISTRIBUTOR_UPDATE]: "Обновлён дистрибьютор",

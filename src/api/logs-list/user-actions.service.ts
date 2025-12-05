@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, FindManyOptions } from "typeorm";
+import { Repository, FindManyOptions, Entity } from "typeorm";
 import { UserAction } from "src/logs/user-action.entity";
 import { UserActionLabels } from "./user-actions.enum";
 import * as entities from "src/orm/entities";
+import  { DownloadCentr } from "src/api/download-centr/download-centr.entity"
 
 type FieldType = string | ((entity: any) => string);
 
@@ -17,6 +18,9 @@ export class UserActionsService {
   constructor(
     @InjectRepository(UserAction)
     private readonly userActionRepo: Repository<UserAction>,
+
+    @InjectRepository(UserAction)
+    private readonly DownloadCentrRepo: Repository<DownloadCentr>,
 
     @InjectRepository(entities.CompanyEmployeeEntity)
     private readonly companyEmployeeRepo: Repository<entities.CompanyEmployeeEntity>,
@@ -118,6 +122,10 @@ export class UserActionsService {
     private readonly CnfSlotRepo: Repository<entities.CnfSlotEntity>,
   ) {
     this.entityRepoMap = {
+      download_centr: {
+        repo: this.DownloadCentrRepo,
+        field: (entity) => `${entity.name} ${entity.file_path}`
+      },
       customers: {
         repo: this.CustomerRepo,
         field: (entity) => `${entity.first_name} ${entity.last_name}`,
