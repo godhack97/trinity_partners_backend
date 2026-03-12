@@ -19,3 +19,7 @@ export * from "./user-setting.entity";
 export * from "./user-table-settings.entity";
 export * from "./user-token.entity";
 export * from "./cnf";
+export * from "./document-group.entity";
+export * from "./document-tag.entity";
+export * from "./document-access-level.entity";
+export * from "./document.entity";

@@ -45,6 +45,7 @@ import { LogsModule } from "./logs/logs.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { ForbiddenInnModule } from "./api/admin/forbidden-inns/forbidden-inns.module";
 import { AdminPermissionsModule } from './api/admin/permissions/admin-permissions.module';
+import { DocumentsModule } from './api/documents/documents.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == "prod");
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
@@ -144,6 +145,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     UserEntity,
     ResetHashEntity,
     DownloadCentrModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [
