@@ -28,7 +28,7 @@ export class CompanyController {
 
   @Post("add-employee")
   @LogAction("employee_add", "company_employees")
-  @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin])
+  @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin, RoleTypes.SuperAdmin])
   addEmployee(
     @AuthUser() auth_user: UserEntity,
     @Body() addEmployeeDto: AddEmployeeRequestDto,
