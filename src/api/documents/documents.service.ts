@@ -248,7 +248,8 @@ export class DocumentsService {
     const uploadDir = path.join(process.cwd(), 'upload', 'documents');
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-    const fileName = `${Date.now()}_${file.originalname}`;
+    const ext = path.extname(file.originalname) || '';
+    const fileName = `${Date.now()}${ext}`;
     fs.writeFileSync(path.join(uploadDir, fileName), file.buffer);
     return `/upload/documents/${fileName}`;
   }
