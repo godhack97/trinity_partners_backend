@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { RoleEntity } from '@orm/entities/role.entity';
@@ -196,6 +196,7 @@ export class DocumentsService {
   }
 
   async create(dto: CreateDocumentDto, file: Express.Multer.File): Promise<DocumentEntity> {
+    if (!file) throw new BadRequestException('Файл не прикреплён');
     const filePath = this.saveFile(file);
 
     let tags: DocumentTagEntity[] = [];
