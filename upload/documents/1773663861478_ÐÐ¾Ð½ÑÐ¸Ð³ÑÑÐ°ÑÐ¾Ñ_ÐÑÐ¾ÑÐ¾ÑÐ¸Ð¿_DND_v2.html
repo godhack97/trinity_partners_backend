@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Конфигуратор серверов - Интерактивный прототип v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root {
+  --bg: #F2F3F7; --white: #FFFFFF; --surface: #F8F9FB;
+  --border: #E5E7ED; --border-h: #D1D4DC;
+  --text: #2D3142; --text2: #6E7490; --text3: #A0A5BA;
+  --accent: #4A6CF7; --accent-soft: #EEF1FE; --accent-mid: #C5D0FA; --accent-dark: #3A56D4;
+  --red: #E05252; --red-soft: #FDF0F0; --red-border: #F2C4C4;
+  --yellow: #D4A017; --yellow-soft: #FDF8EC; --yellow-border: #EED9A0;
+  --green: #3BA37A; --green-soft: #EEFBF5; --green-border: #A8DCC5;
+  --blue: #4A8CF7; --blue-soft: #EEF5FE; --blue-border: #B5D2FA;
+  --shadow: 0 1px 3px rgba(45,49,66,0.05); --shadow-md: 0 4px 12px rgba(45,49,66,0.08);
+  --shadow-lg: 0 8px 24px rgba(45,49,66,0.12); --shadow-drag: 0 12px 32px rgba(74,108,247,0.2);
+  --r: 10px; --r-lg: 14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+.header{background:var(--white);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.05rem;color:var(--accent)}
+.logo svg{width:24px;height:24px}
+.header-title{font-size:.88rem;color:var(--text2);font-weight:500}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.header-price{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:600;color:var(--text)}
+.header-price small{font-size:.72rem;color:var(--text3);font-weight:400;display:block;line-height:1}
+
+.app{display:flex;height:calc(100vh - 52px)}
+
+/* LEFT PANEL */
+.components-panel{width:320px;min-width:320px;background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:14px 14px 12px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:.78rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.category-tabs{display:flex;gap:3px;flex-wrap:wrap}
+.cat-tab{padding:4px 10px;border-radius:6px;font-size:.76rem;font-weight:500;border:1px solid var(--border);background:var(--white);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.cat-tab:hover{border-color:var(--accent-mid);color:var(--accent)}
+.cat-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.view-toggle{display:flex;gap:2px;padding:8px 14px 0}
+.view-btn{padding:4px 7px;border-radius:4px;border:none;background:transparent;color:var(--text3);cursor:pointer;transition:all .15s}
+.view-btn.active{background:var(--accent-soft);color:var(--accent)}
+.view-btn svg{width:15px;height:15px;display:block}
+
+.components-list{flex:1;overflow-y:auto;padding:10px}
+
+/* COMP ITEM */
+.comp-item{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px;margin-bottom:5px;display:flex;align-items:center;gap:9px;cursor:grab;transition:all .2s;user-select:none;position:relative}
+.comp-item:hover{border-color:var(--accent-mid);box-shadow:var(--shadow-md)}
+.comp-item:active{cursor:grabbing}
+.comp-item.dragging{opacity:.35;border-style:dashed}
+.comp-item.incompatible{opacity:.4;cursor:not-allowed;background:var(--red-soft);border-color:var(--red-border)}
+.comp-item.incompatible:hover{box-shadow:none;border-color:var(--red-border)}
+.comp-item.incompatible .comp-name{text-decoration:line-through;color:var(--text3)}
+.comp-item .incompat-badge{display:none;position:absolute;top:4px;right:4px;background:var(--red);color:#fff;font-size:.6rem;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.02em;text-transform:uppercase}
+.comp-item.incompatible .incompat-badge{display:block}
+
+.comp-img{width:44px;height:44px;background:var(--surface);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.comp-info{flex:1;min-width:0}
+.comp-name{font-size:.82rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.comp-spec{font-size:.72rem;color:var(--text3)}
+.comp-price{font-family:'JetBrains Mono',monospace;font-size:.76rem;font-weight:500;color:var(--accent);white-space:nowrap}
+
+/* Grid view */
+.components-list.grid-view{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}
+.grid-view .comp-item{flex-direction:column;text-align:center;padding:10px 6px;margin-bottom:0}
+.grid-view .comp-img{width:50px;height:50px}
+.grid-view .comp-info{text-align:center}
+.grid-view .comp-name{white-space:normal;font-size:.76rem}
+
+/* CENTER: SERVER BOARD */
+.server-board{flex:1;overflow-y:auto;padding:20px}
+.server-visual{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
+.server-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface)}
+.server-header h2{font-size:.95rem;font-weight:600}
+.server-header .badge{padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:500;font-family:'JetBrains Mono',monospace;background:var(--accent-soft);color:var(--accent)}
+
+/* SPECS PANEL */
+.specs-panel{padding:14px 18px;background:linear-gradient(135deg,#F8F9FC 0%,#F2F4FB 100%);border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.spec-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:all .3s}
+.spec-card.highlight{border-color:var(--accent-mid);box-shadow:0 0 0 2px var(--accent-soft)}
+.spec-card.danger{border-color:var(--red-border);background:var(--red-soft)}
+.spec-label{font-size:.68rem;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.spec-value{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:600;color:var(--text)}
+.spec-value.danger{color:var(--red)}
+.spec-sub{font-size:.68rem;color:var(--text3);margin-top:1px}
+.spec-bar{height:4px;background:var(--surface);border-radius:2px;margin-top:6px;overflow:hidden}
+.spec-bar-fill{height:100%;border-radius:2px;transition:width .4s,background .3s}
+.sb-ok{background:var(--green)}.sb-warn{background:var(--yellow)}.sb-err{background:var(--red)}.sb-accent{background:var(--accent)}
+
+/* SLOT ZONES */
+.slot-zones{padding:14px;display:flex;flex-direction:column;gap:10px}
+.slot-zone{border:2px dashed var(--border);border-radius:var(--r);padding:10px;min-height:64px;transition:all .2s;position:relative}
+.slot-zone.drag-over{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-mid)}
+.slot-zone.drag-over-invalid{border-color:var(--red);background:var(--red-soft)}
+.slot-zone-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.slot-zone-title{font-size:.74rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+.slot-zone-title .zone-icon{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff}
+.slot-counter{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text3);font-weight:500}
+.slot-counter.full{color:var(--red);font-weight:600}
+.slot-counter.warn{color:var(--yellow)}
+.slot-grid{display:flex;gap:6px;flex-wrap:wrap}
+.slot-placeholder{width:100%;min-height:40px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:.76rem}
+
+.installed-comp{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:7px 10px;display:flex;align-items:center;gap:7px;position:relative;transition:all .15s;animation:slideIn .25s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.installed-comp:hover{border-color:var(--border-h)}
+.installed-comp .comp-img{width:32px;height:32px}
+.installed-comp .comp-name{font-size:.8rem}
+.installed-comp .comp-spec{font-size:.68rem}
+.installed-comp .remove-btn{width:20px;height:20px;border-radius:50%;border:none;background:var(--red-soft);color:var(--red);cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;transition:all .15s;opacity:0}
+.installed-comp:hover .remove-btn{opacity:1}
+.installed-comp .remove-btn:hover{background:var(--red);color:#fff}
+
+/* RIGHT: SUMMARY */
+.summary-panel{width:270px;min-width:270px;background:var(--white);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.summary-section{padding:14px;border-bottom:1px solid var(--border)}
+.summary-label{font-size:.7rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+
+.resource-bar{margin-bottom:10px}
+.resource-bar .rb-label{display:flex;justify-content:space-between;align-items:center;font-size:.76rem;margin-bottom:3px}
+.rb-label span:first-child{color:var(--text2)}.rb-label span:last-child{font-family:'JetBrains Mono',monospace;color:var(--text);font-weight:500;font-size:.72rem}
+.rb-track{height:4px;background:var(--surface);border-radius:2px;overflow:hidden}
+.rb-fill{height:100%;border-radius:2px;transition:width .4s,background .3s}
+.rb-ok{background:var(--green)}.rb-warn{background:var(--yellow)}.rb-err{background:var(--red)}
+
+.msg-list{display:flex;flex-direction:column;gap:5px}
+.msg{padding:8px 10px;border-radius:7px;font-size:.76rem;display:flex;align-items:flex-start;gap:7px;border:1px solid transparent;animation:msgIn .3s ease}
+@keyframes msgIn{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:translateX(0)}}
+.msg-error{background:var(--red-soft);color:var(--red);border-color:var(--red-border)}
+.msg-warning{background:var(--yellow-soft);color:#8B6914;border-color:var(--yellow-border)}
+.msg-info{background:var(--blue-soft);color:var(--blue);border-color:var(--blue-border)}
+.msg-suggestion{background:var(--green-soft);color:var(--green);border-color:var(--green-border)}
+.msg-icon{width:14px;height:14px;flex-shrink:0;margin-top:1px}
+
+.build-btn{margin:14px;padding:11px;border-radius:var(--r);border:none;font-size:.86rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.build-btn.ok{background:var(--accent);color:#fff}.build-btn.ok:hover{background:var(--accent-dark)}
+.build-btn.blocked{background:var(--surface);color:var(--text3);cursor:not-allowed;border:1px solid var(--border)}
+
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:6px}
+.toast{background:var(--white);border-radius:var(--r);padding:11px 14px;box-shadow:var(--shadow-lg);border-left:4px solid var(--red);font-size:.82rem;max-width:340px;animation:toastIn .3s ease,toastOut .3s ease 3.5s forwards;display:flex;align-items:flex-start;gap:8px}
+.toast.warn{border-left-color:var(--yellow)}.toast.info{border-left-color:var(--blue)}.toast.success{border-left-color:var(--green)}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-6px)}}
+.toast-icon{flex-shrink:0;margin-top:1px}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--border-h)}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none"><polygon points="12,2 22,22 2,22" fill="#4A6CF7"/><polygon points="12,9 17,19 7,19" fill="#fff"/></svg>Тринити</div>
+  <div class="header-title">Конфигуратор серверов</div>
+  <div class="header-right"><div class="header-price" id="headerPrice"><small>Итого</small>0 &#8381;</div></div>
+</div>
+<div class="app">
+  <div class="components-panel">
+    <div class="panel-header">
+      <div class="panel-title">Компоненты</div>
+      <div class="category-tabs" id="catTabs"></div>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="viewList" onclick="setView('list')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="3" x2="15" y2="3"/><line x1="1" y1="8" x2="15" y2="8"/><line x1="1" y1="13" x2="15" y2="13"/></svg></button>
+      <button class="view-btn" id="viewGrid" onclick="setView('grid')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg></button>
+    </div>
+    <div class="components-list" id="compList"></div>
+  </div>
+  <div class="server-board">
+    <div class="server-visual">
+      <div class="server-header"><h2>Сервер ER220HDR-M8</h2><span class="badge">2U - Gen3 - 2 сокета</span></div>
+      <div class="specs-panel" id="specsPanel"></div>
+      <div class="slot-zones" id="slotZones"></div>
+    </div>
+  </div>
+  <div class="summary-panel">
+    <div class="summary-section"><div class="summary-label">Ресурсы</div><div id="resourceBars"></div></div>
+    <div class="summary-section" style="flex:1"><div class="summary-label">Сообщения</div><div class="msg-list" id="msgList"></div></div>
+    <button class="build-btn blocked" id="buildBtn" onclick="tryBuild()">В сборку</button>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const ICONS={
+  cpu:'<svg viewBox="0 0 24 24" fill="none" stroke="#4A6CF7" stroke-width="1.5"><rect x="5" y="5" width="14" height="14" rx="2"/><line x1="9" y1="2" x2="9" y2="5"/><line x1="15" y1="2" x2="15" y2="5"/><line x1="9" y1="19" x2="9" y2="22"/><line x1="15" y1="19" x2="15" y2="22"/><line x1="2" y1="9" x2="5" y2="9"/><line x1="2" y1="15" x2="5" y2="15"/><line x1="19" y1="9" x2="22" y2="9"/><line x1="19" y1="15" x2="22" y2="15"/></svg>',
+  ram:'<svg viewBox="0 0 24 24" fill="none" stroke="#3BA37A" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="6" x2="6" y2="18"/><line x1="10" y1="6" x2="10" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="18" y1="6" x2="18" y2="18"/></svg>',
+  disk:'<svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>',
+  pcie:'<svg viewBox="0 0 24 24" fill="none" stroke="#E05252" stroke-width="1.5"><rect x="3" y="8" width="18" height="8" rx="1"/><line x1="7" y1="8" x2="7" y2="4"/><line x1="11" y1="8" x2="11" y2="4"/><line x1="15" y1="8" x2="15" y2="4"/></svg>',
+  psu:'<svg viewBox="0 0 24 24" fill="none" stroke="#6E7490" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 12h4M12 10v4"/><circle cx="7" cy="16" r="1" fill="#6E7490"/></svg>',
+  error:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="5.8" y1="5.8" x2="10.2" y2="10.2"/><line x1="10.2" y1="5.8" x2="5.8" y2="10.2"/></svg>',
+  warn:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2.5l6 11H2l6-11z"/><line x1="8" y1="7" x2="8" y2="9.5" stroke-linecap="round"/><circle cx="8" cy="11" r=".5" fill="currentColor"/></svg>',
+  info:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11" stroke-linecap="round"/><circle cx="8" cy="5.5" r=".5" fill="currentColor"/></svg>',
+  plus:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="11"/><line x1="5" y1="8" x2="11" y2="8"/></svg>',
+};
+
+const ZONE_COLORS={cpu:'#4A6CF7',ram:'#3BA37A',disk_sff:'#D4A017',disk_m2:'#C78A10',pcie:'#E05252',psu:'#6E7490'};
+
+const SERVER={name:'ER220HDR-M8',gen:'Gen3',sockets:2,maxTdp:270,powerFactor:0.8,
+  zones:[
+    {id:'cpu',label:'Процессоры',icon:'cpu',type:'cpu',slots:2,color:ZONE_COLORS.cpu},
+    {id:'ram',label:'Память (DIMM)',icon:'ram',type:'ram',slots:16,color:ZONE_COLORS.ram},
+    {id:'disk_sff',label:'Дисковые корзины SFF 2.5"',icon:'disk',type:'disk_sff',slots:8,color:ZONE_COLORS.disk_sff},
+    {id:'disk_m2',label:'M.2 слоты',icon:'disk',type:'disk_m2',slots:2,color:ZONE_COLORS.disk_m2},
+    {id:'pcie',label:'PCIe слоты',icon:'pcie',type:'pcie',slots:4,color:ZONE_COLORS.pcie},
+    {id:'psu',label:'Блоки питания',icon:'psu',type:'psu',slots:2,color:ZONE_COLORS.psu},
+  ]
+};
+
+const COMPONENTS=[
+  {id:'cpu1',name:'Xeon Gold 6548Y+',cat:'cpu',zone:'cpu',price:245000,tdp:250,powerW:250,slotsNeeded:1,spec:'32 ядра / 250W TDP / Gen5',cores:32,freq:'2.1 GHz'},
+  {id:'cpu2',name:'Xeon Gold 6438Y+',cat:'cpu',zone:'cpu',price:198000,tdp:205,powerW:205,slotsNeeded:1,spec:'32 ядра / 205W TDP / Gen5',cores:32,freq:'2.0 GHz'},
+  {id:'cpu3',name:'Xeon Silver 4510',cat:'cpu',zone:'cpu',price:89000,tdp:150,powerW:150,slotsNeeded:1,spec:'12 ядер / 150W TDP / Gen5',cores:12,freq:'2.4 GHz'},
+  {id:'cpu4',name:'Xeon Gold 6548N',cat:'cpu',zone:'cpu',price:285000,tdp:290,powerW:290,slotsNeeded:1,spec:'32 ядра / 290W TDP / Gen5',cores:32,freq:'2.8 GHz'},
+  {id:'ram1',name:'DDR5 32GB 5600MHz',cat:'ram',zone:'ram',price:18000,powerW:8,slotsNeeded:1,spec:'32GB / DDR5 / ECC RDIMM',capacity:32},
+  {id:'ram2',name:'DDR5 16GB 5600MHz',cat:'ram',zone:'ram',price:9500,powerW:6,slotsNeeded:1,spec:'16GB / DDR5 / ECC RDIMM',capacity:16},
+  {id:'ram3',name:'DDR5 64GB 5600MHz',cat:'ram',zone:'ram',price:42000,powerW:10,slotsNeeded:1,spec:'64GB / DDR5 / ECC RDIMM',capacity:64},
+  {id:'ssd1',name:'Samsung PM9A3 1.92TB',cat:'disk',zone:'disk_sff',price:28000,powerW:12,slotsNeeded:1,spec:'NVMe U.2 / SFF / 1.92TB',storTB:1.92},
+  {id:'ssd2',name:'Intel D7-P5620 3.2TB',cat:'disk',zone:'disk_sff',price:52000,powerW:18,slotsNeeded:1,spec:'NVMe U.2 / SFF / 3.2TB',storTB:3.2},
+  {id:'hdd1',name:'Seagate Exos 2.4TB',cat:'disk',zone:'disk_sff',price:14000,powerW:10,slotsNeeded:1,spec:'SAS / SFF 2.5" / 2.4TB',storTB:2.4},
+  {id:'m2_1',name:'Samsung PM9B1 512GB',cat:'disk',zone:'disk_m2',price:8500,powerW:5,slotsNeeded:1,spec:'M.2-2280 / NVMe / Boot',storTB:0.5},
+  {id:'raid1',name:'RAID 9560-8i',cat:'pcie',zone:'pcie',price:38000,powerW:15,slotsNeeded:1,spec:'RAID / 8 портов / PCIe x8'},
+  {id:'nic1',name:'Intel X710-DA2',cat:'pcie',zone:'pcie',price:22000,powerW:10,slotsNeeded:1,spec:'Сетевой / 2x10GbE / SFP+'},
+  {id:'gpu1',name:'NVIDIA A2',cat:'pcie',zone:'pcie',price:165000,powerW:60,slotsNeeded:2,spec:'GPU / 16GB / PCIe x16 (2 слота)'},
+  {id:'hba1',name:'HBA 9500-8i',cat:'pcie',zone:'pcie',price:18000,powerW:8,slotsNeeded:1,spec:'HBA / 8 портов / PCIe x8'},
+  {id:'psu1',name:'PSU 1300W Platinum',cat:'psu',zone:'psu',price:25000,powerW:0,psuOutput:1300,slotsNeeded:1,spec:'1300W / 80+ Platinum / Hot-swap'},
+  {id:'psu2',name:'PSU 800W Gold',cat:'psu',zone:'psu',price:15000,powerW:0,psuOutput:800,slotsNeeded:1,spec:'800W / 80+ Gold / Hot-swap'},
+];
+
+const CATEGORIES=[{id:'all',label:'Все'},{id:'cpu',label:'CPU'},{id:'ram',label:'RAM'},{id:'disk',label:'Диски'},{id:'pcie',label:'PCIe'},{id:'psu',label:'БП'}];
+
+let state={installed:{},activeCategory:'all',viewMode:'list',dragComp:null};
+SERVER.zones.forEach(z=>state.installed[z.id]=[]);
+let instanceCounter=0;
+
+// ── INCOMPATIBILITY CHECK ──
+function getIncompatibility(comp) {
+  // Returns null if compatible, or a reason string if not
+  const zone = SERVER.zones.find(z => z.id === comp.zone);
+  if (!zone) return 'Несовместимая зона';
+
+  // Zone full?
+  const usedSlots = state.installed[comp.zone].reduce((s,i) => s + i.comp.slotsNeeded, 0);
+  if (usedSlots + comp.slotsNeeded > zone.slots) return 'Нет свободных слотов';
+
+  // CPU: model mismatch
+  if (comp.cat === 'cpu' && state.installed.cpu.length > 0) {
+    if (state.installed.cpu[0].comp.id !== comp.id) return 'Другая модель CPU';
+  }
+
+  // CPU: TDP exceeds
+  if (comp.tdp && comp.tdp > SERVER.maxTdp) return `TDP ${comp.tdp}W > ${SERVER.maxTdp}W`;
+
+  // PSU: would cause power overload
+  if (comp.cat !== 'psu' && comp.powerW > 0) {
+    const currentPower = Object.values(state.installed).flat().reduce((s,i) => s + (i.comp.powerW||0), 0);
+    const psuBudget = state.installed.psu.reduce((s,i) => s + (i.comp.psuOutput||0), 0) * SERVER.powerFactor;
+    if (psuBudget > 0 && currentPower + comp.powerW > psuBudget) return 'Превысит мощность БП';
+  }
+
+  // PCIe overflow with this component
+  if (comp.zone === 'pcie') {
+    const pcieUsed = state.installed.pcie.reduce((s,i) => s + i.comp.slotsNeeded, 0);
+    const pcieZone = SERVER.zones.find(z => z.id === 'pcie');
+    if (pcieUsed + comp.slotsNeeded > pcieZone.slots) return 'Нет свободных PCIe';
+  }
+
+  return null;
+}
+
+// ── RENDER ──
+function render() {
+  renderCategories();
+  renderComponents();
+  renderZones();
+  renderSpecs();
+  renderSummary();
+}
+
+function renderCategories() {
+  document.getElementById('catTabs').innerHTML = CATEGORIES.map(c =>
+    `<div class="cat-tab ${state.activeCategory===c.id?'active':''}" onclick="setCat('${c.id}')">${c.label}</div>`
+  ).join('');
+}
+
+function renderComponents() {
+  const el = document.getElementById('compList');
+  el.className = 'components-list' + (state.viewMode==='grid'?' grid-view':'');
+  const filtered = state.activeCategory==='all'?COMPONENTS:COMPONENTS.filter(c=>c.cat===state.activeCategory);
+  el.innerHTML = filtered.map(c => {
+    const reason = getIncompatibility(c);
+    const cls = reason ? 'comp-item incompatible' : 'comp-item';
+    const draggable = reason ? 'false' : 'true';
+    const dragAttrs = reason ? '' : `ondragstart="onDragStart(event,'${c.id}')" ondragend="onDragEnd(event)"`;
+    return `
+      <div class="${cls}" draggable="${draggable}" data-comp-id="${c.id}" ${dragAttrs}
+           ${reason ? `title="${reason}"` : ''}>
+        <div class="comp-img">${ICONS[c.cat]||''}</div>
+        <div class="comp-info">
+          <div class="comp-name">${c.name}</div>
+          <div class="comp-spec">${reason ? reason : c.spec}</div>
+        </div>
+        <div class="comp-price">${reason ? '' : formatPrice(c.price)}</div>
+        <span class="incompat-badge">${reason ? (reason.length > 20 ? 'N/A' : reason) : ''}</span>
+      </div>`;
+  }).join('');
+}
+
+function renderZones() {
+  document.getElementById('slotZones').innerHTML = SERVER.zones.map(z => {
+    const items = state.installed[z.id];
+    const usedSlots = items.reduce((s,i)=>s+i.comp.slotsNeeded,0);
+    const over = usedSlots > z.slots;
+    const full = usedSlots >= z.slots;
+    return `
+      <div class="slot-zone" id="zone-${z.id}" ondragover="onDragOver(event,'${z.id}')" ondragleave="onDragLeave(event,'${z.id}')" ondrop="onDrop(event,'${z.id}')">
+        <div class="slot-zone-header">
+          <div class="slot-zone-title"><span class="zone-icon" style="background:${z.color}">${z.label.charAt(0)}</span>${z.label}</div>
+          <span class="slot-counter ${over?'full':full?'warn':''}">${usedSlots} / ${z.slots}</span>
+        </div>
+        <div class="slot-grid">
+          ${items.length===0?'<div class="slot-placeholder">Перетащите компоненты сюда</div>':''}
+          ${items.map(i=>`
+            <div class="installed-comp">
+              <div class="comp-img">${ICONS[i.comp.cat]||''}</div>
+              <div class="comp-info"><div class="comp-name">${i.comp.name}</div><div class="comp-spec">${i.comp.spec}</div></div>
+              <div class="comp-price">${formatPrice(i.comp.price)}</div>
+              <button class="remove-btn" onclick="removeComp('${z.id}','${i.instanceId}')">x</button>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderSpecs() {
+  const c = calculate();
+  const cpuItems = state.installed.cpu;
+  const ramItems = state.installed.ram;
+  const allDisks = [...state.installed.disk_sff, ...state.installed.disk_m2];
+
+  // CPU info
+  const totalCores = cpuItems.reduce((s,i) => s + (i.comp.cores||0), 0);
+  const totalTdp = cpuItems.reduce((s,i) => s + (i.comp.tdp||0), 0);
+  const cpuFreq = cpuItems.length > 0 ? cpuItems[0].comp.freq || '-' : '-';
+  const tdpDanger = totalTdp > 0 && cpuItems.some(i => i.comp.tdp > SERVER.maxTdp);
+
+  // RAM info
+  const totalRAM = ramItems.reduce((s,i) => s + (i.comp.capacity||0), 0);
+  const ramChannels = cpuItems.length > 0 ? Math.min(ramItems.length, cpuItems.length * 8) : ramItems.length;
+  const memPerf = cpuItems.length > 0 && ramItems.length > 0
+    ? (ramItems.length / cpuItems.length >= 4 ? 'Оптимально' : ramItems.length / cpuItems.length >= 2 ? 'Норма' : 'Низкая')
+    : '-';
+  const memPerfColor = memPerf === 'Оптимально' ? 'var(--green)' : memPerf === 'Норма' ? 'var(--yellow)' : memPerf === 'Низкая' ? 'var(--red)' : 'var(--text3)';
+
+  // Storage
+  const totalStorTB = allDisks.reduce((s,i) => s + (i.comp.storTB||0), 0);
+
+  // Power
+  const powerPct = c.psuBudget > 0 ? Math.round(c.totalPower / c.psuBudget * 100) : 0;
+  const powerCls = powerPct > 100 ? 'sb-err' : powerPct > 70 ? 'sb-warn' : 'sb-ok';
+  const powerDanger = c.psuBudget > 0 && c.totalPower > c.psuBudget;
+
+  // TDP bar
+  const maxTotalTdp = SERVER.maxTdp * SERVER.sockets;
+  const tdpPct = maxTotalTdp > 0 ? Math.round(totalTdp / maxTotalTdp * 100) : 0;
+  const tdpCls = tdpDanger ? 'sb-err' : tdpPct > 70 ? 'sb-warn' : 'sb-accent';
+
+  document.getElementById('specsPanel').innerHTML = `
+    <div class="spec-card ${totalCores>0?'highlight':''}">
+      <div class="spec-label">Вычислительная мощность</div>
+      <div class="spec-value">${totalCores > 0 ? totalCores + ' ядер' : '-'}</div>
+      <div class="spec-sub">${cpuItems.length > 0 ? cpuItems.length + 'x CPU / ' + cpuFreq : 'CPU не установлен'}</div>
+    </div>
+    <div class="spec-card ${tdpDanger?'danger':totalTdp>0?'highlight':''}">
+      <div class="spec-label">Тепловой пакет (TDP)</div>
+      <div class="spec-value ${tdpDanger?'danger':''}">${totalTdp > 0 ? totalTdp + ' Вт' : '-'}</div>
+      <div class="spec-sub">Лимит сервера: ${SERVER.maxTdp}W x ${SERVER.sockets}</div>
+      ${totalTdp > 0 ? `<div class="spec-bar"><div class="spec-bar-fill ${tdpCls}" style="width:${Math.min(tdpPct,100)}%"></div></div>` : ''}
+    </div>
+    <div class="spec-card ${totalRAM>0?'highlight':''}">
+      <div class="spec-label">Оперативная память</div>
+      <div class="spec-value">${totalRAM > 0 ? totalRAM + ' GB' : '-'}</div>
+      <div class="spec-sub">${ramItems.length > 0 ? ramItems.length + ' планок / ' : ''}Произв.: <span style="color:${memPerfColor};font-weight:600">${memPerf}</span></div>
+    </div>
+    <div class="spec-card ${totalStorTB>0?'highlight':''}">
+      <div class="spec-label">Хранилище</div>
+      <div class="spec-value">${totalStorTB > 0 ? totalStorTB.toFixed(1) + ' TB' : '-'}</div>
+      <div class="spec-sub">${allDisks.length} ${allDisks.length === 1 ? 'диск' : allDisks.length < 5 ? 'диска' : 'дисков'}</div>
+    </div>
+    <div class="spec-card ${powerDanger?'danger':c.totalPower>0?'highlight':''}">
+      <div class="spec-label">Энергопотребление</div>
+      <div class="spec-value ${powerDanger?'danger':''}">${c.totalPower > 0 ? c.totalPower + ' Вт' : '-'}</div>
+      <div class="spec-sub">Бюджет: ${c.psuBudget > 0 ? c.psuBudget + ' Вт (80%)' : 'БП не установлен'}</div>
+      ${c.psuBudget > 0 ? `<div class="spec-bar"><div class="spec-bar-fill ${powerCls}" style="width:${Math.min(powerPct,100)}%"></div></div>` : ''}
+    </div>
+    <div class="spec-card">
+      <div class="spec-label">Итого</div>
+      <div class="spec-value" style="color:var(--accent)">${formatPrice(c.totalPrice)}</div>
+      <div class="spec-sub">${c.all.length} ${c.all.length === 1 ? 'компонент' : c.all.length < 5 ? 'компонента' : 'компонентов'}</div>
+    </div>
+  `;
+}
+
+function renderSummary() {
+  const calc = calculate();
+  const rbEl = document.getElementById('resourceBars');
+  const bars = [
+    {label:'CPU сокеты',used:calc.cpuUsed,total:SERVER.zones.find(z=>z.id==='cpu').slots},
+    {label:'DIMM слоты',used:calc.ramUsed,total:SERVER.zones.find(z=>z.id==='ram').slots},
+    {label:'Корзины SFF',used:calc.diskSffUsed,total:SERVER.zones.find(z=>z.id==='disk_sff').slots},
+    {label:'M.2 слоты',used:calc.diskM2Used,total:SERVER.zones.find(z=>z.id==='disk_m2').slots},
+    {label:'PCIe слоты',used:calc.pcieUsed,total:SERVER.zones.find(z=>z.id==='pcie').slots},
+    {label:'Мощность БП',used:calc.totalPower,total:calc.psuBudget,unit:'Вт'},
+  ];
+  rbEl.innerHTML = bars.map(b=>{
+    const pct=b.total>0?(b.used/b.total*100):0;
+    const cls=pct>100?'rb-err':pct>70?'rb-warn':'rb-ok';
+    const u=b.unit||'';
+    return `<div class="resource-bar"><div class="rb-label"><span>${b.label}</span><span>${b.used}${u?' '+u:''} / ${b.total}${u?' '+u:''}</span></div><div class="rb-track"><div class="rb-fill ${cls}" style="width:${Math.min(pct,100)}%"></div></div></div>`;
+  }).join('');
+
+  const msgs = validate(calc);
+  const msgEl = document.getElementById('msgList');
+  msgEl.innerHTML = msgs.length===0
+    ? '<div style="color:var(--text3);font-size:.78rem;padding:6px 0">Нет проблем</div>'
+    : msgs.map(m=>`<div class="msg msg-${m.level}"><span class="msg-icon">${ICONS[m.level==='error'?'error':m.level==='warning'?'warn':m.level==='suggestion'?'plus':'info']}</span><span>${m.text}</span></div>`).join('');
+
+  const hasErrors = msgs.some(m=>m.level==='error');
+  const btn = document.getElementById('buildBtn');
+  if(hasErrors){const n=msgs.filter(m=>m.level==='error').length;btn.className='build-btn blocked';btn.textContent=`В сборку (${n} ${n===1?'ошибка':n<5?'ошибки':'ошибок'})`}
+  else{btn.className='build-btn ok';btn.textContent='В сборку'}
+  document.getElementById('headerPrice').innerHTML=`<small>Итого</small>${formatPrice(calc.totalPrice)}`;
+}
+
+// ── CALCULATIONS ──
+function calculate() {
+  const all=[];Object.values(state.installed).forEach(items=>items.forEach(i=>all.push(i.comp)));
+  return {
+    cpuUsed:state.installed.cpu.reduce((s,i)=>s+i.comp.slotsNeeded,0),
+    ramUsed:state.installed.ram.reduce((s,i)=>s+i.comp.slotsNeeded,0),
+    diskSffUsed:state.installed.disk_sff.reduce((s,i)=>s+i.comp.slotsNeeded,0),
+    diskM2Used:state.installed.disk_m2.reduce((s,i)=>s+i.comp.slotsNeeded,0),
+    pcieUsed:state.installed.pcie.reduce((s,i)=>s+i.comp.slotsNeeded,0),
+    psuUsed:state.installed.psu.reduce((s,i)=>s+i.comp.slotsNeeded,0),
+    totalPower:all.reduce((s,c)=>s+(c.powerW||0),0),
+    psuTotal:state.installed.psu.reduce((s,i)=>s+(i.comp.psuOutput||0),0),
+    psuBudget:Math.round(state.installed.psu.reduce((s,i)=>s+(i.comp.psuOutput||0),0)*SERVER.powerFactor),
+    totalPrice:all.reduce((s,c)=>s+c.price,0),
+    all
+  };
+}
+
+function validate(calc) {
+  const msgs=[];
+  const z=id=>SERVER.zones.find(x=>x.id===id);
+  if(calc.cpuUsed>z('cpu').slots)msgs.push({level:'error',text:`Превышено число CPU сокетов: ${calc.cpuUsed} из ${z('cpu').slots}`});
+  if(calc.ramUsed>z('ram').slots)msgs.push({level:'error',text:`Превышено число DIMM слотов: ${calc.ramUsed} из ${z('ram').slots}`});
+  if(calc.pcieUsed>z('pcie').slots)msgs.push({level:'error',text:`Превышено число PCIe слотов: ${calc.pcieUsed} из ${z('pcie').slots}`});
+  if(calc.diskSffUsed>z('disk_sff').slots)msgs.push({level:'error',text:`Превышено число SFF корзин: ${calc.diskSffUsed} из ${z('disk_sff').slots}`});
+  if(calc.diskM2Used>z('disk_m2').slots)msgs.push({level:'error',text:`Превышено число M.2 слотов: ${calc.diskM2Used} из ${z('disk_m2').slots}`});
+
+  state.installed.cpu.forEach(i=>{
+    if(i.comp.tdp>SERVER.maxTdp)msgs.push({level:'error',text:`TDP ${i.comp.name} (${i.comp.tdp}W) превышает лимит сервера (${SERVER.maxTdp}W)`});
+  });
+
+  const cpuModels=[...new Set(state.installed.cpu.map(i=>i.comp.id))];
+  if(cpuModels.length>1)msgs.push({level:'error',text:'Установлены разные модели CPU. Все CPU должны быть одной модели.'});
+
+  if(state.installed.cpu.length>0&&state.installed.ram.length>0){
+    const perCpu=state.installed.ram.length/state.installed.cpu.length;
+    if(perCpu!==Math.floor(perCpu)||(perCpu>1&&perCpu%2!==0))
+      msgs.push({level:'error',text:`Недопустимое число планок на CPU: ${perCpu.toFixed(1)}. Допустимо: 1, 2, 4, 6, 8.`});
+  }
+
+  const ramTypes=[...new Set(state.installed.ram.map(i=>i.comp.id))];
+  if(ramTypes.length>1)msgs.push({level:'warning',text:'Смешивание планок разного типа может вызвать нестабильность.'});
+
+  if(calc.psuBudget>0&&calc.totalPower>calc.psuBudget)
+    msgs.push({level:'error',text:`Мощности БП недостаточно. Нагрузка ${calc.totalPower} Вт, доступно ${calc.psuBudget} Вт.`});
+
+  if(state.installed.psu.length===1)msgs.push({level:'warning',text:'Установлен 1 БП. Рекомендуется 2 для горячей замены.'});
+
+  if(state.installed.cpu.length===0&&calc.all.length>0)msgs.push({level:'info',text:'Процессор не выбран. Обязателен для финализации.'});
+  if(state.installed.ram.length===0&&state.installed.cpu.length>0)msgs.push({level:'info',text:'Память не выбрана. Обязательна для финализации.'});
+  if(state.installed.psu.length===0&&calc.all.length>0)msgs.push({level:'info',text:'БП не выбран. Обязателен для финализации.'});
+
+  if(state.installed.disk_sff.length>0&&!state.installed.pcie.some(i=>i.comp.id==='raid1'||i.comp.id==='hba1'))
+    msgs.push({level:'suggestion',text:'Добавьте RAID-контроллер или HBA для управления дисками.'});
+
+  if(state.installed.cpu.length>0&&state.installed.ram.length>0){
+    const perCpu=state.installed.ram.length/state.installed.cpu.length;
+    if(perCpu===1)msgs.push({level:'info',text:'1 планка на CPU - низкая производительность памяти.'});
+  }
+
+  return msgs;
+}
+
+// ── DRAG & DROP ──
+function onDragStart(e,compId){
+  const comp=COMPONENTS.find(c=>c.id===compId);
+  state.dragComp=comp;
+  e.dataTransfer.setData('text/plain',compId);
+  e.dataTransfer.effectAllowed='copy';
+  const ghost=document.createElement('div');
+  ghost.style.cssText='position:absolute;top:-1000px;padding:8px 12px;background:#fff;border:2px solid var(--accent);border-radius:8px;display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:500;box-shadow:0 8px 24px rgba(74,108,247,.2)';
+  ghost.innerHTML=`<span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center">${ICONS[comp.cat]||''}</span>${comp.name}`;
+  document.body.appendChild(ghost);
+  e.dataTransfer.setDragImage(ghost,20,20);
+  setTimeout(()=>ghost.remove(),0);
+  e.target.closest('.comp-item')?.classList.add('dragging');
+}
+
+function onDragEnd(e){
+  state.dragComp=null;
+  document.querySelectorAll('.comp-item.dragging').forEach(el=>el.classList.remove('dragging'));
+  document.querySelectorAll('.slot-zone').forEach(el=>el.classList.remove('drag-over','drag-over-invalid'));
+}
+
+function onDragOver(e,zoneId){
+  e.preventDefault();
+  const zoneEl=document.getElementById('zone-'+zoneId);
+  if(state.dragComp&&state.dragComp.zone===zoneId){
+    const usedSlots=state.installed[zoneId].reduce((s,i)=>s+i.comp.slotsNeeded,0);
+    const zone=SERVER.zones.find(z=>z.id===zoneId);
+    if(usedSlots+state.dragComp.slotsNeeded>zone.slots){zoneEl.classList.add('drag-over-invalid');zoneEl.classList.remove('drag-over');e.dataTransfer.dropEffect='none'}
+    else{zoneEl.classList.add('drag-over');zoneEl.classList.remove('drag-over-invalid');e.dataTransfer.dropEffect='copy'}
+  }else{zoneEl.classList.add('drag-over-invalid');zoneEl.classList.remove('drag-over');e.dataTransfer.dropEffect='none'}
+}
+
+function onDragLeave(e,zoneId){
+  const zoneEl=document.getElementById('zone-'+zoneId);
+  if(!zoneEl.contains(e.relatedTarget))zoneEl.classList.remove('drag-over','drag-over-invalid');
+}
+
+function onDrop(e,zoneId){
+  e.preventDefault();
+  document.getElementById('zone-'+zoneId).classList.remove('drag-over','drag-over-invalid');
+  const compId=e.dataTransfer.getData('text/plain');
+  const comp=COMPONENTS.find(c=>c.id===compId);
+  if(!comp)return;
+
+  if(comp.zone!==zoneId){showToast('error',`${comp.name} несовместим с этой областью.`);return}
+  const zone=SERVER.zones.find(z=>z.id===zoneId);
+  const usedSlots=state.installed[zoneId].reduce((s,i)=>s+i.comp.slotsNeeded,0);
+  if(usedSlots+comp.slotsNeeded>zone.slots){showToast('error',`Нет свободных слотов: ${zone.label} (${usedSlots}/${zone.slots}).`);return}
+  if(comp.cat==='cpu'&&state.installed.cpu.length>0&&state.installed.cpu[0].comp.id!==comp.id){showToast('error','Все CPU должны быть одной модели.');return}
+
+  instanceCounter++;
+  state.installed[zoneId].push({comp,instanceId:'inst_'+instanceCounter});
+
+  if(comp.tdp&&comp.tdp>SERVER.maxTdp)showToast('error',`TDP ${comp.name} (${comp.tdp}W) превышает лимит сервера (${SERVER.maxTdp}W).`);
+  else showToast('success',`${comp.name} установлен.`);
+  render();
+}
+
+function removeComp(zoneId,instanceId){
+  state.installed[zoneId]=state.installed[zoneId].filter(i=>i.instanceId!==instanceId);
+  render();
+}
+
+// ── HELPERS ──
+function setCat(id){state.activeCategory=id;renderCategories();renderComponents()}
+function setView(mode){state.viewMode=mode;document.getElementById('viewList').className='view-btn'+(mode==='list'?' active':'');document.getElementById('viewGrid').className='view-btn'+(mode==='grid'?' active':'');renderComponents()}
+function formatPrice(n){return n.toLocaleString('ru-RU')+' \u20BD'}
+function showToast(type,text){const c=document.getElementById('toasts');const t=document.createElement('div');t.className='toast '+(type==='error'?'':type==='warning'?'warn':type==='info'?'info':'success');t.innerHTML=`<span class="toast-icon">${ICONS[type==='error'?'error':type==='warning'?'warn':type==='success'?'plus':'info']}</span><span>${text}</span>`;c.appendChild(t);setTimeout(()=>t.remove(),4000)}
+function tryBuild(){const c=calculate();const m=validate(c);if(m.some(x=>x.level==='error'))showToast('error','Невозможно перевести в сборку. Исправьте ошибки.');else if(c.all.length===0)showToast('warn','Конфигурация пуста.');else showToast('success','Конфигурация переведена в сборку!')}
+
+render();
+</script>
+</body>
+</html>

@@ -46,6 +46,13 @@ import { IntegrationsModule } from "./integrations/integrations.module";
 import { ForbiddenInnModule } from "./api/admin/forbidden-inns/forbidden-inns.module";
 import { AdminPermissionsModule } from './api/admin/permissions/admin-permissions.module';
 import { DocumentsModule } from './api/documents/documents.module';
+import { ImportantAlertModule } from './api/important-alert/important-alert.module';
+import { ConfiguratorDraftsModule } from './api/configurator-drafts/configurator-drafts.module';
+import { SearchModule } from './api/search/search.module';
+import { TicketsModule } from './api/tickets/tickets.module';
+import { EventsModule } from './api/events/events.module';
+import { RecommendedConfigsModule } from './api/recommended-configs/recommended-configs.module';
+import { DashboardModule } from './api/dashboard/dashboard.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == "prod");
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
@@ -146,6 +153,13 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     ResetHashEntity,
     DownloadCentrModule,
     DocumentsModule,
+    ImportantAlertModule,
+    ConfiguratorDraftsModule,
+    SearchModule,
+    TicketsModule,
+    EventsModule,
+    RecommendedConfigsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

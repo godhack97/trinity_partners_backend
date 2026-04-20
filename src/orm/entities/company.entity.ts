@@ -74,4 +74,15 @@ export class CompanyEntity extends BasisEntity {
     default: CompanyStatus.Pending,
   })
   status: CompanyStatus;
+
+  @Column({
+    type: "enum",
+    enum: ["bronze", "silver", "gold", "platinum"],
+    nullable: true,
+    comment: "Уровень партнёра",
+  })
+  partner_level: "bronze" | "silver" | "gold" | "platinum" | null;
+
+  @Column({ type: "date", nullable: true, comment: "Срок действия сертификата" })
+  certificate_expiry: Date | null;
 }

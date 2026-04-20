@@ -7,6 +7,7 @@ import {
 } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
+import { IsOptional } from "class-validator";
 import { ValidateNested } from "class-validator";
 
 export class CreateDealDto {
@@ -31,10 +32,10 @@ export class CreateDealDto {
   @ApiProperty()
   competition_link?: string;
 
-  @ApiProperty()
-  @IsNotEmptyRu()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsStringRu()
-  configuration_link: string;
+  configuration_link?: string;
 
   @ApiProperty()
   @IsNotEmptyRu()

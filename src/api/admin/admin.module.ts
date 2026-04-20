@@ -11,6 +11,7 @@ import { AdminConfiguratorModule } from "./configurator/admin-configurator.modul
 import { AdminImageModule } from "@api/admin/image/admin-image.module";
 import { AdminDealModule } from "@api/admin/deal/admin-deal.module";
 import { AdminDistributorModule } from "./distributor/admin-distributor.module";
+import { AdminImportantAlertModule } from "./important-alert/admin-important-alert.module";
 import { NewsModule } from "../news/news.module";
 import { HttpModule } from "@nestjs/axios";
 import { Bitrix24Module } from "../../integrations/bitrix24/bitrix24.module";
@@ -37,6 +38,7 @@ import { UserRoleEntity } from "@orm/entities/user-roles.entity";
     AdminImageModule,
     AdminDealModule,
     AdminDistributorModule,
+    AdminImportantAlertModule,
     HttpModule,
     Bitrix24Module,
   ],

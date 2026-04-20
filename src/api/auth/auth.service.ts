@@ -1,5 +1,6 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
+import { ImportantAlertService } from "@api/important-alert/important-alert.service";
 import { NewsService } from "@api/news/news.service";
 import { NotificationService } from "@api/notification/notification.service";
 import {
@@ -31,6 +32,7 @@ export class AuthService {
     @InjectRepository(ResetHashEntity)
     private readonly resetHashRepository: Repository<ResetHashEntity>,
     private readonly emailConfirmerService: EmailConfirmerService,
+    private readonly importantAlertService: ImportantAlertService,
     private readonly notificationService: NotificationService,
     private readonly newsService: NewsService,
     @InjectRepository(UserToken)
@@ -128,6 +130,7 @@ export class AuthService {
       user.id,
     );
     const news = await this.newsService.check();
+    const important_alerts = await this.importantAlertService.getActive();
 
     return {
       ...user,
@@ -135,6 +138,7 @@ export class AuthService {
       notifications_unread,
       notifications_settings,
       news,
+      important_alerts,
     };
   }
 

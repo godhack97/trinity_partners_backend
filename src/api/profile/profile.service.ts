@@ -46,7 +46,10 @@ export class ProfileService {
     return user;
   }
   async update(auth_user: Partial<UserEntity>, data: ProfileUpdateRequestDto) {
-    const user = await this.userRepository.findById(auth_user.id);
+    const user = await this.userRepository.findOne({
+      where: { id: auth_user.id },
+      relations: ["role", "user_info"],
+    });
 
     if (this.action.update[user.role.name]) {
       return this.action.update[user.role.name](user, data);

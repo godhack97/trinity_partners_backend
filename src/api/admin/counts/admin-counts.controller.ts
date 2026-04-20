@@ -11,6 +11,7 @@ import { CompanyStatus } from "@orm/entities";
 import { UsersService } from "@api/users/users.service";
 import { DealService } from "@api/deal/deal.service";
 import { UserActionsService } from "@api/logs-list/user-actions.service";
+import { AdminImportantAlertService } from "@api/admin/important-alert/admin-important-alert.service";
 import { request } from "http";
 
 @ApiTags("counts")
@@ -27,6 +28,7 @@ export class AdminCountsController {
     private readonly usersService: UsersService,
     private readonly dealService: DealService,
     private readonly userActionsService: UserActionsService,
+    private readonly adminImportantAlertService: AdminImportantAlertService,
   ) {}
 
   @Get("/counts")
@@ -63,6 +65,7 @@ export class AdminCountsController {
       requestDeletedCount,
 
       logsCount,
+      importantAlertsCount,
     ] = await Promise.all([
       this.newsService.getCount(),
 
@@ -93,6 +96,7 @@ export class AdminCountsController {
       this.dealService.getRequestDeletedCount(),
 
       this.userActionsService.getCount(),
+      this.adminImportantAlertService.getCount(),
     ]);
 
     return {
@@ -130,6 +134,7 @@ export class AdminCountsController {
       tools: {
         logs: logsCount,
       },
+      importantAlerts: importantAlertsCount,
     };
   }
 }

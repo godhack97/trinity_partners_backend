@@ -1,6 +1,6 @@
 module.exports = {
 	apps: [{
-		name: "Trinity: backend",
+		name: "Trinity: backend 9131",
 		script: "node_modules/.bin/nest",
 		args: "start",
 		port: 9131,

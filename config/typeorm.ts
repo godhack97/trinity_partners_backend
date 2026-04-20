@@ -15,7 +15,7 @@ const config = {
   migrations: ['src/migrations/*{.ts,.js}'],
   autoLoadEntities: true,
   synchronize: false,
-  driver: require('mysql2') 
+  driver: require('mysql2')
 };
 
 export default registerAs('typeorm', () => config);

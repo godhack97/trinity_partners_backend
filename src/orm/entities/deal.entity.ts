@@ -97,8 +97,8 @@ export class DealEntity extends BasisEntity {
   @Column()
   competition_link: string;
 
-  @Column()
-  configuration_link: string;
+  @Column({ nullable: true })
+  configuration_link?: string;
 
   @Column()
   purchase_date: Date;
