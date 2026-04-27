@@ -34,4 +34,8 @@ export class NotificationsResponseDto {
   @ApiProperty()
   @Expose()
   read_at: Date;
+
+  @ApiProperty({ type: "array", items: { type: "object" }, nullable: true })
+  @Expose()
+  actions: { label: string; url: string }[] | null;
 }

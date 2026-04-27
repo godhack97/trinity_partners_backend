@@ -13,10 +13,13 @@ export class TicketRepository extends Repository<TicketEntity> {
   }
 
   async findById(id: number): Promise<TicketEntity | null> {
-    return await this.findOne({
-      where: { id },
-      relations: ["messages"],
-    });
+    return await this.createQueryBuilder("t")
+      .leftJoinAndSelect("t.messages", "m")
+      .leftJoinAndSelect("m.sender", "s")
+      .leftJoinAndSelect("s.user_info", "si")
+      .where("t.id = :id", { id })
+      .orderBy("m.id", "ASC")
+      .getOne();
   }
 
   async findByCreatorId(creatorId: number): Promise<TicketEntity[]> {
@@ -24,5 +27,21 @@ export class TicketRepository extends Repository<TicketEntity> {
       where: { creator_id: creatorId },
       order: { id: "DESC" },
     });
+  }
+
+  async findByManagerId(managerId: number): Promise<TicketEntity[]> {
+    return await this.createQueryBuilder("t")
+      .innerJoin("users", "u", "u.id = t.creator_id")
+      .where("u.manager_id = :managerId", { managerId })
+      .leftJoinAndSelect("t.messages", "m")
+      .orderBy("t.id", "DESC")
+      .getMany();
+  }
+
+  async countByManagerId(managerId: number): Promise<number> {
+    return await this.createQueryBuilder("t")
+      .innerJoin("users", "u", "u.id = t.creator_id")
+      .where("u.manager_id = :managerId", { managerId })
+      .getCount();
   }
 }

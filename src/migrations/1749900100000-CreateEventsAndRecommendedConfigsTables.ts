@@ -93,22 +93,26 @@ export class CreateEventsAndRecommendedConfigsTables1749900100000
       true,
     );
 
-    // Add partner_level and certificate_expiry to companies
-    await queryRunner.addColumns("companies", [
-      new TableColumn({
+    // Add partner_level and certificate_expiry to companies (idempotent)
+    const hasPartnerLevel = await queryRunner.hasColumn("companies", "partner_level");
+    if (!hasPartnerLevel) {
+      await queryRunner.addColumn("companies", new TableColumn({
         name: "partner_level",
         type: "enum",
         enum: ["bronze", "silver", "gold", "platinum"],
         isNullable: true,
         comment: "Уровень партнёра",
-      }),
-      new TableColumn({
+      }));
+    }
+    const hasCertificateExpiry = await queryRunner.hasColumn("companies", "certificate_expiry");
+    if (!hasCertificateExpiry) {
+      await queryRunner.addColumn("companies", new TableColumn({
         name: "certificate_expiry",
         type: "date",
         isNullable: true,
         comment: "Срок действия сертификата",
-      }),
-    ]);
+      }));
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

@@ -11,6 +11,10 @@ export class TicketMessageResponseDto extends WithIdDto {
   @Expose()
   sender_id: number;
 
+  @ApiProperty({ nullable: true })
+  @Expose()
+  sender_name: string | null;
+
   @ApiProperty()
   @Expose()
   message: string;
@@ -18,6 +22,10 @@ export class TicketMessageResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   attachments?: string[];
+
+  @ApiProperty()
+  @Expose()
+  is_read: boolean;
 
   @ApiProperty()
   @Expose()

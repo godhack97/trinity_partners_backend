@@ -18,4 +18,15 @@ export class TicketMessageRepository extends Repository<TicketMessageEntity> {
       order: { id: "ASC" },
     });
   }
+
+  async markAsReadByReceiver(ticketId: number, readerId: number): Promise<void> {
+    await this.createQueryBuilder()
+      .update()
+      .set({ is_read: true })
+      .where("ticket_id = :ticketId AND sender_id != :readerId AND is_read = false", {
+        ticketId,
+        readerId,
+      })
+      .execute();
+  }
 }

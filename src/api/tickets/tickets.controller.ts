@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseInterceptors,
@@ -62,5 +63,26 @@ export class TicketsController {
     @Body() dto: AddTicketMessageDto,
   ) {
     return this.ticketsService.addMessage(+id, auth_user, dto);
+  }
+
+  @Patch(":id/read")
+  @UseInterceptors(new TransformResponse(TicketResponseDto))
+  @ApiResponse({ type: TicketResponseDto })
+  markAsRead(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
+    return this.ticketsService.markAsRead(+id, auth_user);
+  }
+
+  @Patch(":id/close")
+  @UseInterceptors(new TransformResponse(TicketResponseDto))
+  @ApiResponse({ type: TicketResponseDto })
+  close(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
+    return this.ticketsService.close(+id, auth_user);
+  }
+
+  @Patch(":id/reopen")
+  @UseInterceptors(new TransformResponse(TicketResponseDto))
+  @ApiResponse({ type: TicketResponseDto })
+  reopen(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
+    return this.ticketsService.reopen(+id, auth_user);
   }
 }

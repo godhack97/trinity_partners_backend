@@ -1,18 +1,46 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { TicketRepository, TicketMessageRepository } from "@orm/repositories";
-import { UserEntity } from "@orm/entities";
+import { TicketEntity, UserEntity } from "@orm/entities";
 import { CreateTicketDto } from "./dto/request/create-ticket.dto";
 import { AddTicketMessageDto } from "./dto/request/add-ticket-message.dto";
+import { NotificationService } from "@api/notification/notification.service";
+import { NotificationIconType } from "@orm/entities";
+
+const MANAGER_ROLE = "partner_manager";
 
 @Injectable()
 export class TicketsService {
   constructor(
     private readonly ticketRepository: TicketRepository,
     private readonly ticketMessageRepository: TicketMessageRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
+  private calcUnread(ticket: TicketEntity, userId: number): number {
+    if (!ticket.messages) return 0;
+    return ticket.messages.filter((m) => m.sender_id !== userId && !m.is_read).length;
+  }
+
+  private fillSenderNames(ticket: TicketEntity): void {
+    ticket.messages?.forEach((msg) => {
+      const info = (msg.sender as any)?.user_info;
+      msg.sender_name = info
+        ? [info.first_name, info.last_name].filter(Boolean).join(" ") || null
+        : null;
+    });
+  }
+
   async findAll(auth_user: UserEntity) {
-    return this.ticketRepository.findByCreatorId(auth_user.id);
+    let tickets: TicketEntity[];
+    if (auth_user.role?.name === MANAGER_ROLE) {
+      tickets = await this.ticketRepository.findByManagerId(auth_user.id);
+    } else {
+      tickets = await this.ticketRepository.findByCreatorId(auth_user.id);
+    }
+    tickets.forEach((t) => {
+      t.unread_count = this.calcUnread(t, auth_user.id);
+    });
+    return tickets;
   }
 
   async findOne(id: number, auth_user: UserEntity) {
@@ -22,13 +50,24 @@ export class TicketsService {
       throw new HttpException("Тикет не найден", HttpStatus.NOT_FOUND);
     }
 
-    if (ticket.creator_id !== auth_user.id) {
+    if (auth_user.role?.name === MANAGER_ROLE) {
+      const tickets = await this.ticketRepository.findByManagerId(auth_user.id);
+      const hasAccess = tickets.some((t) => t.id === ticket.id);
+      if (!hasAccess) {
+        throw new HttpException(
+          "У вас нет доступа к этому тикету",
+          HttpStatus.FORBIDDEN,
+        );
+      }
+    } else if (ticket.creator_id !== auth_user.id) {
       throw new HttpException(
         "У вас нет доступа к этому тикету",
         HttpStatus.FORBIDDEN,
       );
     }
 
+    this.fillSenderNames(ticket);
+    ticket.unread_count = this.calcUnread(ticket, auth_user.id);
     return ticket;
   }
 
@@ -46,9 +85,32 @@ export class TicketsService {
       sender_id: auth_user.id,
       message: dto.message,
       attachments: dto.attachments || [],
+      is_read: false,
     });
 
-    return this.ticketRepository.findById(ticket.id);
+    // Уведомление менеджеру о новом тикете
+    Logger.log(`[Tickets] create: auth_user.id=${auth_user.id} manager_id=${auth_user.manager_id} role=${auth_user.role?.name}`);
+    if (auth_user.manager_id) {
+      try {
+        await this.notificationService.send({
+          user_id: auth_user.manager_id,
+          title: "Новый запрос",
+          text: `Партнёр создал новый запрос: «${dto.subject}»`,
+          actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
+          ticket_id: ticket.id,
+        });
+        Logger.log(`[Tickets] notification sent to manager ${auth_user.manager_id}`);
+      } catch (e) {
+        Logger.error(`[Tickets] notification error: ${e.message}`);
+      }
+    } else {
+      Logger.warn(`[Tickets] manager_id is null for user ${auth_user.id}, no notification sent`);
+    }
+
+    const result = await this.ticketRepository.findById(ticket.id);
+    this.fillSenderNames(result);
+    result.unread_count = this.calcUnread(result, auth_user.id);
+    return result;
   }
 
   async addMessage(
@@ -63,12 +125,120 @@ export class TicketsService {
       sender_id: auth_user.id,
       message: dto.message,
       attachments: dto.attachments || [],
+      is_read: false,
     });
 
-    return this.ticketRepository.findById(ticket.id);
+    const isManager = auth_user.role?.name === MANAGER_ROLE;
+
+    // Если отвечает менеджер и тикет ещё открыт → переводим в "в работе"
+    if (isManager && ticket.status === "open") {
+      await this.ticketRepository.update(ticket.id, { status: "in_progress" });
+    }
+
+    const updatedTicket = await this.ticketRepository.findById(ticket.id);
+
+    if (isManager) {
+      // Уведомление партнёру: менеджер ответил
+      await this.notificationService.send({
+        user_id: ticket.creator_id,
+        title: "Ответ на запрос",
+        text: `Вам ответили на запрос: «${ticket.subject}»`,
+        actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
+        ticket_id: ticket.id,
+      });
+    } else {
+      // Уведомление менеджеру: новое сообщение от партнёра
+      if (auth_user.manager_id) {
+        await this.notificationService.send({
+          user_id: auth_user.manager_id,
+          title: "Новое сообщение в запросе",
+          text: `Новое сообщение в запросе: «${ticket.subject}»`,
+          actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
+          ticket_id: ticket.id,
+        });
+      }
+    }
+
+    this.fillSenderNames(updatedTicket);
+    updatedTicket.unread_count = this.calcUnread(updatedTicket, auth_user.id);
+    return updatedTicket;
+  }
+
+  async markAsRead(ticketId: number, auth_user: UserEntity) {
+    await this.findOne(ticketId, auth_user); // проверка доступа
+    await this.ticketMessageRepository.markAsReadByReceiver(ticketId, auth_user.id);
+    const ticket = await this.ticketRepository.findById(ticketId);
+    this.fillSenderNames(ticket);
+    ticket.unread_count = 0;
+    return ticket;
+  }
+
+  async close(ticketId: number, auth_user: UserEntity) {
+    if (auth_user.role?.name !== MANAGER_ROLE) {
+      throw new HttpException(
+        "Только менеджер может закрывать тикеты",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const ticket = await this.findOne(ticketId, auth_user);
+
+    if (ticket.status === "closed") {
+      throw new HttpException("Тикет уже закрыт", HttpStatus.BAD_REQUEST);
+    }
+
+    await this.ticketRepository.update(ticket.id, { status: "closed" });
+
+    // Уведомление партнёру: тикет закрыт
+    await this.notificationService.send({
+      user_id: ticket.creator_id,
+      title: "Запрос закрыт",
+      text: `Запрос «${ticket.subject}» отправлен в архив`,
+      actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
+      ticket_id: ticket.id,
+    });
+
+    const result = await this.ticketRepository.findById(ticket.id);
+    this.fillSenderNames(result);
+    result.unread_count = this.calcUnread(result, auth_user.id);
+    return result;
+  }
+
+  async reopen(ticketId: number, auth_user: UserEntity) {
+    if (auth_user.role?.name !== MANAGER_ROLE) {
+      throw new HttpException(
+        "Только менеджер может возвращать тикеты в работу",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const ticket = await this.findOne(ticketId, auth_user);
+
+    if (ticket.status !== "closed") {
+      throw new HttpException("Тикет не закрыт", HttpStatus.BAD_REQUEST);
+    }
+
+    await this.ticketRepository.update(ticket.id, { status: "in_progress" });
+
+    // Уведомление партнёру: тикет возвращён в работу
+    await this.notificationService.send({
+      user_id: ticket.creator_id,
+      title: "Запрос возобновлён",
+      text: `Запрос «${ticket.subject}» возвращён в работу`,
+      actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
+      ticket_id: ticket.id,
+    });
+
+    const result = await this.ticketRepository.findById(ticket.id);
+    this.fillSenderNames(result);
+    result.unread_count = this.calcUnread(result, auth_user.id);
+    return result;
   }
 
   async getCount(auth_user: UserEntity): Promise<number> {
+    if (auth_user.role?.name === MANAGER_ROLE) {
+      return this.ticketRepository.countByManagerId(auth_user.id);
+    }
     return this.ticketRepository.count({
       where: { creator_id: auth_user.id },
     });

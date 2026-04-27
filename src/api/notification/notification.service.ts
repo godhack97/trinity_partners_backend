@@ -19,6 +19,8 @@ type NotificationSendDto = {
   user_id: number;
   title: string;
   text: string;
+  actions?: { label: string; url: string }[] | null;
+  ticket_id?: number | null;
 };
 
 const NotificationSettingsTypes = [
@@ -35,6 +37,8 @@ type ActionDataType = {
   user_id: number;
   title: string;
   text: string;
+  actions?: { label: string; url: string }[] | null;
+  ticket_id?: number | null;
 };
 
 @Injectable()
@@ -52,54 +56,59 @@ export class NotificationService {
     [NotificationType.Email]: this.sendEmail.bind(this),
   };
   async send(data: NotificationSendDto & { email?: string }) {
-    const { user_id, title, text, email: additionalEmail } = data;
-  
+    const { user_id, title, text, email: additionalEmail, actions, ticket_id } = data;
+
     if (!user_id) {
       Logger.error('User ID is null or undefined in NotificationService.send');
       return;
     }
-  
+
     const user = await this.userRepository.findById(user_id);
-  
+
     if (!user) {
       Logger.error(`User not found with ID: ${user_id}`);
       return;
     }
-  
+
     const userSettingEntities = await this.userSettingRepository.findBy({
       user_id,
       type: In(NotificationSettingsTypes),
     });
-  
-    const filteredSettingTypes = userSettingEntities.filter(
-      (userSetting) => userSetting.value === UserNotificationType.Yes,
+
+    // Web-уведомление отправляется всегда, если настройка явно не отключена
+    const webSetting = userSettingEntities.find(
+      (s) => s.type === UserSettingType.NOTIFICATIONS_WEB,
     );
-  
-    for (const filteredSetting of filteredSettingTypes) {
-      const type = mapSettingToNotificationType[filteredSetting.type];
-  
-      await this.actionByType[type]({
+    const webEnabled = !webSetting || webSetting.value !== UserNotificationType.No;
+
+    if (webEnabled) {
+      await this.sendWeb({
+        user_id: user.id,
+        title,
+        text,
+        type: NotificationType.Site,
+        actions: actions ?? null,
+        ticket_id: ticket_id ?? null,
+      });
+    }
+
+    // Email — только если явно включён
+    const emailSetting = userSettingEntities.find(
+      (s) => s.type === UserSettingType.NOTIFICATIONS_EMAIL,
+    );
+    const emailEnabled = emailSetting?.value === UserNotificationType.Yes || emailSetting?.value === "yes";
+
+    if (emailEnabled) {
+      await this.sendEmail({
         user_id: user.id,
         email: user.email,
         title,
         text,
-        type,
       });
-    }
-  
-    if (additionalEmail && additionalEmail !== user.email) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-  
-      for (const filteredSetting of filteredSettingTypes) {
-        const type = mapSettingToNotificationType[filteredSetting.type];
-  
-        await this.actionByType[type]({
-          user_id: user.id,
-          email: additionalEmail,
-          title,
-          text,
-          type,
-        });
+
+      if (additionalEmail && additionalEmail !== user.email) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await this.sendEmail({ user_id: user.id, email: additionalEmail, title, text });
       }
     }
   }
@@ -121,13 +130,15 @@ export class NotificationService {
   }
 
   async sendWeb(data: ActionDataType & { type }) {
-    const { user_id, title, text, type } = data;
+    const { user_id, title, text, type, actions, ticket_id } = data;
 
     return await this.notificationRepository.save({
       user_id,
       title,
       text,
       type,
+      actions: actions ?? null,
+      ticket_id: ticket_id ?? null,
     });
   }
 
@@ -135,7 +146,36 @@ export class NotificationService {
     const notifications = await this.notificationRepository.findBy({
       user_id: id,
     });
-    return notifications;
+
+    // Группировка уведомлений по ticket_id
+    const grouped = new Map<number, typeof notifications>();
+    const standalone: typeof notifications = [];
+
+    for (const n of notifications) {
+      if (n.ticket_id) {
+        const group = grouped.get(n.ticket_id) ?? [];
+        group.push(n);
+        grouped.set(n.ticket_id, group);
+      } else {
+        standalone.push(n);
+      }
+    }
+
+    const result: any[] = [...standalone];
+
+    for (const [, group] of grouped) {
+      // group уже отсортирована DESC по id (из orderBy entity)
+      const [main, ...rest] = group;
+      result.push({
+        ...main,
+        related: rest.length > 0 ? rest : undefined,
+      });
+    }
+
+    // Итоговая сортировка по id DESC
+    result.sort((a, b) => b.id - a.id);
+
+    return result;
   }
 
   async check(id: number) {

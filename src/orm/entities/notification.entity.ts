@@ -51,6 +51,12 @@ export class NotificationEntity extends BasisEntity {
   })
   icon: NotificationIconType;
 
-  @Column({ type: "timestamp" })
+  @Column({ type: "timestamp", nullable: true })
   read_at: Date;
+
+  @Column({ type: "json", nullable: true })
+  actions: { label: string; url: string }[] | null;
+
+  @Column({ nullable: true, default: null })
+  ticket_id: number | null;
 }

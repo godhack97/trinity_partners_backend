@@ -34,4 +34,7 @@ export class TicketEntity extends BasisEntity {
 
   @OneToMany(() => TicketMessageEntity, (msg) => msg.ticket, { eager: true })
   messages: TicketMessageEntity[];
+
+  // Виртуальное поле, вычисляется в сервисе
+  unread_count?: number;
 }

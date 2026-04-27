@@ -31,6 +31,10 @@ export class TicketResponseDto extends WithIdDto {
 
   @ApiProperty()
   @Expose()
+  unread_count: number;
+
+  @ApiProperty()
+  @Expose()
   created_at: Date;
 
   @ApiProperty()

@@ -7,7 +7,7 @@ export class CreateTicketsTables1749900000000 implements MigrationInterface {
         name: 'tickets',
         columns: [
           { name: 'id', type: 'int', isPrimary: true, isGenerated: true, generationStrategy: 'increment' },
-          { name: 'creator_id', type: 'int', isNullable: false },
+          { name: 'creator_id', type: 'int unsigned', isNullable: false },
           { name: 'type', type: 'enum', enum: ['manager', 'tech_specialist'], isNullable: false },
           { name: 'subject', type: 'varchar', length: '255', isNullable: false },
           { name: 'status', type: 'enum', enum: ['open', 'in_progress', 'closed'], default: "'open'" },
@@ -37,7 +37,7 @@ export class CreateTicketsTables1749900000000 implements MigrationInterface {
         columns: [
           { name: 'id', type: 'int', isPrimary: true, isGenerated: true, generationStrategy: 'increment' },
           { name: 'ticket_id', type: 'int', isNullable: false },
-          { name: 'sender_id', type: 'int', isNullable: false },
+          { name: 'sender_id', type: 'int unsigned', isNullable: false },
           { name: 'message', type: 'text', isNullable: false },
           { name: 'attachments', type: 'json', isNullable: true },
           { name: 'created_at', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },

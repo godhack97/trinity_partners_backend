@@ -29,4 +29,10 @@ export class TicketMessageEntity extends BasisEntity {
 
   @Column({ type: "json", nullable: true })
   attachments?: string[];
+
+  @Column({ default: false })
+  is_read: boolean;
+
+  // Нет в БД — заполняется в сервисе после загрузки relations
+  sender_name?: string | null;
 }
