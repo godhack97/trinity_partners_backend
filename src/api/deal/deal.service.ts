@@ -441,7 +441,9 @@ export class DealService {
     }
 
     if (this.isSuperAdmin(auth_user)) {
-      return deal;
+      return Object.assign(deal, {
+        can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+      });
     }
 
     if (
@@ -450,7 +452,9 @@ export class DealService {
     ) {
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
       if (creatorIds.includes(deal.creator_id)) {
-        return deal;
+        return Object.assign(deal, {
+          can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+        });
       }
 
       throw new HttpException(
@@ -462,7 +466,9 @@ export class DealService {
     if (this.hasRole(auth_user, RoleTypes.Employee)) {
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
       if (creatorIds.includes(deal.creator_id)) {
-        return deal;
+        return Object.assign(deal, {
+          can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+        });
       }
       throw new HttpException(
         "У вас недостаточно прав для получения деталей данной сделки",
@@ -732,6 +738,13 @@ export class DealService {
   ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
 
+    if (!(await this.canUpdateDealStatus(deal, auth_user))) {
+      throw new HttpException(
+        "У вас недостаточно прав для изменения этапа сделки",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     const updatedDeal = await this.dealRepository.update(dealId, { status });
 
     if (deal.bitrix24_deal_id) {
@@ -739,6 +752,7 @@ export class DealService {
         deal.distributor_id,
       );
       const distributorName = distributor?.name || distributor?.name;
+      deal.status = status;
 
       this.bitrix24Service
         .updateLead(deal.bitrix24_deal_id, deal, distributorName)
@@ -750,7 +764,36 @@ export class DealService {
         });
     }
 
-    return updatedDeal;
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось обновить этап сделки",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return this.findOne(dealId, auth_user);
+  }
+
+  private async canUpdateDealStatus(deal: any, auth_user: UserEntity) {
+    if (this.isSuperAdmin(auth_user)) {
+      return true;
+    }
+
+    const creator = await this.userRepository.findOne({
+      where: { id: deal.creator_id },
+      relations: ["manager"],
+    });
+
+    if (creator?.manager_id === auth_user.id) {
+      return true;
+    }
+
+    if (this.hasRole(auth_user, RoleTypes.EmployeeAdmin)) {
+      const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
+      return creatorIds.includes(deal.creator_id);
+    }
+
+    return false;
   }
 
   async convertLeadToDeal(dealId: number, auth_user: UserEntity): Promise<any> {

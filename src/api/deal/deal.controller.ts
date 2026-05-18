@@ -30,6 +30,7 @@ import { Delete } from "@nestjs/common";
 import { CreateDealDeletionRequestDto } from "./dto/request/create-deal-deletion-request.dto";
 import { ProcessDealDeletionRequestDto } from "./dto/request/process-deal-deletion-request.dto";
 import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-request-response.dto";
+import { UpdateDealStatusDto } from "./dto/request/update-deal-status.dto";
 
 @ApiTags("deal")
 @ApiBearerAuth()
@@ -215,6 +216,22 @@ export class DealController {
   @ApiResponse({ type: DealResponseDto })
   findOne(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
     return this.dealService.findOne(+id, auth_user);
+  }
+
+  @Put(":id/status")
+  @LogAction("deal_update", "deals")
+  @ApiBody({ type: UpdateDealStatusDto })
+  @ApiResponse({ type: DealResponseDto })
+  async updateStatus(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() updateDealStatusDto: UpdateDealStatusDto,
+  ) {
+    return this.dealService.updateDealStatus(
+      +id,
+      updateDealStatusDto.status,
+      auth_user,
+    );
   }
 
   // Удаление сделки - требует права на удаление

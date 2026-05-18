@@ -89,4 +89,10 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   delete_request_status: "yes" | "no";
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю менять этап сделки",
+  })
+  @Expose()
+  can_update_status: boolean;
 }
