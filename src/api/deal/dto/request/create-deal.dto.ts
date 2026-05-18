@@ -12,9 +12,9 @@ import { ValidateNested } from "class-validator";
 
 export class CreateDealDto {
   @ApiProperty()
-  @IsNotEmptyRu()
+  @IsOptional()
   @IsNumberRu()
-  distributor_id: number;
+  distributor_id?: number;
 
   @ApiProperty({ type: () => CreateCustomerDto })
   @ValidateNested()

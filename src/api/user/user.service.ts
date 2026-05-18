@@ -322,6 +322,7 @@ export class UserService {
       inn: registrationCompanyDto.inn,
       name: registrationCompanyDto.company_name,
       company_business_line: registrationCompanyDto.company_business_line,
+      partnership_type: registrationCompanyDto.partnership_type,
       employees_count: registrationCompanyDto.employees_count,
       site_url: registrationCompanyDto.site_url,
       promoted_products: registrationCompanyDto.promoted_products,

@@ -15,6 +15,11 @@ export enum CompanyStatus {
   Reject = "reject",
 }
 
+export enum PartnershipType {
+  Integrator = "integrator",
+  Distributor = "distributor",
+}
+
 @Entity({
   name: "companies",
 })
@@ -67,6 +72,13 @@ export class CompanyEntity extends BasisEntity {
 
   @Column()
   main_customers: string;
+
+  @Column({
+    type: "enum",
+    enum: PartnershipType,
+    default: PartnershipType.Integrator,
+  })
+  partnership_type: PartnershipType;
 
   @Column({
     type: "enum",

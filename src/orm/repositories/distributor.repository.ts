@@ -23,4 +23,11 @@ export class DistributorRepository extends Repository<DistributorEntity> {
   public async findById(id: number) {
     return await this.findOneBy({ id });
   }
+
+  public async findByName(name: string) {
+    return await this.createQueryBuilder("distributor")
+      .where("LOWER(distributor.name) = LOWER(:name)", { name })
+      .andWhere("distributor.deleted_at IS NULL")
+      .getOne();
+  }
 }

@@ -5,6 +5,8 @@ import {
   IsUrlRu,
   MinLengthRu,
 } from "@decorators/validate";
+import { PartnershipType } from "@orm/entities/company.entity";
+import { IsEnum } from "class-validator";
 
 export class RegistrationCompanyRequestDto {
   @ApiProperty()
@@ -32,6 +34,10 @@ export class RegistrationCompanyRequestDto {
 
   @ApiProperty()
   company_business_line: string; //направления деятельности
+
+  @ApiProperty({ enum: PartnershipType })
+  @IsEnum(PartnershipType)
+  partnership_type: PartnershipType;
 
   @ApiProperty()
   employees_count: number;

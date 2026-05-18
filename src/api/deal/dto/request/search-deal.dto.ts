@@ -2,7 +2,7 @@ import { IsDateRu, IsEnumRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
 import { Type } from "class-transformer";
-import { IsEnum, IsOptional } from "class-validator";
+import { IsEnum, IsNumber, IsOptional } from "class-validator";
 
 export class SearchDealDto {
   @ApiProperty()
@@ -29,4 +29,11 @@ export class SearchDealDto {
   @IsOptional()
   @ApiPropertyOptional()
   search?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @ApiPropertyOptional()
+  distributorId?: number;
 }

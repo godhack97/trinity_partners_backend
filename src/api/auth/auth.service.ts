@@ -122,6 +122,10 @@ export class AuthService {
       await this.updateUserActivity(tokenEntity.user_id, req);
     }
 
+    if (user.role.name === RoleTypes.Partner) {
+      user.owner_company = await user.lazy_owner_company;
+    }
+
     const notifications = await this.notificationService.check(user.id);
     const notifications_unread = await this.notificationService.countUnread(
       user.id,

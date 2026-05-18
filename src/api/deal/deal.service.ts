@@ -6,9 +6,16 @@ import {
   DealRepository,
   DistributorRepository,
   DealDeletionRequestRepository,
+  CompanyEmployeeRepository,
 } from "@orm/repositories";
 import { RoleTypes } from "@app/types/RoleTypes";
-import { DealStatus, UserEntity, Bitrix24SyncStatus } from "@orm/entities";
+import {
+  CompanyEmployeeStatus,
+  DealStatus,
+  UserEntity,
+  Bitrix24SyncStatus,
+} from "@orm/entities";
+import { CompanyEntity, PartnershipType } from "@orm/entities/company.entity";
 import { SearchDealDto } from "./dto/request/search-deal.dto";
 import { DealStatisticsResponseDto } from "./dto/response/deal-statistics-response.dto";
 import { Bitrix24Service } from "../../integrations/bitrix24/bitrix24.service";
@@ -36,6 +43,7 @@ export class DealService {
     private readonly userRepository: UserRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly dealDeletionRequestRepository: DealDeletionRequestRepository,
+    private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private configService: ConfigService,
   ) {}
 
@@ -103,9 +111,15 @@ export class DealService {
   }
 
   async create(auth_user: UserEntity, createDealDto: CreateDealDto) {
-    const distributor = await this.distributorRepository.findById(
-      createDealDto.distributor_id,
-    );
+    const authUserCompany = await this.getUserCompany(auth_user);
+    const distributor =
+      authUserCompany?.partnership_type === PartnershipType.Distributor
+        ? await this.findDistributorForCompany(authUserCompany)
+        : createDealDto.distributor_id
+          ? await this.distributorRepository.findById(
+              createDealDto.distributor_id,
+            )
+          : null;
 
     const existingCustomer = await this.customerRepository.findSimilar(
       createDealDto.customer.inn,
@@ -124,6 +138,8 @@ export class DealService {
         HttpStatus.FORBIDDEN,
       );
     }
+
+    createDealDto.distributor_id = distributor.id;
 
     if (!customer) {
       throw new HttpException(
@@ -306,13 +322,115 @@ export class DealService {
       this.hasRole(auth_user, RoleTypes.Partner) ||
       this.hasRole(auth_user, RoleTypes.Employee)
     ) {
-      deals = await this.dealRepository.findDealsWithFilters(entry);
-      deals = deals.filter((deal) => deal.creator_id === auth_user.id);
+      const authUserCompany = await this.getUserCompany(auth_user);
+
+      if (authUserCompany?.partnership_type === PartnershipType.Distributor) {
+        const distributor = await this.findDistributorForCompany(
+          authUserCompany,
+        );
+
+        deals = distributor
+          ? await this.dealRepository.findDealsWithFilters({
+              ...entry,
+              distributorId: distributor.id,
+            })
+          : [];
+
+        return deals;
+      }
+
+      const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
+      deals = await this.dealRepository.findDealsWithFilters(
+        entry,
+        creatorIds,
+      );
     } else {
       deals = [];
     }
 
     return deals;
+  }
+
+  private async getUserCompany(
+    auth_user: UserEntity,
+  ): Promise<CompanyEntity | null> {
+    const ownerCompany = await this.companyRepository.findByOwnerId(
+      auth_user.id,
+    );
+
+    if (ownerCompany) {
+      return ownerCompany;
+    }
+
+    const employeeCompany = await this.companyEmployeeRepository.findOne({
+      where: {
+        employee_id: auth_user.id,
+        status: CompanyEmployeeStatus.Accept,
+      },
+      relations: ["company"],
+    });
+
+    return employeeCompany?.company || null;
+  }
+
+  private async findDistributorForCompany(company: CompanyEntity) {
+    return await this.distributorRepository.findByName(company.name);
+  }
+
+  private async getRelatedDealCreatorIds(auth_user: UserEntity) {
+    const ids = new Set<number>([auth_user.id]);
+
+    if (auth_user.manager_id) {
+      ids.add(auth_user.manager_id);
+    }
+
+    const managedUsers = await this.userRepository.find({
+      where: { manager_id: auth_user.id },
+      select: { id: true },
+    });
+    managedUsers.forEach((user) => ids.add(user.id));
+
+    const companyIds = new Set<number>();
+    const ownerCompany = await this.companyRepository.findByOwnerId(
+      auth_user.id,
+    );
+
+    if (ownerCompany) {
+      companyIds.add(ownerCompany.id);
+      ids.add(ownerCompany.owner_id);
+    }
+
+    const employeeCompany = await this.companyEmployeeRepository.findOne({
+      where: {
+        employee_id: auth_user.id,
+        status: CompanyEmployeeStatus.Accept,
+      },
+      relations: ["company"],
+    });
+
+    if (employeeCompany) {
+      companyIds.add(employeeCompany.company_id);
+      if (employeeCompany.company?.owner_id) {
+        ids.add(employeeCompany.company.owner_id);
+      }
+    }
+
+    for (const companyId of companyIds) {
+      const company = await this.companyRepository.findById(companyId);
+      if (company?.owner_id) {
+        ids.add(company.owner_id);
+      }
+
+      const employees =
+        await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+          companyId,
+        );
+      employees
+        .filter((employee) => employee.status === CompanyEmployeeStatus.Accept)
+        .forEach((employee) => ids.add(employee.employee_id));
+    }
+
+    return Array.from(ids);
   }
 
   async findOne(id: number, auth_user: UserEntity) {
@@ -330,7 +448,8 @@ export class DealService {
       this.hasRole(auth_user, RoleTypes.EmployeeAdmin) ||
       this.hasRole(auth_user, RoleTypes.Partner)
     ) {
-      if (auth_user.id === deal.creator_id) {
+      const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
+      if (creatorIds.includes(deal.creator_id)) {
         return deal;
       }
 
@@ -341,7 +460,8 @@ export class DealService {
     }
 
     if (this.hasRole(auth_user, RoleTypes.Employee)) {
-      if (auth_user.id === deal.creator_id) {
+      const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
+      if (creatorIds.includes(deal.creator_id)) {
         return deal;
       }
       throw new HttpException(

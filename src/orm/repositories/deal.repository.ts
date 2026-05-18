@@ -40,7 +40,12 @@ export class DealRepository extends Repository<DealEntity> {
 
   public async findDealsWithFilters(
     entry?: SearchDealDto,
+    creatorIds?: number[],
   ): Promise<DealEntity[]> {
+    if (creatorIds && creatorIds.length === 0) {
+      return [];
+    }
+
     const queryBuilder = this.createQueryBuilder("deal")
       .leftJoinAndSelect("deal.distributor", "distributor")
       .leftJoinAndSelect("deal.customer", "customer")
@@ -57,6 +62,12 @@ export class DealRepository extends Repository<DealEntity> {
         "CASE WHEN deletion_request.id IS NOT NULL THEN 'yes' ELSE 'no' END",
         "delete_request_status",
       );
+
+    if (creatorIds) {
+      queryBuilder.andWhere("deal.creator_id IN (:...creatorIds)", {
+        creatorIds,
+      });
+    }
 
     if (entry?.startDate && entry?.endDate) {
       queryBuilder.andWhere(
@@ -78,6 +89,12 @@ export class DealRepository extends Repository<DealEntity> {
 
     if (entry?.status) {
       queryBuilder.andWhere("deal.status = :status", { status: entry.status });
+    }
+
+    if (entry?.distributorId) {
+      queryBuilder.andWhere("deal.distributor_id = :distributorId", {
+        distributorId: entry.distributorId,
+      });
     }
 
     if (entry?.search) {

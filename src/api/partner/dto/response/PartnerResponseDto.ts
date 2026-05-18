@@ -21,6 +21,10 @@ export class PartnerResponseDto extends WithIdDto {
 
   @ApiProperty()
   @Expose()
+  partnership_type: string;
+
+  @ApiProperty()
+  @Expose()
   employees_count: number;
 
   @ApiProperty()
