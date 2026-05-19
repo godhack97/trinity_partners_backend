@@ -12,6 +12,7 @@ import { RoleTypes } from "@app/types/RoleTypes";
 import {
   CompanyEmployeeStatus,
   DealStatus,
+  DealStatusRu,
   UserEntity,
   Bitrix24SyncStatus,
 } from "@orm/entities";
@@ -29,6 +30,7 @@ import {
 } from "@orm/entities/deal-deletion-request.entity";
 import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-request-response.dto";
 import { ConfigService } from "@nestjs/config";
+import { NotificationService } from "@api/notification/notification.service";
 
 @Injectable()
 export class DealService {
@@ -45,10 +47,19 @@ export class DealService {
     private readonly dealDeletionRequestRepository: DealDeletionRequestRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
     private configService: ConfigService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   private get hostname(): string {
     return this.configService.get<string>("HOSTNAME") || "localhost";
+  }
+
+  private get frontendHostname(): string {
+    return (
+      this.configService.get<string>("FRONTEND_HOSTNAME") ||
+      this.configService.get<string>("HOSTNAME") ||
+      "localhost"
+    );
   }
 
   private hasRole(user: UserEntity, roleName: string): boolean {
@@ -771,7 +782,82 @@ export class DealService {
       );
     }
 
+    await this.notifyDealStatusChanged(deal, status, auth_user);
+
     return this.findOne(dealId, auth_user);
+  }
+
+  private async notifyDealStatusChanged(
+    deal: any,
+    status: DealStatus,
+    actor: UserEntity,
+  ) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const statusText = DealStatusRu[status] || status;
+    const actorName =
+      actor.user_info?.first_name && actor.user_info?.last_name
+        ? `${actor.user_info.first_name} ${actor.user_info.last_name}`
+        : actor.email;
+
+    await Promise.all(
+      recipientIds.map((userId) =>
+        this.notificationService.send({
+          user_id: userId,
+          title: "Изменён этап сделки",
+          text: `Этап сделки ${deal.deal_num} изменён на "${statusText}". Изменил: ${actorName}.`,
+          actions: [
+            {
+              label: "Открыть сделку",
+              url: `${this.frontendHostname}/deals.management/${deal.id}`,
+            },
+          ],
+        }),
+      ),
+    );
+  }
+
+  private async getDealStatusNotificationRecipientIds(deal: any) {
+    const recipientIds = new Set<number>();
+    const creator = await this.userRepository.findByIdWithUserInfo(
+      deal.creator_id,
+    );
+
+    if (creator?.id) {
+      recipientIds.add(creator.id);
+    }
+
+    if (creator?.manager_id) {
+      recipientIds.add(creator.manager_id);
+    }
+
+    const distributorName = deal.distributor?.name;
+    if (distributorName) {
+      const distributorCompany = await this.companyRepository.findOne({
+        where: {
+          name: distributorName,
+          partnership_type: PartnershipType.Distributor,
+        },
+        relations: ["employee"],
+      });
+
+      if (distributorCompany?.owner_id) {
+        recipientIds.add(distributorCompany.owner_id);
+      }
+
+      if (distributorCompany?.id) {
+        const employees =
+          await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+            distributorCompany.id,
+          );
+        employees
+          .filter(
+            (employee) => employee.status === CompanyEmployeeStatus.Accept,
+          )
+          .forEach((employee) => recipientIds.add(employee.employee_id));
+      }
+    }
+
+    return Array.from(recipientIds);
   }
 
   private async canUpdateDealStatus(deal: any, auth_user: UserEntity) {
