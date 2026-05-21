@@ -34,6 +34,6 @@ async function bootstrap() {
     yamlDocumentUrl: '/api/swagger-yaml',
   });
 
-  await app.listen(9131);
+  await app.listen(process.env.PORT ?? 9131);
 }
 bootstrap();
