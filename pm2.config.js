@@ -1,8 +1,7 @@
 module.exports = {
 	apps: [{
-		name: "Trinity: backend 9131",
-		script: "node_modules/.bin/nest",
-		args: "start",
+		name: "Trinity: backend",
+		script: "dist/src/main.js",
 		port: 9131,
 		instances: 1,
 		autorestart: true,
@@ -10,6 +9,6 @@ module.exports = {
 		max_memory_restart: "1G",
 		env: {
 			"NODE_ENV": "prod"
-		},
+		}
 	}]
 };
