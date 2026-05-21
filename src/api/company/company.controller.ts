@@ -19,12 +19,19 @@ import { AddEmployeeAdminRequestDto } from "./dto/request/add-employee-admin-req
 import { TransformResponse } from "@interceptors/transform-response.interceptor";
 import { CompanyEmployeesWithEmpoloyeeResponseDto } from "./dto/response/company-employees-response.dto";
 import { LogAction } from "src/logs/log-action.decorator";
+import { PartnershipType } from "@orm/entities/company.entity";
 
 @ApiTags("company")
 @ApiBearerAuth()
 @Controller("company")
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
+
+  @Get("partners/:partnershipType")
+  @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin, RoleTypes.SuperAdmin])
+  findByPartnershipType(@Param("partnershipType") partnershipType: PartnershipType) {
+    return this.companyService.findByPartnershipType(partnershipType);
+  }
 
   @Post("add-employee")
   @LogAction("employee_add", "company_employees")

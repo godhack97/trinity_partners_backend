@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import { CompanyEmployeeStatus, UserEntity } from "@orm/entities";
+import { PartnershipType } from "@orm/entities/company.entity";
 import {
   CompanyEmployeeRepository,
   CompanyRepository,
@@ -31,6 +32,12 @@ export class CompanyService {
     private readonly roleRepository: RoleRepository,
     private readonly emailConfirmerService: EmailConfirmerService,
   ) {}
+
+  async findByPartnershipType(partnershipType: PartnershipType) {
+    return await this.companyRepository.findAcceptedByPartnershipType(
+      partnershipType,
+    );
+  }
 
   async addEmployee(
     auth_user: UserEntity,

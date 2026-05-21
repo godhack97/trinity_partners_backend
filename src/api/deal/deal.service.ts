@@ -54,14 +54,6 @@ export class DealService {
     return this.configService.get<string>("HOSTNAME") || "localhost";
   }
 
-  private get frontendHostname(): string {
-    return (
-      this.configService.get<string>("FRONTEND_HOSTNAME") ||
-      this.configService.get<string>("HOSTNAME") ||
-      "localhost"
-    );
-  }
-
   private hasRole(user: UserEntity, roleName: string): boolean {
     if (user.role?.name === roleName) {
       return true;
@@ -808,7 +800,7 @@ export class DealService {
           actions: [
             {
               label: "Открыть сделку",
-              url: `${this.frontendHostname}/deals.management/${deal.id}`,
+              url: `/deals.management/${deal.id}`,
             },
           ],
         }),

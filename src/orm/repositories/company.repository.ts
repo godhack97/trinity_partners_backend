@@ -1,7 +1,12 @@
 import { Repository } from "typeorm";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { CompanyEmployeeEntity, CompanyEntity } from "../entities";
+import {
+  CompanyEmployeeEntity,
+  CompanyEntity,
+  CompanyStatus,
+  PartnershipType,
+} from "../entities";
 
 @Injectable()
 export class CompanyRepository extends Repository<CompanyEntity> {
@@ -28,5 +33,19 @@ export class CompanyRepository extends Repository<CompanyEntity> {
 
   async findById(id: number): Promise<CompanyEntity> {
     return await this.findOneBy({ id });
+  }
+
+  async findAcceptedByPartnershipType(
+    partnershipType: PartnershipType,
+  ): Promise<CompanyEntity[]> {
+    return await this.find({
+      where: {
+        partnership_type: partnershipType,
+        status: CompanyStatus.Accept,
+      },
+      order: {
+        name: "ASC",
+      },
+    });
   }
 }
