@@ -32,6 +32,7 @@ import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-req
 import { ConfigService } from "@nestjs/config";
 import { NotificationService } from "@api/notification/notification.service";
 import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.dto";
+import { UpdateDealDto } from "./dto/request/update-deal.dto";
 
 @Injectable()
 export class DealService {
@@ -792,6 +793,116 @@ export class DealService {
     return this.findOne(dealId, auth_user);
   }
 
+  async update(
+    dealId: number,
+    auth_user: UserEntity,
+    updateDealDto: UpdateDealDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+
+    if (!(await this.canUpdateDealFields(deal, auth_user))) {
+      throw new HttpException(
+        "У вас недостаточно прав для редактирования сделки",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const dealPatch: Record<string, unknown> = {};
+    const customerPatch: Record<string, unknown> = {};
+
+    if (updateDealDto.distributor_id !== undefined) {
+      const distributor = await this.distributorRepository.findById(
+        updateDealDto.distributor_id,
+      );
+
+      if (!distributor) {
+        throw new HttpException(
+          "Данного дистрибьютора не существует",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      dealPatch.distributor_id = distributor.id;
+    }
+
+    if (updateDealDto.deal_sum !== undefined) {
+      dealPatch.deal_sum = updateDealDto.deal_sum;
+    }
+
+    if (updateDealDto.competition_link !== undefined) {
+      dealPatch.competition_link = updateDealDto.competition_link;
+    }
+
+    if (updateDealDto.configuration_link !== undefined) {
+      dealPatch.configuration_link = updateDealDto.configuration_link;
+    }
+
+    if (updateDealDto.purchase_date !== undefined) {
+      dealPatch.purchase_date = updateDealDto.purchase_date;
+    }
+
+    if (updateDealDto.comment !== undefined) {
+      dealPatch.comment = updateDealDto.comment;
+    }
+
+    if (updateDealDto.customer) {
+      const { first_name, last_name, company_name, email, phone } =
+        updateDealDto.customer;
+
+      if (first_name !== undefined) customerPatch.first_name = first_name;
+      if (last_name !== undefined) customerPatch.last_name = last_name;
+      if (company_name !== undefined) customerPatch.company_name = company_name;
+      if (email !== undefined) customerPatch.email = email;
+      if (phone !== undefined) customerPatch.phone = phone;
+    }
+
+    const hasChanges =
+      Object.keys(dealPatch).length || Object.keys(customerPatch).length;
+
+    if (Object.keys(customerPatch).length) {
+      await this.customerRepository.update(deal.customer_id, customerPatch);
+    }
+
+    if (hasChanges) {
+      dealPatch.status =
+        deal.status === DealStatus.Moderation
+          ? deal.status
+          : DealStatus.Moderation;
+
+      const updatedDeal = await this.dealRepository.update(dealId, dealPatch);
+
+      if (updatedDeal.affected === 0) {
+        throw new HttpException(
+          "Не удалось обновить сделку",
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      if (deal.bitrix24_deal_id) {
+        const distributor = await this.distributorRepository.findById(
+          (dealPatch.distributor_id as number | undefined) ||
+            deal.distributor_id,
+        );
+        const nextDeal = Object.assign(deal, dealPatch);
+
+        this.bitrix24Service
+          .updateLead(
+            deal.bitrix24_deal_id,
+            nextDeal,
+            distributor?.name || deal.distributor?.name,
+          )
+          .catch((error) => {
+            this.logger.error(
+              `Ошибка обновления лида ${dealId} в Bitrix24:`,
+              error,
+            );
+          });
+      }
+    }
+
+    return this.findOne(dealId, auth_user);
+  }
+
   async addConfigurations(
     dealId: number,
     auth_user: UserEntity,
@@ -1036,6 +1147,14 @@ export class DealService {
 
   private canUpdateDealConfigurations(deal: any, auth_user: UserEntity) {
     return deal.creator_id === auth_user.id;
+  }
+
+  private async canUpdateDealFields(deal: any, auth_user: UserEntity) {
+    if (deal.creator_id === auth_user.id) {
+      return true;
+    }
+
+    return this.canUpdateDealStatus(deal, auth_user);
   }
 
   async convertLeadToDeal(dealId: number, auth_user: UserEntity): Promise<any> {
