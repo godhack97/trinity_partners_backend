@@ -29,6 +29,29 @@ export class DealConfigurationComponentDto {
   amount: number;
 }
 
+export class DealConfigurationSupportDto {
+  @ApiProperty()
+  @IsString()
+  id: string;
+
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsNumber()
+  years: number;
+
+  @ApiProperty()
+  @IsNumber()
+  price: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
 export class DealConfigurationDto {
   @ApiProperty()
   @IsString()
@@ -65,6 +88,12 @@ export class DealConfigurationDto {
   @IsOptional()
   @IsNumber()
   componentsPrice?: number;
+
+  @ApiPropertyOptional({ type: () => DealConfigurationSupportDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DealConfigurationSupportDto)
+  support?: DealConfigurationSupportDto;
 
   @ApiPropertyOptional()
   @IsOptional()

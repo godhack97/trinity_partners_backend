@@ -252,6 +252,41 @@ export class DealController {
     );
   }
 
+  @Delete(":id/configurations/:configurationId")
+  @RequirePermissions('api.deals.write')
+  @LogAction("deal_update", "deals")
+  @ApiResponse({ type: DealResponseDto })
+  async removeConfiguration(
+    @Param("id") id: string,
+    @Param("configurationId") configurationId: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.removeConfiguration(
+      +id,
+      configurationId,
+      auth_user,
+    );
+  }
+
+  @Put(":id/configurations/:configurationId")
+  @RequirePermissions('api.deals.write')
+  @LogAction("deal_update", "deals")
+  @ApiBody({ type: AddDealConfigurationsDto })
+  @ApiResponse({ type: DealResponseDto })
+  async updateConfiguration(
+    @Param("id") id: string,
+    @Param("configurationId") configurationId: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() addDealConfigurationsDto: AddDealConfigurationsDto,
+  ) {
+    return this.dealService.updateConfiguration(
+      +id,
+      configurationId,
+      auth_user,
+      addDealConfigurationsDto,
+    );
+  }
+
   // Удаление сделки - требует права на удаление
   @Delete(":id")
   @RequirePermissions('api.deals.remove')

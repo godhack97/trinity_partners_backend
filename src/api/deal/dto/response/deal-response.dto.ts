@@ -99,4 +99,10 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   can_update_status: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю менять конфигурации сделки",
+  })
+  @Expose()
+  can_update_configurations: boolean;
 }

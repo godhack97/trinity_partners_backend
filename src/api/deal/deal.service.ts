@@ -447,6 +447,10 @@ export class DealService {
     if (this.isSuperAdmin(auth_user)) {
       return Object.assign(deal, {
         can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+        can_update_configurations: this.canUpdateDealConfigurations(
+          deal,
+          auth_user,
+        ),
       });
     }
 
@@ -458,6 +462,10 @@ export class DealService {
       if (creatorIds.includes(deal.creator_id)) {
         return Object.assign(deal, {
           can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+          can_update_configurations: this.canUpdateDealConfigurations(
+            deal,
+            auth_user,
+          ),
         });
       }
 
@@ -472,6 +480,10 @@ export class DealService {
       if (creatorIds.includes(deal.creator_id)) {
         return Object.assign(deal, {
           can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+          can_update_configurations: this.canUpdateDealConfigurations(
+            deal,
+            auth_user,
+          ),
         });
       }
       throw new HttpException(
@@ -820,6 +832,113 @@ export class DealService {
     return this.findOne(dealId, auth_user);
   }
 
+  async removeConfiguration(
+    dealId: number,
+    configurationId: string,
+    auth_user: UserEntity,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+
+    if (deal.creator_id !== auth_user.id) {
+      throw new HttpException(
+        "Редактировать конфигурации сделки может только создатель",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const currentConfigurations = Array.isArray(deal.configurations)
+      ? deal.configurations
+      : [];
+    const nextConfigurations = currentConfigurations.filter(
+      (configuration: any) => configuration?.id !== configurationId,
+    );
+
+    if (nextConfigurations.length === currentConfigurations.length) {
+      throw new HttpException(
+        "Конфигурация сделки не найдена",
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const updatedDeal = await this.dealRepository.update(dealId, {
+      configurations: nextConfigurations as unknown[],
+      status:
+        deal.status === DealStatus.Moderation
+          ? deal.status
+          : DealStatus.Moderation,
+    });
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось удалить конфигурацию из сделки",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return this.findOne(dealId, auth_user);
+  }
+
+  async updateConfiguration(
+    dealId: number,
+    configurationId: string,
+    auth_user: UserEntity,
+    addDealConfigurationsDto: AddDealConfigurationsDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+
+    if (deal.creator_id !== auth_user.id) {
+      throw new HttpException(
+        "Редактировать конфигурации сделки может только создатель",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const nextConfiguration = addDealConfigurationsDto.configurations?.[0];
+    if (!nextConfiguration) {
+      throw new HttpException(
+        "Не передана конфигурация для обновления",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const currentConfigurations = Array.isArray(deal.configurations)
+      ? deal.configurations
+      : [];
+    let isUpdated = false;
+    const nextConfigurations = currentConfigurations.map((configuration: any) => {
+      if (configuration?.id !== configurationId) return configuration;
+      isUpdated = true;
+      return {
+        ...nextConfiguration,
+        id: configurationId,
+      };
+    });
+
+    if (!isUpdated) {
+      throw new HttpException(
+        "Конфигурация сделки не найдена",
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const updatedDeal = await this.dealRepository.update(dealId, {
+      configurations: nextConfigurations as unknown[],
+      status:
+        deal.status === DealStatus.Moderation
+          ? deal.status
+          : DealStatus.Moderation,
+    });
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось обновить конфигурацию сделки",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return this.findOne(dealId, auth_user);
+  }
+
   private async notifyDealStatusChanged(
     deal: any,
     status: DealStatus,
@@ -913,6 +1032,10 @@ export class DealService {
     }
 
     return false;
+  }
+
+  private canUpdateDealConfigurations(deal: any, auth_user: UserEntity) {
+    return deal.creator_id === auth_user.id;
   }
 
   async convertLeadToDeal(dealId: number, auth_user: UserEntity): Promise<any> {
