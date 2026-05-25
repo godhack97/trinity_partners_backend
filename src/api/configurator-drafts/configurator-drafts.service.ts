@@ -1,13 +1,20 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { ConfiguratorDraftRepository } from "@orm/repositories";
-import { UserEntity } from "@orm/entities";
+import {
+  CompanyEmployeeRepository,
+  ConfiguratorDraftRepository,
+} from "@orm/repositories";
+import { CompanyEmployeeStatus, UserEntity } from "@orm/entities";
+import { NotificationService } from "@api/notification/notification.service";
 import { CreateConfiguratorDraftDto } from "./dto/request/create-configurator-draft.dto";
 import { UpdateConfiguratorDraftDto } from "./dto/request/update-configurator-draft.dto";
+import { ShareConfiguratorDraftDto } from "./dto/request/share-configurator-draft.dto";
 
 @Injectable()
 export class ConfiguratorDraftsService {
   constructor(
     private readonly draftRepository: ConfiguratorDraftRepository,
+    private readonly companyEmployeeRepository: CompanyEmployeeRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async findAll(auth_user: UserEntity) {
@@ -73,6 +80,75 @@ export class ConfiguratorDraftsService {
       components: original.components,
       total_price: original.total_price,
       description: original.description,
+    });
+
+    return copy;
+  }
+
+  async share(
+    id: number,
+    auth_user: UserEntity,
+    dto: ShareConfiguratorDraftDto,
+  ) {
+    const original = await this.findOne(id, auth_user);
+
+    if (dto.employee_id === auth_user.id) {
+      throw new HttpException(
+        "Нельзя поделиться конфигурацией с самим собой",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const senderCompany = await this.companyEmployeeRepository.findOne({
+      where: {
+        employee_id: auth_user.id,
+        status: CompanyEmployeeStatus.Accept,
+      },
+    });
+
+    const recipientCompany = await this.companyEmployeeRepository.findOne({
+      where: {
+        employee_id: dto.employee_id,
+        status: CompanyEmployeeStatus.Accept,
+      },
+    });
+
+    if (!senderCompany || !recipientCompany) {
+      throw new HttpException(
+        "Не удалось определить компанию пользователя",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (senderCompany.company_id !== recipientCompany.company_id) {
+      throw new HttpException(
+        "Делиться конфигурацией можно только с сотрудником своей компании",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const copy = await this.draftRepository.save({
+      creator_id: dto.employee_id,
+      title: original.title,
+      server_id: original.server_id,
+      serverbox_height_id: original.serverbox_height_id,
+      components: original.components,
+      total_price: original.total_price,
+      description: original.description,
+    });
+
+    await this.notificationService.send({
+      user_id: dto.employee_id,
+      title: "Вам отправили конфигурацию",
+      text: `Конфигурация «${original.title}» добавлена в ваши черновики.`,
+      actions: [
+        {
+          label: "Открыть конфигурацию",
+          url: copy.server_id
+            ? `/configurator/${copy.server_id}?draft=${copy.id}`
+            : `/configurator?draft=${copy.id}`,
+        },
+      ],
     });
 
     return copy;

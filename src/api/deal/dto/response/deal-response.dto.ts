@@ -37,6 +37,10 @@ export class DealResponseDto extends WithIdDto {
 
   @ApiProperty()
   @Expose()
+  configurations?: unknown[];
+
+  @ApiProperty()
+  @Expose()
   purchase_date: Date | string;
 
   @ApiProperty()

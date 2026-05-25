@@ -7,8 +7,9 @@ import {
 } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsOptional } from "class-validator";
+import { IsArray, IsOptional } from "class-validator";
 import { ValidateNested } from "class-validator";
+import { DealConfigurationDto } from "./deal-configuration.dto";
 
 export class CreateDealDto {
   @ApiProperty()
@@ -36,6 +37,13 @@ export class CreateDealDto {
   @IsOptional()
   @IsStringRu()
   configuration_link?: string;
+
+  @ApiProperty({ required: false, type: () => [DealConfigurationDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DealConfigurationDto)
+  configurations?: DealConfigurationDto[];
 
   @ApiProperty()
   @IsNotEmptyRu()

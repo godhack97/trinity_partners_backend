@@ -13,6 +13,7 @@ import { UserEntity } from "@orm/entities";
 import { ConfiguratorDraftsService } from "./configurator-drafts.service";
 import { CreateConfiguratorDraftDto } from "./dto/request/create-configurator-draft.dto";
 import { UpdateConfiguratorDraftDto } from "./dto/request/update-configurator-draft.dto";
+import { ShareConfiguratorDraftDto } from "./dto/request/share-configurator-draft.dto";
 import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { TransformResponse } from "@interceptors/transform-response.interceptor";
 import { ConfiguratorDraftResponseDto } from "./dto/response/configurator-draft-response.dto";
@@ -73,6 +74,18 @@ export class ConfiguratorDraftsController {
   @ApiResponse({ type: ConfiguratorDraftResponseDto })
   duplicate(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
     return this.draftsService.duplicate(+id, auth_user);
+  }
+
+  @Post(":id/share")
+  @ApiBody({ type: () => ShareConfiguratorDraftDto })
+  @UseInterceptors(new TransformResponse(ConfiguratorDraftResponseDto))
+  @ApiResponse({ type: ConfiguratorDraftResponseDto })
+  share(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() dto: ShareConfiguratorDraftDto,
+  ) {
+    return this.draftsService.share(+id, auth_user, dto);
   }
 
   @Delete(":id")

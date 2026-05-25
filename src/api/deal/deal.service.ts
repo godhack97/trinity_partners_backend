@@ -31,6 +31,7 @@ import {
 import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-request-response.dto";
 import { ConfigService } from "@nestjs/config";
 import { NotificationService } from "@api/notification/notification.service";
+import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.dto";
 
 @Injectable()
 export class DealService {
@@ -775,6 +776,46 @@ export class DealService {
     }
 
     await this.notifyDealStatusChanged(deal, status, auth_user);
+
+    return this.findOne(dealId, auth_user);
+  }
+
+  async addConfigurations(
+    dealId: number,
+    auth_user: UserEntity,
+    addDealConfigurationsDto: AddDealConfigurationsDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+    const incomingConfigurations = addDealConfigurationsDto.configurations || [];
+
+    if (!incomingConfigurations.length) {
+      throw new HttpException(
+        "Не переданы конфигурации для добавления",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const currentConfigurations = Array.isArray(deal.configurations)
+      ? deal.configurations
+      : [];
+
+    const updatedDeal = await this.dealRepository.update(dealId, {
+      configurations: [
+        ...currentConfigurations,
+        ...incomingConfigurations,
+      ] as unknown[],
+      status:
+        deal.status === DealStatus.Moderation
+          ? deal.status
+          : DealStatus.Moderation,
+    });
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось добавить конфигурацию в сделку",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
 
     return this.findOne(dealId, auth_user);
   }
