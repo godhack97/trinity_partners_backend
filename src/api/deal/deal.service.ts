@@ -64,6 +64,10 @@ export class DealService {
     return user.roles?.some(role => role.name === roleName) || false;
   }
 
+  private hasAnyRole(user: UserEntity, roleNames: RoleTypes[]) {
+    return roleNames.some((roleName) => this.hasRole(user, roleName));
+  }
+
   private isSuperAdmin(user: UserEntity): boolean {
     return this.hasRole(user, RoleTypes.SuperAdmin);
   }
@@ -324,9 +328,12 @@ export class DealService {
     if (this.isSuperAdmin(auth_user)) {
       deals = await this.dealRepository.findDealsWithFilters(entry);
     } else if (
-      this.hasRole(auth_user, RoleTypes.EmployeeAdmin) ||
-      this.hasRole(auth_user, RoleTypes.Partner) ||
-      this.hasRole(auth_user, RoleTypes.Employee)
+      this.hasAnyRole(auth_user, [
+        RoleTypes.EmployeeAdmin,
+        RoleTypes.Partner,
+        RoleTypes.CompanyAdmin,
+        RoleTypes.TechnicalSpecialist,
+      ])
     ) {
       const authUserCompany = await this.getUserCompany(auth_user);
 
@@ -350,6 +357,15 @@ export class DealService {
         entry,
         creatorIds,
       );
+    } else if (
+      this.hasAnyRole(auth_user, [
+        RoleTypes.Employee,
+        RoleTypes.SalesManager,
+      ])
+    ) {
+      deals = await this.dealRepository.findDealsWithFilters(entry, [
+        auth_user.id,
+      ]);
     } else {
       deals = [];
     }
@@ -457,8 +473,12 @@ export class DealService {
     }
 
     if (
-      this.hasRole(auth_user, RoleTypes.EmployeeAdmin) ||
-      this.hasRole(auth_user, RoleTypes.Partner)
+      this.hasAnyRole(auth_user, [
+        RoleTypes.EmployeeAdmin,
+        RoleTypes.Partner,
+        RoleTypes.CompanyAdmin,
+        RoleTypes.TechnicalSpecialist,
+      ])
     ) {
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
       if (creatorIds.includes(deal.creator_id)) {
@@ -477,9 +497,13 @@ export class DealService {
       );
     }
 
-    if (this.hasRole(auth_user, RoleTypes.Employee)) {
-      const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
-      if (creatorIds.includes(deal.creator_id)) {
+    if (
+      this.hasAnyRole(auth_user, [
+        RoleTypes.Employee,
+        RoleTypes.SalesManager,
+      ])
+    ) {
+      if (deal.creator_id === auth_user.id) {
         return Object.assign(deal, {
           can_update_status: await this.canUpdateDealStatus(deal, auth_user),
           can_update_configurations: this.canUpdateDealConfigurations(
@@ -1211,7 +1235,13 @@ export class DealService {
       return true;
     }
 
-    if (this.hasRole(auth_user, RoleTypes.EmployeeAdmin)) {
+    if (
+      this.hasAnyRole(auth_user, [
+        RoleTypes.EmployeeAdmin,
+        RoleTypes.Partner,
+        RoleTypes.CompanyAdmin,
+      ])
+    ) {
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
       return creatorIds.includes(deal.creator_id);
     }

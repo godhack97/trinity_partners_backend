@@ -29,4 +29,10 @@ export class RoleRepository extends Repository<RoleEntity> {
       where: { name: role_name },
     });
   }
+
+  public async findByRoles(roleNames: RoleTypes[]) {
+    return await this.createQueryBuilder("role")
+      .where("role.name IN (:...roleNames)", { roleNames })
+      .getMany();
+  }
 }

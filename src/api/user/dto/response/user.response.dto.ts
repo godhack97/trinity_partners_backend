@@ -25,6 +25,11 @@ export class UserResponseDto extends WithIdDto {
 
   @ApiProperty()
   @Expose()
+  @Type(() => RoleResponseDto)
+  roles?: RoleResponseDto[];
+
+  @ApiProperty()
+  @Expose()
   @Type(() => UserInfoDto)
   user_info?: UserInfoDto;
 

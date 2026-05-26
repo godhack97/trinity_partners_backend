@@ -25,6 +25,7 @@ export class AuthTokenService {
     }
     return {
       role: user.role.name,
+      roles: user.roles?.map((role) => role.name) || [user.role.name],
       userId: user.id,
       status: user?.company_employee?.status,
       companyId: user?.company_employee?.company_id,

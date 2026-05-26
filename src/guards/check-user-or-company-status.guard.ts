@@ -30,12 +30,23 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
       );
     }
 
-    if (user.role.name === RoleTypes.SuperAdmin) {
+    const roleNames = [
+      user.role?.name,
+      ...(user.roles || []).map((role) => role.name),
+    ];
+
+    if (roleNames.includes(RoleTypes.SuperAdmin)) {
       return true;
     }
 
-    if (user.role.name === RoleTypes.Partner) {
-      if (user.company_employee.company.status !== CompanyStatus.Accept) {
+    if (
+      roleNames.includes(RoleTypes.Partner) ||
+      roleNames.includes(RoleTypes.CompanyAdmin)
+    ) {
+      const ownerCompany = await user.lazy_owner_company;
+      const company = ownerCompany || user.company_employee?.company;
+
+      if (company?.status !== CompanyStatus.Accept) {
         throw new ForbiddenException(
           "Компания не прошла проврку администратором!",
         );
@@ -46,7 +57,10 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
     if (
       [RoleTypes.Employee, RoleTypes.EmployeeAdmin].includes(
         user.role.name as RoleTypes,
-      )
+      ) ||
+      roleNames.includes(RoleTypes.SalesManager) ||
+      roleNames.includes(RoleTypes.TechnicalSpecialist) ||
+      roleNames.includes(RoleTypes.Staff)
     ) {
       if (user.company_employee.status !== CompanyEmployeeStatus.Accept) {
         throw new ForbiddenException("Ваш статус не подтвержен!");

@@ -142,7 +142,14 @@ export class UserRepository {
   public async findByTokenWithCompanyEmployees(token: string) {
     const userToken = await this.userTokenRepository.findOne({
       where: { token },
-      relations: ["user", "user.company_employee", 'user.manager'],
+      relations: [
+        "user",
+        "user.role",
+        "user.user_roles",
+        "user.user_roles.role",
+        "user.company_employee",
+        "user.manager",
+      ],
     });
     return userToken?.user || null;
   }
@@ -152,6 +159,9 @@ export class UserRepository {
       where: { token },
       relations: [
         "user",
+        "user.role",
+        "user.user_roles",
+        "user.user_roles.role",
         "user.company_employee",
         "user.company_employee.company",
         "user.user_info",

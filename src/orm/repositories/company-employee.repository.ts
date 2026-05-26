@@ -18,7 +18,13 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
 
   public async findAllCompanyEmployeesWithUsersAndInfo() {
     return await this.repo.find({
-      relations: ["employee", "employee.user_info"],
+      relations: [
+        "employee",
+        "employee.role",
+        "employee.user_roles",
+        "employee.user_roles.role",
+        "employee.user_info",
+      ],
     });
   }
 
@@ -28,7 +34,13 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
         company_id,
         // status: Not(In([ CompanyEmployeeStatus.Deleted, CompanyEmployeeStatus.Reject ])),
       },
-      relations: ["employee", "employee.user_info"],
+      relations: [
+        "employee",
+        "employee.role",
+        "employee.user_roles",
+        "employee.user_roles.role",
+        "employee.user_info",
+      ],
     });
   }
 }

@@ -49,7 +49,15 @@ export class AuthGuard implements CanActivate {
     // Ищем токен в таблице user_tokens по token + client_id
     const userToken = await this.userTokenRepository.findOne({
       where: { token, client_id: clientId },
-      relations: ["user", "user.role", "user.role.permissions", "user.user_info"],
+      relations: [
+        "user",
+        "user.role",
+        "user.role.permissions",
+        "user.user_info",
+        "user.user_roles",
+        "user.user_roles.role",
+        "user.user_roles.role.permissions",
+      ],
     });
 
     if (!userToken || !userToken.user)

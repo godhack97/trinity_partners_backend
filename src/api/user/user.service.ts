@@ -35,6 +35,7 @@ import {
   RegistrationSuperAdminWithSecretDto,
 } from "../registration/dto/request/registration-super-admin.request.dto";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 const USER_SECRET = "Неправильно введен СЕКРЕТ";
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
@@ -84,6 +85,9 @@ export class UserService {
     }
 
     const roleEmployee = await this.roleRepository.getEmployee();
+    const businessRoleName =
+      registrationEmployeeDto.business_role || RoleTypes.SalesManager;
+    const businessRole = await this.roleRepository.findByRole(businessRoleName);
     const { email, password: _password } = registrationEmployeeDto;
     const { salt, password } = await createCredentials(_password);
 
@@ -98,6 +102,13 @@ export class UserService {
       user_id: newUser.id,
       role_id: roleEmployee.id,
     });
+
+    if (businessRole && businessRole.id !== roleEmployee.id) {
+      await this.userRoleRepository.save({
+        user_id: newUser.id,
+        role_id: businessRole.id,
+      });
+    }
 
     await this._createNotificationSettings(newUser.id);
 
@@ -292,6 +303,9 @@ export class UserService {
 
     const { email, password: _password } = registrationCompanyDto;
     const rolePartner = await this.roleRepository.getPartner();
+    const roleCompanyAdmin = await this.roleRepository.findByRole(
+      RoleTypes.CompanyAdmin,
+    );
 
     const { salt, password } = await createCredentials(_password);
 
@@ -306,6 +320,13 @@ export class UserService {
       user_id: newUser.id,
       role_id: rolePartner.id,
     });
+
+    if (roleCompanyAdmin && roleCompanyAdmin.id !== rolePartner.id) {
+      await this.userRoleRepository.save({
+        user_id: newUser.id,
+        role_id: roleCompanyAdmin.id,
+      });
+    }
 
     await this._createNotificationSettings(newUser.id);
 

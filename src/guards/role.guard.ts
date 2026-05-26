@@ -26,9 +26,16 @@ export class RoleGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
 
-    const user = await this.userRepository.findById(request.auth_user.id);
+    const user = await this.userRepository.findByIdWithPermissions(
+      request.auth_user.id,
+    );
 
-    if (roles.includes(user.role.name)) return true;
+    const userRoleNames = [
+      user.role?.name,
+      ...(user.roles || []).map((role) => role.name),
+    ].filter(Boolean);
+
+    if (roles.some((role) => userRoleNames.includes(role))) return true;
 
     throw new HttpException(`У вас недостаточно прав!`, HttpStatus.FORBIDDEN);
   }
