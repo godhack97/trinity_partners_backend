@@ -33,6 +33,7 @@ import { ConfigService } from "@nestjs/config";
 import { NotificationService } from "@api/notification/notification.service";
 import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.dto";
 import { UpdateDealDto } from "./dto/request/update-deal.dto";
+import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
 
 @Injectable()
 export class DealService {
@@ -1050,6 +1051,49 @@ export class DealService {
     return this.findOne(dealId, auth_user);
   }
 
+  async addAttachment(
+    dealId: number,
+    auth_user: UserEntity,
+    addDealAttachmentDto: AddDealAttachmentDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+
+    if (!(await this.canUpdateDealFields(deal, auth_user))) {
+      throw new HttpException(
+        "У вас недостаточно прав для добавления документов в сделку",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const currentAttachments = Array.isArray(deal.attachments)
+      ? deal.attachments
+      : [];
+    const attachment = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: addDealAttachmentDto.name,
+      url: addDealAttachmentDto.url,
+      category: addDealAttachmentDto.category || "Прочие вложения",
+      comment: addDealAttachmentDto.comment || "",
+      uploaded_by_id: auth_user.id,
+      uploaded_at: new Date().toISOString(),
+    };
+
+    const updatedDeal = await this.dealRepository.update(dealId, {
+      attachments: [...currentAttachments, attachment],
+    });
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось добавить документ в сделку",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    await this.notifyDealAttachmentAdded(deal, attachment, auth_user);
+
+    return this.findOne(dealId, auth_user);
+  }
+
   private async notifyDealStatusChanged(
     deal: any,
     status: DealStatus,
@@ -1076,6 +1120,36 @@ export class DealService {
           ],
         }),
       ),
+    );
+  }
+
+  private async notifyDealAttachmentAdded(
+    deal: any,
+    attachment: any,
+    actor: UserEntity,
+  ) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const actorName =
+      actor.user_info?.first_name && actor.user_info?.last_name
+        ? `${actor.user_info.first_name} ${actor.user_info.last_name}`
+        : actor.email;
+
+    await Promise.all(
+      recipientIds
+        .filter((userId) => userId !== actor.id)
+        .map((userId) =>
+          this.notificationService.send({
+            user_id: userId,
+            title: "Новый документ в сделке",
+            text: `В сделку ${deal.deal_num} добавлен документ "${attachment.name}". Добавил: ${actorName}.`,
+            actions: [
+              {
+                label: "Открыть сделку",
+                url: `/deals.management/${deal.id}`,
+              },
+            ],
+          }),
+        ),
     );
   }
 

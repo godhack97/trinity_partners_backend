@@ -103,6 +103,9 @@ export class DealEntity extends BasisEntity {
   @Column({ type: "json", nullable: true })
   configurations?: unknown[];
 
+  @Column({ type: "json", nullable: true })
+  attachments?: unknown[];
+
   @Column()
   purchase_date: Date;
 

@@ -33,6 +33,7 @@ import { DealDeletionRequestResponseDto } from "./dto/response/deal-deletion-req
 import { UpdateDealStatusDto } from "./dto/request/update-deal-status.dto";
 import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.dto";
 import { UpdateDealDto } from "./dto/request/update-deal.dto";
+import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
 
 @ApiTags("deal")
 @ApiBearerAuth()
@@ -298,6 +299,23 @@ export class DealController {
       configurationId,
       auth_user,
       addDealConfigurationsDto,
+    );
+  }
+
+  @Put(":id/attachments")
+  @RequirePermissions('api.deals.write')
+  @LogAction("deal_update", "deals")
+  @ApiBody({ type: AddDealAttachmentDto })
+  @ApiResponse({ type: DealResponseDto })
+  async addAttachment(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() addDealAttachmentDto: AddDealAttachmentDto,
+  ) {
+    return this.dealService.addAttachment(
+      +id,
+      auth_user,
+      addDealAttachmentDto,
     );
   }
 
