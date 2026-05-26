@@ -35,7 +35,23 @@ export class DealRepository extends Repository<DealEntity> {
   }
 
   public async findById(id: number) {
-    return await this.findOneBy({ id });
+    const deal = await this.createQueryBuilder("deal")
+      .leftJoinAndSelect("deal.distributor", "distributor")
+      .leftJoinAndSelect("deal.customer", "customer")
+      .leftJoinAndSelect("deal.partner", "partner")
+      .leftJoinAndSelect("partner.role", "role")
+      .leftJoinAndSelect("partner.user_info", "partner_user_info")
+      .leftJoinAndSelect("partner.manager", "manager")
+      .leftJoinAndSelect("manager.role", "manager_role")
+      .leftJoinAndSelect("manager.user_info", "manager_user_info")
+      .where("deal.id = :id", { id })
+      .getOne();
+
+    if (deal?.partner?.lazy_owner_company) {
+      deal.partner.owner_company = await deal.partner.lazy_owner_company;
+    }
+
+    return deal;
   }
 
   public async findDealsWithFilters(
