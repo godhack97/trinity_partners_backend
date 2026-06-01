@@ -13,10 +13,14 @@
     "start:local": "NODE_ENV=local nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "NODE_ENV= node dist/main",
+    "test": "jest",
     "typeorm": "ts-node ./node_modules/typeorm/cli",
     "migration:create": "npm run typeorm migration:create",
     "migration:run": "npm run typeorm migration:run -- -d ./config/typeorm.ts",
     "migration:revert": "npm run typeorm migration:revert -- -d ./config/typeorm.ts",
+    "configurator:import-xlsx": "node scripts/import-configurator-from-xlsx.js",
+    "configurator:import-xlsx:execute": "node scripts/import-configurator-from-xlsx.js --execute",
+    "configurator:restore-backup": "node scripts/restore-configurator-backup.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "mpull": "git checkout master && git pull",
     "deploy": "./deploy.sh -n stage"
@@ -87,6 +91,16 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^@api/(.*)$": "<rootDir>/api/$1",
+      "^@orm/(.*)$": "<rootDir>/orm/$1",
+      "^@decorators/(.*)$": "<rootDir>/decorators/$1",
+      "^@interceptors/(.*)$": "<rootDir>/interceptors/$1",
+      "^@app/(.*)$": "<rootDir>/$1",
+      "^@config/(.*)$": "<rootDir>/../config/$1",
+      "^@integrations/(.*)$": "<rootDir>/integrations/$1",
+      "^src/(.*)$": "<rootDir>/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

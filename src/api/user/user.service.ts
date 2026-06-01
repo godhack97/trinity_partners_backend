@@ -98,11 +98,6 @@ export class UserService {
       role: roleEmployee,
     });
 
-    await this.userRoleRepository.save({
-      user_id: newUser.id,
-      role_id: roleEmployee.id,
-    });
-
     if (businessRole && businessRole.id !== roleEmployee.id) {
       await this.userRoleRepository.save({
         user_id: newUser.id,

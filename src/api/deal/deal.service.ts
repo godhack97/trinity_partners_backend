@@ -327,6 +327,8 @@ export class DealService {
 
     if (this.isSuperAdmin(auth_user)) {
       deals = await this.dealRepository.findDealsWithFilters(entry);
+    } else if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
+      deals = [];
     } else if (
       this.hasAnyRole(auth_user, [
         RoleTypes.EmployeeAdmin,
@@ -470,6 +472,13 @@ export class DealService {
           auth_user,
         ),
       });
+    }
+
+    if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
+      throw new HttpException(
+        "У вас недостаточно прав для получения деталей данной сделки",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (

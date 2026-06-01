@@ -5,6 +5,7 @@ import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AdminConfiguratorComponentService } from "./admin-configurator-component.service";
 import { CreateConfigurationComponentRequestDto } from "./dto/request/create-configurator-component.request.dto";
+import { UpsertComponentProfilesRequestDto } from "./dto/request/upsert-component-profiles.request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
 import { XlsxService } from './xlsx.service';
 import { multerStorage } from "@config/multer_storage";
@@ -70,6 +71,25 @@ export class AdminConfiguratorComponentController {
   @LogAction("configurator_component_backup_delete", "cnf_component_backups")
   async deleteComponentBackup(@Param('backupId') backupId: string) {
     return await this.adminConfiguratorComponentService.deleteBackup(backupId);
+  }
+
+  @Get(":id/profiles")
+  @ApiOperation({ summary: "Получить профили компонента конфигуратора" })
+  getComponentProfiles(@Param("id") id: string) {
+    return this.adminConfiguratorComponentService.getComponentProfiles(id);
+  }
+
+  @Post(":id/profiles")
+  @ApiOperation({ summary: "Создать или обновить профили компонента конфигуратора" })
+  @LogAction("configurator_component_profiles_update", "cnf_components")
+  upsertComponentProfiles(
+    @Param("id") id: string,
+    @Body() data: UpsertComponentProfilesRequestDto,
+  ) {
+    return this.adminConfiguratorComponentService.upsertComponentProfiles(
+      id,
+      data,
+    );
   }
   
   @Post()

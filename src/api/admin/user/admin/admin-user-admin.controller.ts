@@ -28,19 +28,19 @@ export class AdminUserAdminController {
     return this.adminUserAdminService.getCount();
   }
 
+  @Get("/count/archived")
+  @ApiOperation({ summary: 'Получить количество удалённых пользователей' })
+  @ApiResponse({ type: Number })
+  async getArchivedCount() {
+    return this.adminUserAdminService.getArchivedCount();
+  }
+
   @Get("/count/:role")
   @ApiOperation({ summary: 'Получить кол-во пользователей с ролью' })
   @ApiParam({ name: "role", type: String, description: "Роль пользователя или 'all' для всех" })
   @ApiResponse({ type: Number })
   async getCountByRole(@Param("role") role: string) {
     return this.adminUserAdminService.getCountByRole(role);
-  }
-
-  @Get("/count/archived")
-  @ApiOperation({ summary: 'Получить количество удалённых пользователей' })
-  @ApiResponse({ type: Number })
-  async getArchivedCount() {
-    return this.adminUserAdminService.getArchivedCount();
   }
 
   @Get()

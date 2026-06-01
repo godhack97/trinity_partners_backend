@@ -1,5 +1,13 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { RoleTypes } from '@app/types/RoleTypes';
+
+const BUSINESS_ROLE_NAMES = [
+  RoleTypes.CompanyAdmin,
+  RoleTypes.SalesManager,
+  RoleTypes.TechnicalSpecialist,
+  RoleTypes.Staff,
+];
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -42,14 +50,15 @@ export class PermissionsGuard implements CanActivate {
   }
 
   private isSuperAdmin(user: any): boolean {
-    return user.roles?.some(role => role.name === 'super_admin') || false;
+    return user.role?.name === RoleTypes.SuperAdmin || user.roles?.some(role => role.name === RoleTypes.SuperAdmin) || false;
   }
 
   private getAllUserPermissions(user: any): string[] {
     const permissions = new Set<string>();
+    const roles = this.getEffectiveRoles(user);
 
-    if (user.roles) {
-      user.roles.forEach(role => {
+    if (roles) {
+      roles.forEach(role => {
         if (role.permissions) {
           role.permissions.forEach(p => permissions.add(p.name));
         }
@@ -57,5 +66,18 @@ export class PermissionsGuard implements CanActivate {
     }
 
     return Array.from(permissions);
+  }
+
+  private getEffectiveRoles(user: any): any[] {
+    const roles = user.roles || [];
+    const hasBusinessRole = roles.some((role) =>
+      BUSINESS_ROLE_NAMES.includes(role.name),
+    );
+
+    if (!hasBusinessRole) {
+      return roles;
+    }
+
+    return roles.filter((role) => role.name !== RoleTypes.Employee);
   }
 }

@@ -1,9 +1,10 @@
 import { AdminConfiguratorServerService } from "./admin-configurator-server.service";
 import { ApiBearerAuth, ApiTags, ApiOperation } from "@nestjs/swagger";
-import { Body, Controller, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { Roles } from "../../../../decorators/Roles";
 import { RoleTypes } from "../../../../types/RoleTypes";
 import { AddServerRequestDto } from "./dto/request/add-server.request.dto";
+import { UpsertPlatformProfileRequestDto } from "./dto/request/upsert-platform-profile.request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
 
 @ApiTags("configurator/server")
@@ -34,5 +35,21 @@ export class AdminConfiguratorServerController {
   @ApiOperation({ summary: 'Удалить сервер конфигуратора' })
   deleteServer(@Param("id") id: string) {
     return this.adminConfiguratorServerService.deleteServer(id);
+  }
+
+  @Get(":id/profile")
+  @ApiOperation({ summary: "Получить профиль ограничений платформы" })
+  getPlatformProfile(@Param("id") id: string) {
+    return this.adminConfiguratorServerService.getPlatformProfile(id);
+  }
+
+  @Post(":id/profile")
+  @LogAction("configurator_platform_profile_update", "cnf_platform_profiles")
+  @ApiOperation({ summary: "Создать или обновить профиль ограничений платформы" })
+  upsertPlatformProfile(
+    @Param("id") id: string,
+    @Body() data: UpsertPlatformProfileRequestDto,
+  ) {
+    return this.adminConfiguratorServerService.upsertPlatformProfile(id, data);
   }
 }

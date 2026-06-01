@@ -4,6 +4,7 @@ import { ConfiguratorService } from "./configurator.service";
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
 import { CreateComponentTypeDto } from "./dto/request/create-component-type.dto";
 import { UpdateComponentTypeDto } from "./dto/request/update-component-type.dto";
+import { ValidateConfiguratorRequestDto } from "./dto/request/validate-configurator.request.dto";
 import { LogAction } from "@app/logs/log-action.decorator";
 @ApiTags("configurator")
 @Controller("configurator")
@@ -87,8 +88,14 @@ export class ConfiguratorController {
 
   @Get("server")
   @ApiOperation({ summary: "Получить все сервера" })
-  getServers() {
-    return this.configuratorService.getServers();
+  getServers(@Query("includeInactive") includeInactive?: string) {
+    return this.configuratorService.getServers(includeInactive === "true");
+  }
+
+  @Post("validate")
+  @ApiOperation({ summary: "Проверить конфигурацию и рассчитать ресурсы" })
+  validateConfiguration(@Body() dto: ValidateConfiguratorRequestDto) {
+    return this.configuratorService.validateConfiguration(dto);
   }
 
   @Get("componentType/:id")

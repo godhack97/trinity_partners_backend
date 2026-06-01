@@ -1,13 +1,15 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { CnfComponentRepository, CnfComponentTypeRepository, CnfSlotRepository } from "@orm/repositories";
 import { CreateConfigurationComponentRequestDto } from "./dto/request/create-configurator-component.request.dto";
 import { CnfComponentEntity, CnfComponentSlotEntity } from "@orm/entities";
 import * as entities from "src/orm/entities";
+import { UpsertComponentProfilesRequestDto } from "./dto/request/upsert-component-profiles.request.dto";
 
 
 interface ExcelRow {
+  [key: string]: any;
   ID?: string;
   'Название': string;
   'Подтип': string;
@@ -32,6 +34,143 @@ interface ExcelRow {
   'Увеличение[5]'?: boolean;
 }
 
+const PROFILE_EXCEL_COLUMNS = {
+  catalog: {
+    component_type_key: "profile.catalog.component_type_key",
+    part_number: "profile.catalog.part_number",
+    vendor: "profile.catalog.vendor",
+    client_display_mode: "profile.catalog.client_display_mode",
+    generation_key: "profile.catalog.generation_key",
+    server_generation_id: "profile.catalog.server_generation_id",
+    processor_generation_id: "profile.catalog.processor_generation_id",
+    is_active: "profile.catalog.is_active",
+    disabled_reason: "profile.catalog.disabled_reason",
+    s4b_status: "profile.catalog.s4b_status",
+  },
+  resource: {
+    resource_kind: "profile.resource.resource_kind",
+    pcie_lanes: "profile.resource.pcie_lanes",
+    rear_pcie_lanes: "profile.resource.rear_pcie_lanes",
+    physical_slots: "profile.resource.physical_slots",
+    ocp_slots: "profile.resource.ocp_slots",
+    internal_ports: "profile.resource.internal_ports",
+    power_w: "profile.resource.power_w",
+    uses_power: "profile.resource.uses_power",
+  },
+  price: {
+    base_price: "profile.price.base_price",
+    currency: "profile.price.currency",
+    coefficient: "profile.price.coefficient",
+    price_mode: "profile.price.price_mode",
+    price_required: "profile.price.price_required",
+  },
+  cpu: {
+    socket_profile: "profile.cpu.socket_profile",
+    ram_type: "profile.cpu.ram_type",
+    tdp_w: "profile.cpu.tdp_w",
+    memory_channels: "profile.cpu.memory_channels",
+    max_ram_modules_per_cpu: "profile.cpu.max_ram_modules_per_cpu",
+    max_ram_gb_per_cpu: "profile.cpu.max_ram_gb_per_cpu",
+    memory_speed_1dpc: "profile.cpu.memory_speed_1dpc",
+    memory_speed_2dpc: "profile.cpu.memory_speed_2dpc",
+  },
+  ram: {
+    ram_type: "profile.ram.ram_type",
+    capacity_gb: "profile.ram.capacity_gb",
+    frequency_mhz: "profile.ram.frequency_mhz",
+    rank: "profile.ram.rank",
+    form_factor: "profile.ram.form_factor",
+  },
+  drive: {
+    drive_type: "profile.drive.drive_type",
+    interface_type: "profile.drive.interface_type",
+    form_factor: "profile.drive.form_factor",
+    capacity_gb: "profile.drive.capacity_gb",
+    speed_class: "profile.drive.speed_class",
+    workload_class: "profile.drive.workload_class",
+    pcie_lanes: "profile.drive.pcie_lanes",
+    power_w: "profile.drive.power_w",
+  },
+  controller: {
+    controller_type: "profile.controller.controller_type",
+    pcie_lanes: "profile.controller.pcie_lanes",
+    rear_pcie_lanes: "profile.controller.rear_pcie_lanes",
+    physical_slots: "profile.controller.physical_slots",
+    internal_ports: "profile.controller.internal_ports",
+    supports_sata: "profile.controller.supports_sata",
+    supports_sas: "profile.controller.supports_sas",
+    supports_nvme: "profile.controller.supports_nvme",
+    power_w: "profile.controller.power_w",
+  },
+  network: {
+    network_kind: "profile.network.network_kind",
+    port_type: "profile.network.port_type",
+    port_speed: "profile.network.port_speed",
+    ports_count: "profile.network.ports_count",
+    pcie_lanes: "profile.network.pcie_lanes",
+    rear_pcie_lanes: "profile.network.rear_pcie_lanes",
+    physical_slots: "profile.network.physical_slots",
+    ocp_slots: "profile.network.ocp_slots",
+    power_w: "profile.network.power_w",
+  },
+  gpu: {
+    pcie_lanes: "profile.gpu.pcie_lanes",
+    rear_pcie_lanes: "profile.gpu.rear_pcie_lanes",
+    physical_slots: "profile.gpu.physical_slots",
+    power_w: "profile.gpu.power_w",
+  },
+  transceiver: {
+    interface_type: "profile.transceiver.interface_type",
+    speed: "profile.transceiver.speed",
+    media_type: "profile.transceiver.media_type",
+    wavelength: "profile.transceiver.wavelength",
+    compatible_port_type: "profile.transceiver.compatible_port_type",
+  },
+  psu: {
+    power_w: "profile.psu.power_w",
+    efficiency_class: "profile.psu.efficiency_class",
+  },
+  service: {
+    service_level: "profile.service.service_level",
+    years: "profile.service.years",
+    formula: "profile.service.formula",
+    percent: "profile.service.percent",
+    fixed_price: "profile.service.fixed_price",
+  },
+};
+
+const PROFILE_NUMBER_FIELDS = new Set([
+  "pcie_lanes",
+  "rear_pcie_lanes",
+  "physical_slots",
+  "ocp_slots",
+  "internal_ports",
+  "power_w",
+  "base_price",
+  "coefficient",
+  "tdp_w",
+  "memory_channels",
+  "max_ram_modules_per_cpu",
+  "max_ram_gb_per_cpu",
+  "memory_speed_1dpc",
+  "memory_speed_2dpc",
+  "capacity_gb",
+  "frequency_mhz",
+  "ports_count",
+  "years",
+  "percent",
+  "fixed_price",
+]);
+
+const PROFILE_BOOLEAN_FIELDS = new Set([
+  "is_active",
+  "uses_power",
+  "price_required",
+  "supports_sata",
+  "supports_sas",
+  "supports_nvme",
+]);
+
 @Injectable()
 export class AdminConfiguratorComponentService {
   constructor(
@@ -46,8 +185,152 @@ export class AdminConfiguratorComponentService {
     private cnfComponentBackupRepository: Repository<entities.CnfComponentBackup>,
     @InjectRepository(entities.CnfComponentBackupData)
     private cnfComponentBackupDataRepository: Repository<entities.CnfComponentBackupData>,
+    private readonly dataSource: DataSource,
 
   ) {}
+
+  async getComponentProfiles(componentId: string) {
+    const component = await this.cnfComponentRepository.findOneBy({
+      id: componentId,
+    });
+
+    if (!component) {
+      throw new HttpException("Компонент не найден", HttpStatus.NOT_FOUND);
+    }
+
+    const [
+      catalog,
+      resource,
+      price,
+      cpu,
+      ram,
+      drive,
+      controller,
+      network,
+      gpu,
+      transceiver,
+      psu,
+      service,
+    ] = await Promise.all([
+      this.findComponentProfile(entities.CnfComponentCatalogProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfComponentResourceProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfComponentPriceProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfCpuProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfRamProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfDriveProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfControllerProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfNetworkProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfGpuProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfTransceiverProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfPsuProfileEntity, componentId),
+      this.findComponentProfile(entities.CnfServiceProfileEntity, componentId),
+    ]);
+
+    return {
+      component,
+      catalog,
+      resource,
+      price,
+      cpu,
+      ram,
+      drive,
+      controller,
+      network,
+      gpu,
+      transceiver,
+      psu,
+      service,
+    };
+  }
+
+  async upsertComponentProfiles(
+    componentId: string,
+    data: UpsertComponentProfilesRequestDto,
+  ) {
+    const component = await this.cnfComponentRepository.findOneBy({
+      id: componentId,
+    });
+
+    if (!component) {
+      throw new HttpException("Компонент не найден", HttpStatus.NOT_FOUND);
+    }
+
+    await Promise.all([
+      this.upsertComponentProfile(
+        entities.CnfComponentCatalogProfileEntity,
+        componentId,
+        data.catalog,
+      ),
+      this.upsertComponentProfile(
+        entities.CnfComponentResourceProfileEntity,
+        componentId,
+        data.resource,
+      ),
+      this.upsertComponentProfile(
+        entities.CnfComponentPriceProfileEntity,
+        componentId,
+        data.price,
+      ),
+      this.upsertComponentProfile(entities.CnfCpuProfileEntity, componentId, data.cpu),
+      this.upsertComponentProfile(entities.CnfRamProfileEntity, componentId, data.ram),
+      this.upsertComponentProfile(
+        entities.CnfDriveProfileEntity,
+        componentId,
+        data.drive,
+      ),
+      this.upsertComponentProfile(
+        entities.CnfControllerProfileEntity,
+        componentId,
+        data.controller,
+      ),
+      this.upsertComponentProfile(
+        entities.CnfNetworkProfileEntity,
+        componentId,
+        data.network,
+      ),
+      this.upsertComponentProfile(entities.CnfGpuProfileEntity, componentId, data.gpu),
+      this.upsertComponentProfile(
+        entities.CnfTransceiverProfileEntity,
+        componentId,
+        data.transceiver,
+      ),
+      this.upsertComponentProfile(entities.CnfPsuProfileEntity, componentId, data.psu),
+      this.upsertComponentProfile(
+        entities.CnfServiceProfileEntity,
+        componentId,
+        data.service,
+      ),
+    ]);
+
+    return this.getComponentProfiles(componentId);
+  }
+
+  private async findComponentProfile(entity: any, componentId: string) {
+    return this.dataSource.getRepository(entity).findOne({
+      where: { component_id: componentId },
+    });
+  }
+
+  private async upsertComponentProfile(
+    entity: any,
+    componentId: string,
+    data?: object,
+  ) {
+    if (!data) {
+      return null;
+    }
+
+    const repo = this.dataSource.getRepository(entity);
+    const existing = await repo.findOne({ where: { component_id: componentId } });
+
+    return repo.save(
+      repo.create({
+        ...(existing || {}),
+        ...data,
+        component_id: componentId,
+      }),
+    );
+  }
 
   async createBackup(name: string, createdBy?: string) {
     try {
@@ -255,7 +538,8 @@ export class AdminConfiguratorComponentService {
     const serverGenerationsById = new Map(allServerGenerations.map(gen => [gen.id, gen]));
     const processorGenerationsById = new Map(allProcessorGenerations.map(gen => [gen.id, gen]));
 
-    return components.map((component) => {
+    return Promise.all(components.map(async (component) => {
+      const profiles = await this.getComponentProfiles(component.id);
       const result: any = {
         'ID': component.id,
         'Название': component.name,
@@ -286,8 +570,10 @@ export class AdminConfiguratorComponentService {
         }
       }
 
+      this.appendProfilesToExcelRow(result, profiles);
+
       return result;
-    });
+    }));
   }
 
   async importExcel(excelData: any[], userId?: string) {
@@ -458,6 +744,7 @@ export class AdminConfiguratorComponentService {
         server_generation_id: serverGenerationId,
         processor_generation_id: processorGenerationId,
         slots: validatedSlots,
+        profiles: this.extractProfilesFromExcelRow(row),
       };
 
       // Добавляем ID только если он есть и не пустой
@@ -581,6 +868,8 @@ export class AdminConfiguratorComponentService {
     } else {
       console.log(`No changes detected for component ${componentData.id}, skipping update`);
     }
+
+    await this.upsertImportedProfiles(componentData.id, componentData.profiles);
   }
 
   private async createNewComponent(componentData: any) {
@@ -588,7 +877,7 @@ export class AdminConfiguratorComponentService {
     
     try {
       // Исключаем slots из данных для создания компонента
-      const { slots, ...componentOnlyData } = componentData;
+      const { slots, profiles, ...componentOnlyData } = componentData;
       
       console.log(`Component data:`, componentOnlyData);
       
@@ -617,11 +906,73 @@ export class AdminConfiguratorComponentService {
         console.log(`No slots to create for component ${savedComponent.id}`);
       }
 
+      await this.upsertImportedProfiles(savedComponent.id, profiles);
+
       console.log(`Successfully created component ${savedComponent.id}: ${savedComponent.name}`);
     } catch (error) {
       console.error(`Error creating component ${componentData.name}:`, error);
       throw error;
     }
+  }
+
+  private appendProfilesToExcelRow(row: any, profiles: any) {
+    for (const [profileName, columns] of Object.entries(PROFILE_EXCEL_COLUMNS)) {
+      const profile = profiles?.[profileName];
+      if (!profile) {
+        continue;
+      }
+
+      for (const [fieldName, columnName] of Object.entries(columns)) {
+        const value = profile[fieldName];
+        row[columnName] = value ?? "";
+      }
+    }
+  }
+
+  private extractProfilesFromExcelRow(row: ExcelRow): UpsertComponentProfilesRequestDto {
+    const profiles: any = {};
+
+    for (const [profileName, columns] of Object.entries(PROFILE_EXCEL_COLUMNS)) {
+      const profile: any = {};
+
+      for (const [fieldName, columnName] of Object.entries(columns)) {
+        const rawValue = row[columnName];
+        if (rawValue === undefined || rawValue === null || rawValue === "") {
+          continue;
+        }
+
+        profile[fieldName] = this.normalizeProfileExcelValue(fieldName, rawValue);
+      }
+
+      if (Object.keys(profile).length > 0) {
+        profiles[profileName] = profile;
+      }
+    }
+
+    return profiles;
+  }
+
+  private normalizeProfileExcelValue(fieldName: string, rawValue: any) {
+    if (PROFILE_BOOLEAN_FIELDS.has(fieldName)) {
+      return rawValue === true || rawValue === 1 || rawValue === "1" || rawValue === "Да" || rawValue === "да" || rawValue === "true";
+    }
+
+    if (PROFILE_NUMBER_FIELDS.has(fieldName)) {
+      return Number(rawValue);
+    }
+
+    return rawValue.toString().trim();
+  }
+
+  private async upsertImportedProfiles(
+    componentId: string,
+    profiles?: UpsertComponentProfilesRequestDto,
+  ) {
+    if (!profiles || Object.keys(profiles).length === 0) {
+      return;
+    }
+
+    await this.upsertComponentProfiles(componentId, profiles);
   }
 
   private hasSlotChanges(existingSlots: CnfComponentSlotEntity[], newSlots: any[]): boolean {
