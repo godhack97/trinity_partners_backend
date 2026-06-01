@@ -11,6 +11,10 @@ describe("NormalizeEmployeeBusinessRoles1780000000001", () => {
 
     const sql = queryRunner.query.mock.calls[0][0];
     expect(sql).toContain("DELETE employee_role FROM user_roles employee_role");
+    expect(sql).toContain("SELECT DISTINCT business_role.user_id");
+    expect(sql).toContain(
+      "users_with_business_role.user_id = employee_role.user_id",
+    );
     expect(sql).toContain("employee.name = 'employee'");
     expect(sql).toContain(
       "business.name IN ('sales_manager', 'technical_specialist', 'staff')",
