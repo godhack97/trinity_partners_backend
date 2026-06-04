@@ -84,6 +84,7 @@ const PROFILE_EXCEL_COLUMNS = {
   drive: {
     drive_type: "profile.drive.drive_type",
     interface_type: "profile.drive.interface_type",
+    media_kind: "profile.drive.media_kind",
     form_factor: "profile.drive.form_factor",
     capacity_gb: "profile.drive.capacity_gb",
     speed_class: "profile.drive.speed_class",

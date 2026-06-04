@@ -25,6 +25,7 @@ type GpuProfile = {
   pcie_lanes: number;
   rear_pcie_lanes: number;
   physical_slots: number;
+  memory_gb: number | null;
   power_w: number | null;
 };
 
@@ -155,7 +156,7 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
     const name = this.normalize(component.name);
     const upper = name.toUpperCase();
     const isOcp = component.type_id === "ocp-type-id";
-    const portsCount = Number(upper.match(/([0-9]+)-PORT/)?.[1] || 1);
+    const portsCount = this.parsePortsCount(upper);
     const portType = this.parsePortType(upper);
     const speed = this.parseSpeed(upper);
 
@@ -171,6 +172,21 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
       ocp_slots: isOcp ? 1 : 0,
       power_w: speed === "100Gbps" ? 25 : 12,
     };
+  }
+
+  private parsePortsCount(upperName: string) {
+    const portMatch = upperName.match(/(^|[^0-9])([0-9]+)[ -]?PORT/);
+    if (portMatch) return Number(portMatch[2]);
+
+    const multiplierMatch = upperName.match(
+      /(^|[^0-9])([0-9]+)[XХ×]\s*[0-9]+(?:[.,][0-9]+)?\s*(G|GB|GBE|GBPS|ГБ|ГБИТ)/,
+    );
+    if (multiplierMatch) return Number(multiplierMatch[2]);
+
+    if (upperName.includes("DUAL-PORT") || upperName.includes("DUAL PORT")) return 2;
+    if (upperName.includes("QUAD-PORT") || upperName.includes("QUAD PORT")) return 4;
+
+    return 1;
   }
 
   private parseGpuProfile(component: ComponentRow): GpuProfile {
@@ -194,6 +210,13 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
       pcie_lanes: 16,
       rear_pcie_lanes: 16,
       physical_slots: highPower ? 2 : 1,
+      memory_gb: upper.includes("A40")
+        ? 48
+        : upper.includes("A10")
+          ? 24
+          : upper.includes("A2")
+            ? 16
+            : null,
       power_w: highPower ? 300 : midPower ? 150 : 75,
     };
   }
@@ -346,9 +369,10 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
           pcie_lanes,
           rear_pcie_lanes,
           physical_slots,
+          memory_gb,
           power_w
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       [
         randomUUID(),
@@ -356,6 +380,7 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
         profile.pcie_lanes,
         profile.rear_pcie_lanes,
         profile.physical_slots,
+        profile.memory_gb,
         profile.power_w,
       ],
     );

@@ -30,6 +30,7 @@ type RamProfile = {
 type DriveProfile = {
   drive_type: string;
   interface_type: string;
+  media_kind: string;
   form_factor: string;
   capacity_gb: number;
   speed_class: string | null;
@@ -340,6 +341,7 @@ export class SeedConfiguratorComponentProfiles1776178200000
           component_id,
           drive_type,
           interface_type,
+          media_kind,
           form_factor,
           capacity_gb,
           speed_class,
@@ -347,13 +349,14 @@ export class SeedConfiguratorComponentProfiles1776178200000
           pcie_lanes,
           power_w
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         randomUUID(),
         componentId,
         profile.drive_type,
         profile.interface_type,
+        profile.media_kind,
         profile.form_factor,
         profile.capacity_gb,
         profile.speed_class,
@@ -445,6 +448,11 @@ export class SeedConfiguratorComponentProfiles1776178200000
     }
 
     const driveType = isM2 ? "M.2" : isNvme ? "NVME" : isSas ? "SAS" : "SATA";
+    const mediaKind = isM2 || isNvme
+      ? "NVME"
+      : upper.includes("SSD")
+        ? "SSD"
+        : "HDD";
     const formFactor = isM2
       ? "M.2"
       : normalized.includes('3.5"')
@@ -454,6 +462,7 @@ export class SeedConfiguratorComponentProfiles1776178200000
     return {
       drive_type: driveType,
       interface_type: isM2 ? "NVME" : driveType,
+      media_kind: mediaKind,
       form_factor: formFactor,
       capacity_gb: capacityGb,
       speed_class: this.parseSpeedClass(normalized),

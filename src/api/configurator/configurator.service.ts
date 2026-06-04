@@ -926,6 +926,7 @@ export class ConfiguratorService {
     let sataQty = 0;
     let sasQty = 0;
     let vrocQty = 0;
+    let hasSasHardwareController = false;
 
     const controllerPorts = {
       sata: 0,
@@ -951,12 +952,14 @@ export class ConfiguratorService {
       }
 
       const ports = Number(controllerProfile.internal_ports || 0) * qty;
+      const isSasHardwareController = ["RAID", "HBA"].includes(controllerType);
 
       if (controllerProfile.supports_sata) {
         controllerPorts.sata += ports;
       }
 
-      if (controllerProfile.supports_sas) {
+      if (isSasHardwareController && controllerProfile.supports_sas) {
+        hasSasHardwareController = true;
         controllerPorts.sas += ports;
       }
     }
@@ -970,6 +973,7 @@ export class ConfiguratorService {
     }
 
     const drivePlacements = [];
+    const drivesToPlace = [];
     const availableBays = this.cloneBays(platformBays);
 
     if (!availableBays.length && selectedDrives.length) {
@@ -1004,6 +1008,7 @@ export class ConfiguratorService {
 
       if (driveType === "M.2") {
         resources.internal_m2.used += qty;
+        continue;
       }
 
       if (
@@ -1013,38 +1018,37 @@ export class ConfiguratorService {
         resources.pcie_total.used += Number(driveProfile.pcie_lanes || 4) * qty;
       }
 
-      if (availableBays.length) {
-        const placementResult = this.placeDriveIntoBays(
-          {
-            drive_type: driveType,
-            form_factor: driveProfile.form_factor,
-            qty,
-          },
-          availableBays,
-        );
+      drivesToPlace.push({
+        component_id: component.id,
+        name: component.name,
+        drive_type: driveType,
+        form_factor: driveProfile.form_factor,
+        qty,
+      });
+    }
 
-        drivePlacements.push(...placementResult.placements);
+    if (availableBays.length && drivesToPlace.length) {
+      const placementResult = this.placeSelectedDrivesIntoBays({
+        drives: drivesToPlace,
+        availableBays,
+        platformProfile,
+      });
 
-        if (placementResult.unplaced > 0) {
-          errors.push({
-            code: "DRIVE_BAYS_EXCEEDED",
-            message: "Недостаточно дисковых корзин для выбранных дисков",
-            details: {
-              component_id: component.id,
-              name: component.name,
-              unplaced: placementResult.unplaced,
-              drive_type: driveType,
-              form_factor: driveProfile.form_factor,
-            },
-          });
-        }
+      drivePlacements.push(...placementResult.placements);
+
+      for (const unplacedDrive of placementResult.unplaced) {
+        errors.push({
+          code: "DRIVE_BAYS_EXCEEDED",
+          message: unplacedDrive.message || "Недостаточно дисковых корзин для выбранных дисков",
+          details: unplacedDrive.details || unplacedDrive,
+        });
       }
     }
 
-    if (sasQty > 0 && controllerPorts.sas <= 0) {
+    if (sasQty > 0 && !hasSasHardwareController) {
       errors.push({
         code: "SAS_REQUIRES_RAID",
-        message: "SAS-диски требуют RAID/HBA/eHBA контроллер",
+        message: "SAS-диски требуют аппаратный RAID-контроллер или HBA; VROC не подходит",
         details: { sas_drives: sasQty },
       });
     }
@@ -1284,6 +1288,280 @@ export class ConfiguratorService {
       allowed_drive_types: Array.isArray(bay.allowed_drive_types)
         ? bay.allowed_drive_types
         : [],
+    }));
+  }
+
+  private placeSelectedDrivesIntoBays({
+    drives,
+    availableBays,
+    platformProfile,
+  }: {
+    drives: Array<{
+      component_id: string;
+      name: string;
+      drive_type: string;
+      form_factor: string;
+      qty: number;
+    }>;
+    availableBays: any[];
+    platformProfile: any;
+  }) {
+    if (this.isHsrPlatform(platformProfile)) {
+      return this.placeHsrDrivesIntoBackplanes(drives, availableBays);
+    }
+
+    const placements = [];
+    const unplaced = [];
+
+    for (const drive of drives) {
+      const placementResult = this.placeDriveIntoBays(drive, availableBays);
+      placements.push(...placementResult.placements);
+
+      if (placementResult.unplaced > 0) {
+        unplaced.push({
+          component_id: drive.component_id,
+          name: drive.name,
+          unplaced: placementResult.unplaced,
+          drive_type: drive.drive_type,
+          form_factor: drive.form_factor,
+        });
+      }
+    }
+
+    return { placements, unplaced };
+  }
+
+  private isHsrPlatform(platformProfile: any) {
+    const code = `${platformProfile?.platform_code || ""}`.toUpperCase();
+    return code.includes("HSR");
+  }
+
+  private placeHsrDrivesIntoBackplanes(drives: any[], availableBays: any[]) {
+    const unplaced = [];
+    const rearBay = availableBays.find(
+      (bay) => bay.placement === "rear" && Number(bay.capacity || 0) > 0,
+    );
+    const rearCapacity = Number(rearBay?.capacity || 4);
+    const totals = {
+      nvme: 0,
+      sataSas: 0,
+    };
+
+    for (const drive of drives) {
+      if (drive.drive_type === "NVME") {
+        totals.nvme += drive.qty;
+        continue;
+      }
+
+      if (["SATA", "SAS"].includes(drive.drive_type)) {
+        totals.sataSas += drive.qty;
+        continue;
+      }
+
+      unplaced.push({
+        component_id: drive.component_id,
+        name: drive.name,
+        drive_type: drive.drive_type,
+        form_factor: drive.form_factor,
+        unplaced: drive.qty,
+      });
+    }
+
+    let bestPlan = null;
+
+    for (let nvmeBlocks = 0; nvmeBlocks <= 3; nvmeBlocks++) {
+      const zones = this.createHsrBackplaneZones(nvmeBlocks, rearBay);
+      const frontNvmeLimit = zones
+        .filter((zone) => zone.placement === "front" && zone.mode === "NVME")
+        .reduce((sum, zone) => sum + zone.capacity, 0);
+      const frontSataSasLimit = zones
+        .filter((zone) => zone.placement === "front" && zone.mode === "SATA_SAS")
+        .reduce((sum, zone) => sum + zone.capacity, 0);
+      const rearZone = zones.find((zone) => zone.placement === "rear");
+      const frontNvme = Math.min(totals.nvme, frontNvmeLimit);
+      const frontSataSas = Math.min(totals.sataSas, frontSataSasLimit);
+      const rearNvmeNeeded = totals.nvme - frontNvme;
+      const rearSataSasNeeded = totals.sataSas - frontSataSas;
+      const rearNeeded = rearNvmeNeeded + rearSataSasNeeded;
+      const unplacedCount = Math.max(0, rearNeeded - rearCapacity);
+      const rearNvme = Math.min(rearNvmeNeeded, rearCapacity);
+      const rearSataSas = Math.min(rearSataSasNeeded, rearCapacity - rearNvme);
+      this.fillHsrZones(zones, {
+        frontNvme,
+        frontSataSas,
+        rearNvme,
+        rearSataSas,
+      });
+
+      const plan = {
+        zones,
+        rearZone,
+        nvmeBlocks,
+        sataSasBlocks: 3 - nvmeBlocks,
+        frontNvme,
+        frontSataSas,
+        rearNvme,
+        rearSataSas,
+        unplacedCount,
+        rearNeeded,
+      };
+
+      if (
+        !bestPlan ||
+        plan.unplacedCount < bestPlan.unplacedCount ||
+        (plan.unplacedCount === bestPlan.unplacedCount &&
+          plan.rearNeeded < bestPlan.rearNeeded)
+      ) {
+        bestPlan = plan;
+      }
+    }
+
+    if (!bestPlan) {
+      return { placements: [], unplaced };
+    }
+
+    const placements = this.hsrZonesToPlacements(bestPlan.zones);
+
+    if (bestPlan.unplacedCount > 0) {
+      unplaced.push({
+        message: "Недостаточно HSR-бэкплейнов нужного типа для выбранных дисков",
+        details: {
+          platform_rule: "HSR_FRONT_3X8_BACKPLANES",
+          front_nvme_backplanes: bestPlan.nvmeBlocks,
+          front_sata_sas_backplanes: bestPlan.sataSasBlocks,
+          rear_bays_limit: rearCapacity,
+          selected_nvme: totals.nvme,
+          selected_sata_sas: totals.sataSas,
+          zones: this.summarizeHsrZones(bestPlan.zones),
+          unplaced: bestPlan.unplacedCount,
+        },
+      });
+    }
+
+    return { placements, unplaced };
+  }
+
+  private createHsrBackplaneZones(nvmeFrontBlocks: number, rearBay: any) {
+    const zones = [];
+
+    for (let index = 1; index <= 3; index++) {
+      zones.push({
+        id: `front_bp${index}`,
+        name: `Front BP${index}`,
+        placement: "front",
+        capacity: 8,
+        mode: index <= nvmeFrontBlocks ? "NVME" : "SATA_SAS",
+        used: 0,
+        counts_to_rear_pcie: false,
+        pcie_lanes_per_nvme: 4,
+      });
+    }
+
+    zones.push({
+      id: "rear_bp",
+      name: "Rear BP",
+      placement: "rear",
+      capacity: Number(rearBay?.capacity || 4),
+      mode: "MIXED",
+      used: 0,
+      counts_to_rear_pcie: Boolean(rearBay?.counts_to_rear_pcie),
+      pcie_lanes_per_nvme: Number(rearBay?.pcie_lanes_per_nvme || 4),
+    });
+
+    return zones;
+  }
+
+  private fillHsrZones(
+    zones: any[],
+    counts: {
+      frontNvme: number;
+      frontSataSas: number;
+      rearNvme: number;
+      rearSataSas: number;
+    },
+  ) {
+    let frontNvmeLeft = counts.frontNvme;
+    let frontSataSasLeft = counts.frontSataSas;
+
+    for (const zone of zones.filter((item) => item.placement === "front")) {
+      if (zone.mode === "NVME") {
+        const used = Math.min(frontNvmeLeft, zone.capacity);
+        zone.used = used;
+        frontNvmeLeft -= used;
+      }
+
+      if (zone.mode === "SATA_SAS") {
+        const used = Math.min(frontSataSasLeft, zone.capacity);
+        zone.used = used;
+        frontSataSasLeft -= used;
+      }
+    }
+
+    const rearZone = zones.find((zone) => zone.placement === "rear");
+    if (rearZone) {
+      rearZone.used = counts.rearNvme + counts.rearSataSas;
+      rearZone.nvme_used = counts.rearNvme;
+      rearZone.sata_sas_used = counts.rearSataSas;
+    }
+  }
+
+  private hsrZonesToPlacements(zones: any[]) {
+    const placements = [];
+
+    for (const zone of zones) {
+      if (!zone.used) {
+        continue;
+      }
+
+      if (zone.placement === "rear" && zone.mode === "MIXED") {
+        if (zone.nvme_used > 0) {
+          placements.push({
+            placement: "rear",
+            drive_type: "NVME",
+            form_factor: "2.5",
+            qty: zone.nvme_used,
+            counts_to_rear_pcie: Boolean(zone.counts_to_rear_pcie),
+            pcie_lanes: Number(zone.pcie_lanes_per_nvme || 4),
+          });
+        }
+
+        if (zone.sata_sas_used > 0) {
+          placements.push({
+            placement: "rear",
+            drive_type: "SATA_SAS",
+            form_factor: "2.5",
+            qty: zone.sata_sas_used,
+            counts_to_rear_pcie: false,
+            pcie_lanes: 0,
+          });
+        }
+
+        continue;
+      }
+
+      placements.push({
+        placement: zone.placement,
+        drive_type: zone.mode,
+        form_factor: "2.5",
+        qty: zone.used,
+        counts_to_rear_pcie: Boolean(zone.counts_to_rear_pcie),
+        pcie_lanes: Number(zone.pcie_lanes_per_nvme || 4),
+      });
+    }
+
+    return placements;
+  }
+
+  private summarizeHsrZones(zones: any[]) {
+    return zones.map((zone) => ({
+      id: zone.id,
+      name: zone.name,
+      placement: zone.placement,
+      mode: zone.mode,
+      used: zone.used,
+      capacity: zone.capacity,
+      nvme_used: zone.nvme_used || 0,
+      sata_sas_used: zone.sata_sas_used || 0,
     }));
   }
 
@@ -1633,6 +1911,60 @@ export class ConfiguratorService {
         "cnf_slots",
         "cs",
         "cms.slot_id = cs.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.cpu_profile",
+        "cnf_cpu_profiles",
+        "ccp",
+        "ccp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.ram_profile",
+        "cnf_ram_profiles",
+        "crp",
+        "crp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.drive_profile",
+        "cnf_drive_profiles",
+        "cdp",
+        "cdp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.network_profile",
+        "cnf_network_profiles",
+        "cnp",
+        "cnp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.controller_profile",
+        "cnf_controller_profiles",
+        "cctrlp",
+        "cctrlp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.gpu_profile",
+        "cnf_gpu_profiles",
+        "cgpp",
+        "cgpp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.psu_profile",
+        "cnf_psu_profiles",
+        "cpsup",
+        "cpsup.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.transceiver_profile",
+        "cnf_transceiver_profiles",
+        "ctrp",
+        "ctrp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.resource_profile",
+        "cnf_component_resource_profiles",
+        "crsp",
+        "crsp.component_id = cmp.id",
       );
 
     if (entry?.componentType) {
@@ -1647,9 +1979,10 @@ export class ConfiguratorService {
       const result = [];
 
       for (const component of data) {
+        const mappedComponent = component as any;
         const slots = [];
 
-        for (const el of component.component_slots) {
+        for (const el of mappedComponent.component_slots) {
           slots.push({
             slot_id: el.slot_id,
             slotId: el.slot_id,
@@ -1662,7 +1995,130 @@ export class ConfiguratorService {
         result.push({
           ...component,
           typeId: component.type_id,
+          profile: {
+            cpu: mappedComponent.cpu_profile
+              ? {
+                  socket_profile: mappedComponent.cpu_profile.socket_profile,
+                  ram_type: mappedComponent.cpu_profile.ram_type,
+                  tdp_w: mappedComponent.cpu_profile.tdp_w,
+                  memory_channels: mappedComponent.cpu_profile.memory_channels,
+                  max_ram_modules_per_cpu:
+                    mappedComponent.cpu_profile.max_ram_modules_per_cpu,
+                  max_ram_gb_per_cpu:
+                    mappedComponent.cpu_profile.max_ram_gb_per_cpu,
+                  memory_speed_1dpc:
+                    mappedComponent.cpu_profile.memory_speed_1dpc,
+                  memory_speed_2dpc:
+                    mappedComponent.cpu_profile.memory_speed_2dpc,
+                }
+              : null,
+            ram: mappedComponent.ram_profile
+              ? {
+                  ram_type: mappedComponent.ram_profile.ram_type,
+                  capacity_gb: mappedComponent.ram_profile.capacity_gb,
+                  frequency_mhz: mappedComponent.ram_profile.frequency_mhz,
+                  rank: mappedComponent.ram_profile.rank,
+                  form_factor: mappedComponent.ram_profile.form_factor,
+                }
+              : null,
+            drive: mappedComponent.drive_profile
+              ? {
+                  drive_type: mappedComponent.drive_profile.drive_type,
+                  interface_type: mappedComponent.drive_profile.interface_type,
+                  media_kind: mappedComponent.drive_profile.media_kind,
+                  form_factor: mappedComponent.drive_profile.form_factor,
+                  capacity_gb: mappedComponent.drive_profile.capacity_gb,
+                  speed_class: mappedComponent.drive_profile.speed_class,
+                  workload_class: mappedComponent.drive_profile.workload_class,
+                  pcie_lanes: mappedComponent.drive_profile.pcie_lanes,
+                  power_w: mappedComponent.drive_profile.power_w,
+                }
+              : null,
+            network: mappedComponent.network_profile
+              ? {
+                  network_kind: mappedComponent.network_profile.network_kind,
+                  port_type: mappedComponent.network_profile.port_type,
+                  port_speed: mappedComponent.network_profile.port_speed,
+                  ports_count: mappedComponent.network_profile.ports_count,
+                  pcie_lanes: mappedComponent.network_profile.pcie_lanes,
+                  rear_pcie_lanes: mappedComponent.network_profile.rear_pcie_lanes,
+                  physical_slots: mappedComponent.network_profile.physical_slots,
+                  ocp_slots: mappedComponent.network_profile.ocp_slots,
+                  power_w: mappedComponent.network_profile.power_w,
+                }
+              : null,
+            controller: mappedComponent.controller_profile
+              ? {
+                  controller_type:
+                    mappedComponent.controller_profile.controller_type,
+                  pcie_lanes: mappedComponent.controller_profile.pcie_lanes,
+                  rear_pcie_lanes:
+                    mappedComponent.controller_profile.rear_pcie_lanes,
+                  physical_slots:
+                    mappedComponent.controller_profile.physical_slots,
+                  internal_ports:
+                    mappedComponent.controller_profile.internal_ports,
+                  supports_sata:
+                    mappedComponent.controller_profile.supports_sata,
+                  supports_sas: mappedComponent.controller_profile.supports_sas,
+                  supports_nvme:
+                    mappedComponent.controller_profile.supports_nvme,
+                  power_w: mappedComponent.controller_profile.power_w,
+                }
+              : null,
+            gpu: mappedComponent.gpu_profile
+              ? {
+                  pcie_lanes: mappedComponent.gpu_profile.pcie_lanes,
+                  rear_pcie_lanes: mappedComponent.gpu_profile.rear_pcie_lanes,
+                  physical_slots: mappedComponent.gpu_profile.physical_slots,
+                  memory_gb: mappedComponent.gpu_profile.memory_gb,
+                  power_w: mappedComponent.gpu_profile.power_w,
+                }
+              : null,
+            psu: mappedComponent.psu_profile
+              ? {
+                  power_w: mappedComponent.psu_profile.power_w,
+                  efficiency_class:
+                    mappedComponent.psu_profile.efficiency_class,
+                }
+              : null,
+            transceiver: mappedComponent.transceiver_profile
+              ? {
+                  interface_type:
+                    mappedComponent.transceiver_profile.interface_type,
+                  speed: mappedComponent.transceiver_profile.speed,
+                  media_type: mappedComponent.transceiver_profile.media_type,
+                  wavelength: mappedComponent.transceiver_profile.wavelength,
+                  compatible_port_type:
+                    mappedComponent.transceiver_profile.compatible_port_type,
+                }
+              : null,
+            resource: mappedComponent.resource_profile
+              ? {
+                  resource_kind: mappedComponent.resource_profile.resource_kind,
+                  pcie_lanes: mappedComponent.resource_profile.pcie_lanes,
+                  rear_pcie_lanes:
+                    mappedComponent.resource_profile.rear_pcie_lanes,
+                  physical_slots:
+                    mappedComponent.resource_profile.physical_slots,
+                  ocp_slots: mappedComponent.resource_profile.ocp_slots,
+                  internal_ports:
+                    mappedComponent.resource_profile.internal_ports,
+                  power_w: mappedComponent.resource_profile.power_w,
+                  uses_power: mappedComponent.resource_profile.uses_power,
+                }
+              : null,
+          },
           slots,
+          cpu_profile: undefined,
+          ram_profile: undefined,
+          drive_profile: undefined,
+          network_profile: undefined,
+          controller_profile: undefined,
+          gpu_profile: undefined,
+          psu_profile: undefined,
+          transceiver_profile: undefined,
+          resource_profile: undefined,
         });
       }
 

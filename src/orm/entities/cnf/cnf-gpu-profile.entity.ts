@@ -21,5 +21,8 @@ export class CnfGpuProfileEntity extends BasisUUIDEntity {
   physical_slots: number;
 
   @Column({ type: "int", nullable: true })
+  memory_gb: number;
+
+  @Column({ type: "int", nullable: true })
   power_w: number;
 }

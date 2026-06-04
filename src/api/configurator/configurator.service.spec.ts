@@ -73,6 +73,9 @@ const baseComponents = {
   psu: component("psu-1", "psu-type-id", "1200W PSU"),
   gpu: component("gpu-1", "gpu-type-id", "GPU"),
   ocp: component("ocp-1", "ocp-type-id", "OCP NIC"),
+  hba: component("hba-1", "hba-type-id", "HBA 16i"),
+  vroc: component("vroc-1", "raid-controller-type-id", "Intel VROC"),
+  sataDrive: component("drive-sata-1", "memory-type-id", "SATA SSD"),
 };
 
 const baseRows = () =>
@@ -361,7 +364,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.warnings)).toContain("RAM_DOWNCLOCK");
   });
 
-  it("требует RAID/HBA/eHBA для SAS-дисков", async () => {
+  it("требует аппаратный RAID/HBA для SAS-дисков", async () => {
     const rows = baseRows();
     rows.set(CnfDriveProfileEntity, [
       {
@@ -380,6 +383,144 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(codes(result.errors)).toContain("SAS_REQUIRES_RAID");
     expect(codes(result.errors)).toContain("CONTROLLER_PORTS_NOT_ENOUGH");
+  });
+
+  it("не считает VROC контроллером для SAS-дисков", async () => {
+    const rows = baseRows();
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.vroc.id,
+        component_type_key: "vroc",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: baseComponents.vroc.id,
+        resource_kind: "none",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        ocp_slots: 0,
+        power_w: 0,
+        uses_power: false,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "SAS",
+        interface_type: "SAS",
+        form_factor: "2.5",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    rows.set(CnfControllerProfileEntity, [
+      {
+        component_id: baseComponents.vroc.id,
+        controller_type: "VROC",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        internal_ports: 24,
+        supports_sata: false,
+        supports_sas: true,
+        supports_nvme: true,
+        power_w: 0,
+      },
+    ]);
+    const { service } = makeService({
+      components: [...Object.values(baseComponents)],
+      rows,
+    });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.vroc.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(codes(result.errors)).toContain("SAS_REQUIRES_RAID");
+    expect(codes(result.errors)).toContain("CONTROLLER_PORTS_NOT_ENOUGH");
+  });
+
+  it("разрешает SAS-диски при наличии HBA с внутренними SAS-портами", async () => {
+    const rows = baseRows();
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.hba.id,
+        component_type_key: "hba",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: baseComponents.hba.id,
+        resource_kind: "pcie_card",
+        pcie_lanes: 8,
+        rear_pcie_lanes: 8,
+        physical_slots: 1,
+        ocp_slots: 0,
+        power_w: 15,
+        uses_power: true,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "SAS",
+        interface_type: "SAS",
+        form_factor: "2.5",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    rows.set(CnfControllerProfileEntity, [
+      {
+        component_id: baseComponents.hba.id,
+        controller_type: "HBA",
+        pcie_lanes: 8,
+        rear_pcie_lanes: 8,
+        physical_slots: 1,
+        internal_ports: 8,
+        supports_sata: true,
+        supports_sas: true,
+        supports_nvme: false,
+        power_w: 15,
+      },
+    ]);
+    const { service } = makeService({
+      components: [...Object.values(baseComponents)],
+      rows,
+    });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.hba.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(codes(result.errors)).not.toContain("SAS_REQUIRES_RAID");
+    expect(codes(result.errors)).not.toContain("CONTROLLER_PORTS_NOT_ENOUGH");
   });
 
   it("считает PSU по N+1: один блок дает warning, перегруз одного блока дает error", async () => {
@@ -585,6 +726,185 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.pcie_total.used).toBe(8);
+  });
+
+  it("размещает M.2 только во внутренних M.2, а не в дисковых корзинах", async () => {
+    const rows = baseRows();
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "M.2",
+        interface_type: "NVME",
+        form_factor: "M.2",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 2 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(result.resources.internal_m2).toEqual({ used: 2, limit: 2 });
+    expect(result.resources.front_bays).toEqual({ used: 0, limit: 12 });
+    expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
+    expect(codes(result.errors)).not.toContain("DRIVE_BAYS_EXCEEDED");
+  });
+
+  it("для HSR учитывает типы передних бэкплейнов 3x8 при смешивании NVMe и SATA/SAS", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "ER225HSR-M8",
+        direct_sata_limit: 28,
+      },
+    ]);
+    rows.set(CnfPlatformBayEntity, [
+      {
+        id: "hsr-front-nvme",
+        platform_profile_id: basePlatformProfile.id,
+        placement: "front",
+        bay_kind: "drive",
+        form_factor: "2.5",
+        capacity: 8,
+        allowed_drive_types: ["NVME"],
+        pcie_lanes_per_nvme: 4,
+        counts_to_rear_pcie: false,
+      },
+      {
+        id: "hsr-front-sata-sas",
+        platform_profile_id: basePlatformProfile.id,
+        placement: "front",
+        bay_kind: "drive",
+        form_factor: "2.5",
+        capacity: 16,
+        allowed_drive_types: ["SATA", "SAS"],
+        pcie_lanes_per_nvme: null,
+        counts_to_rear_pcie: false,
+      },
+      {
+        id: "hsr-rear-mixed",
+        platform_profile_id: basePlatformProfile.id,
+        placement: "rear",
+        bay_kind: "drive",
+        form_factor: "2.5",
+        capacity: 4,
+        allowed_drive_types: ["SATA", "SAS", "NVME"],
+        pcie_lanes_per_nvme: 4,
+        counts_to_rear_pcie: true,
+      },
+    ]);
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.sataDrive.id,
+        component_type_key: "drive",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: baseComponents.sataDrive.id,
+        resource_kind: "drive",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        ocp_slots: 0,
+        power_w: 12,
+        uses_power: true,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "NVME",
+        interface_type: "NVME",
+        form_factor: "2.5",
+        capacity_gb: 1920,
+        pcie_lanes: 4,
+        power_w: 12,
+      },
+      {
+        component_id: baseComponents.sataDrive.id,
+        drive_type: "SATA",
+        interface_type: "SATA",
+        form_factor: "2.5",
+        capacity_gb: 1920,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({
+      components: [...Object.values(baseComponents)],
+      rows,
+    });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 21 },
+          { component_id: baseComponents.sataDrive.id, qty: 7 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(result.resources.front_bays).toEqual({ used: 23, limit: 24 });
+    expect(result.resources.rear_bays).toEqual({ used: 4, limit: 4 });
+    expect(codes(result.errors)).toContain("DRIVE_BAYS_EXCEEDED");
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "DRIVE_BAYS_EXCEEDED",
+          details: expect.objectContaining({
+            platform_rule: "HSR_FRONT_3X8_BACKPLANES",
+            selected_nvme: 21,
+            selected_sata_sas: 7,
+            unplaced: 1,
+            zones: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Front BP1",
+                mode: "NVME",
+                used: 8,
+                capacity: 8,
+              }),
+              expect.objectContaining({
+                name: "Front BP2",
+                mode: "NVME",
+                used: 8,
+                capacity: 8,
+              }),
+              expect.objectContaining({
+                name: "Front BP3",
+                mode: "SATA_SAS",
+                used: 7,
+                capacity: 8,
+              }),
+              expect.objectContaining({
+                name: "Rear BP",
+                mode: "MIXED",
+                used: 4,
+                capacity: 4,
+                nvme_used: 4,
+              }),
+            ]),
+          }),
+        }),
+      ]),
+    );
   });
 
   it("считает 2.5/3.5 bay как общий лимит, а не как две независимые корзины", async () => {

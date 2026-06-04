@@ -176,6 +176,10 @@ export class DriveProfileDto {
   @IsString()
   interface_type?: string;
 
+  @IsOptional()
+  @IsString()
+  media_kind?: string;
+
   @IsString()
   form_factor: string;
 
