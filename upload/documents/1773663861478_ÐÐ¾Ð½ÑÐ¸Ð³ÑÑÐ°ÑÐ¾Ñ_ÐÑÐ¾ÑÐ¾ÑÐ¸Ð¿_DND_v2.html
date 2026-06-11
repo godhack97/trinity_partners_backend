@@ -393,7 +393,7 @@ function renderSpecs() {
     <div class="spec-card ${powerDanger?'danger':c.totalPower>0?'highlight':''}">
       <div class="spec-label">Энергопотребление</div>
       <div class="spec-value ${powerDanger?'danger':''}">${c.totalPower > 0 ? c.totalPower + ' Вт' : '-'}</div>
-      <div class="spec-sub">Бюджет: ${c.psuBudget > 0 ? c.psuBudget + ' Вт (80%)' : 'БП не установлен'}</div>
+      <div class="spec-sub">Лимит: ${c.psuBudget > 0 ? c.psuBudget + ' Вт (80%)' : 'БП не установлен'}</div>
       ${c.psuBudget > 0 ? `<div class="spec-bar"><div class="spec-bar-fill ${powerCls}" style="width:${Math.min(powerPct,100)}%"></div></div>` : ''}
     </div>
     <div class="spec-card">

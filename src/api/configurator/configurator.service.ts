@@ -481,7 +481,7 @@ export class ConfiguratorService {
     if (resources.pcie_total.used > resources.pcie_total.limit) {
       errors.push({
         code: "PCIE_TOTAL_EXCEEDED",
-        message: "Превышен общий бюджет PCIe-линий",
+        message: "Превышен общий Лимит PCIe-линий",
         details: resources.pcie_total,
       });
     }
@@ -489,7 +489,7 @@ export class ConfiguratorService {
     if (resources.rear_pcie_ocp.used > resources.rear_pcie_ocp.limit) {
       errors.push({
         code: "REAR_PCIE_EXCEEDED",
-        message: "Превышен бюджет rear PCIe/OCP",
+        message: "Превышен Лимит rear PCIe/OCP",
         details: resources.rear_pcie_ocp,
       });
     }
