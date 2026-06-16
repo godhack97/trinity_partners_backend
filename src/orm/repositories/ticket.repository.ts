@@ -31,8 +31,11 @@ export class TicketRepository extends Repository<TicketEntity> {
 
   async findByManagerId(managerId: number): Promise<TicketEntity[]> {
     return await this.createQueryBuilder("t")
-      .innerJoin("users", "u", "u.id = t.creator_id")
-      .where("u.manager_id = :managerId", { managerId })
+      .leftJoin("users", "u", "u.id = t.creator_id")
+      .where("t.assignee_id = :managerId", { managerId })
+      .orWhere("(t.assignee_id IS NULL AND u.manager_id = :managerId)", {
+        managerId,
+      })
       .leftJoinAndSelect("t.messages", "m")
       .orderBy("t.id", "DESC")
       .getMany();
@@ -40,8 +43,11 @@ export class TicketRepository extends Repository<TicketEntity> {
 
   async countByManagerId(managerId: number): Promise<number> {
     return await this.createQueryBuilder("t")
-      .innerJoin("users", "u", "u.id = t.creator_id")
-      .where("u.manager_id = :managerId", { managerId })
+      .leftJoin("users", "u", "u.id = t.creator_id")
+      .where("t.assignee_id = :managerId", { managerId })
+      .orWhere("(t.assignee_id IS NULL AND u.manager_id = :managerId)", {
+        managerId,
+      })
       .getCount();
   }
 }

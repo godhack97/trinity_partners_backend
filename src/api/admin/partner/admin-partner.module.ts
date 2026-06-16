@@ -2,8 +2,10 @@ import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.serv
 import { Module } from "@nestjs/common";
 import { AdminPartnerController } from "./admin-partner.controller";
 import AdminPartnerService from "./admin-partner.service";
+import { NotificationModule } from "@api/notification/notification.module";
 
 @Module({
+  imports: [NotificationModule],
   controllers: [AdminPartnerController],
   providers: [AdminPartnerService, EmailConfirmerService],
   exports: [AdminPartnerService],

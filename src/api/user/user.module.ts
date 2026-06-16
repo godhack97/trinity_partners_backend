@@ -7,9 +7,13 @@ import { ForbiddenInn } from "src/orm/entities/forbidden-inn.entity";
 import { ForbiddenInnRepository } from "src/orm/repositories/forbidden-inn.repository";
 import { UserToken } from "src/orm/entities/user-token.entity";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
+import { NotificationModule } from "@api/notification/notification.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ForbiddenInn, UserToken, UserRoleEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ForbiddenInn, UserToken, UserRoleEntity]),
+    NotificationModule,
+  ],
   controllers: [UserController],
   providers: [UserService, EmailConfirmerService, ForbiddenInnRepository],
   exports: [UserService],

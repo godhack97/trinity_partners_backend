@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { NotificationIconType } from "@orm/entities";
+import { NotificationCategory, NotificationIconType } from "@orm/entities";
 import { Expose } from "class-transformer";
 
 export class NotificationsResponseDto {
@@ -30,6 +30,10 @@ export class NotificationsResponseDto {
   @ApiProperty()
   @Expose()
   icon: NotificationIconType;
+
+  @ApiProperty({ enum: NotificationCategory })
+  @Expose()
+  category: NotificationCategory;
 
   @ApiProperty()
   @Expose()

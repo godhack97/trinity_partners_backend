@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { UserRepository } from "@orm/repositories";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { CompanyEmployeeRepository, UserRepository } from "@orm/repositories";
+import { CompanyEmployeeStatus } from "@orm/entities";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
 
 const defaultFilter = {
@@ -9,7 +10,10 @@ const defaultFilter = {
 
 @Injectable()
 export class AdminUserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly companyEmployeeRepository: CompanyEmployeeRepository,
+  ) {}
 
   async find(filters: UserFilterRequestDto) {
     const current_page = filters.current_page || 1;
@@ -49,6 +53,44 @@ export class AdminUserService {
       total,
       pages_count: Math.ceil(total / limit),
       data,
+    };
+  }
+
+  async restoreCompanyEmployee(id: number) {
+    const user = await this.userRepository.findByIdWithCompanyEmployees(id);
+    if (!user) {
+      throw new HttpException("Пользователь не найден", HttpStatus.NOT_FOUND);
+    }
+
+    const companyEmployee =
+      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(id);
+    if (!companyEmployee) {
+      throw new HttpException(
+        "Пользователь не привязан к компании",
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (companyEmployee.status === CompanyEmployeeStatus.Accept) {
+      return {
+        success: true,
+        message: "Сотрудник уже активен",
+        employee: companyEmployee,
+      };
+    }
+
+    await this.companyEmployeeRepository.update(companyEmployee.id, {
+      status: CompanyEmployeeStatus.Accept,
+    });
+    await this.userRepository.update(id, { is_activated: true });
+
+    return {
+      success: true,
+      message: "Сотрудник восстановлен",
+      employee:
+        await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
+          id,
+        ),
     };
   }
 }

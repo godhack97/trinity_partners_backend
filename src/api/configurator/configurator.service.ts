@@ -214,7 +214,7 @@ export class ConfiguratorService {
     };
 
     let hasCpu = false;
-    let hasRam = false;
+    let ramModulesTotal = 0;
     let hasDrive = false;
     let hasService = false;
     let hasPremiumServiceWithoutManualPrice = false;
@@ -363,7 +363,7 @@ export class ConfiguratorService {
       }
 
       if (typeKey === "ram") {
-        hasRam = true;
+        ramModulesTotal += qty;
         selectedRam.push({
           component,
           qty,
@@ -512,15 +512,26 @@ export class ConfiguratorService {
 
     const missingRequired = [];
     if (!hasCpu) missingRequired.push("cpu");
-    if (!hasRam) missingRequired.push("ram");
+    if (ramModulesTotal < 2) missingRequired.push("ram");
     if (!hasDrive) missingRequired.push("drive");
     if (!hasService) missingRequired.push("service");
 
     if (missingRequired.length) {
+      const requiredMessage =
+        "Для расчета стоимости выберите минимум: процессор — 1, модули памяти — 2, диск — 1 и сервис";
       errors.push({
         code: "REQUIRED_COMPONENT_MISSING",
-        message: "Для расчета стоимости выберите платформу, процессор, память, диск и сервис",
-        details: { missing: missingRequired },
+        message: requiredMessage,
+        details: {
+          missing: missingRequired,
+          selected: { ram_modules: ramModulesTotal },
+          required: {
+            cpu_min: 1,
+            ram_modules_min: 2,
+            drive_min: 1,
+            service_required: true,
+          },
+        },
       });
     }
 
@@ -533,7 +544,7 @@ export class ConfiguratorService {
         ? null
         : hasPremiumServiceWithoutManualPrice
           ? "Premium-сервис требует ручного расчета ответственным менеджером"
-          : "Для расчета стоимости выберите платформу, процессор, память, диск и сервис",
+          : "Для расчета стоимости выберите минимум: процессор — 1, модули памяти — 2, диск — 1 и сервис",
       equipment_subtotal: priceIsVisible ? equipmentSubtotal : null,
       service_total: priceIsVisible ? serviceTotal : null,
       total: priceIsVisible ? equipmentSubtotal + serviceTotal : null,

@@ -6,7 +6,7 @@ import {
   MinLengthRu,
 } from "@decorators/validate";
 import { PartnershipType } from "@orm/entities/company.entity";
-import { IsEnum } from "class-validator";
+import { IsBoolean, IsEnum } from "class-validator";
 
 export class RegistrationCompanyRequestDto {
   @ApiProperty()
@@ -61,4 +61,12 @@ export class RegistrationCompanyRequestDto {
 
   @ApiProperty()
   main_customers: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  agreement_accepted: boolean;
+
+  @ApiProperty()
+  @IsBoolean()
+  privacy_policy_accepted: boolean;
 }

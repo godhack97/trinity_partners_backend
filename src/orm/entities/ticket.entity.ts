@@ -17,6 +17,13 @@ export class TicketEntity extends BasisEntity {
   @JoinColumn({ name: "creator_id" })
   creator: UserEntity;
 
+  @Column({ nullable: true })
+  assignee_id?: number;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, { eager: true })
+  @JoinColumn({ name: "assignee_id" })
+  assignee?: UserEntity;
+
   @Column({ type: "enum", enum: ["manager", "tech_specialist"] })
   type: "manager" | "tech_specialist";
 

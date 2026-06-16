@@ -26,6 +26,10 @@ export class ImportantAlertResponseDto {
   @Expose()
   author_id: number;
 
+  @ApiProperty({ required: false })
+  @Expose()
+  target_company_id?: number;
+
   @ApiProperty()
   @Expose()
   created_at: string;

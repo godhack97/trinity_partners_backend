@@ -59,6 +59,8 @@ export class EmailConfirmerService {
     if (!resetHashEntity)
       throw new HttpException("Хэш не найден", HttpStatus.NOT_FOUND);
 
+    await this._assertResetHashNotExpired(resetHashEntity);
+
     const action = this.confirmActions[method];
     return await action.call(this, { resetHashEntity });
   }
@@ -185,7 +187,7 @@ export class EmailConfirmerService {
           link: "https://partner.trinity.ru/",
         },
       });
-      await this.notifySuperAdminsAboutNewPartner({
+      await this.notifyTrinityManagersAboutNewPartner({
         company_name: user.user_info?.company_name,
         first_name: user.user_info?.first_name,
         last_name: user.user_info?.last_name,
@@ -202,7 +204,7 @@ export class EmailConfirmerService {
     }
   }
 
-  private async notifySuperAdminsAboutNewPartner({
+  private async notifyTrinityManagersAboutNewPartner({
     company_name,
     first_name,
     last_name,
@@ -213,13 +215,17 @@ export class EmailConfirmerService {
     last_name?: string;
     email: string;
   }) {
-    const qb = this.userRepository.createQueryBuilder("u");
-    qb.leftJoin("user_roles", "ur", "u.id = ur.user_id")
+    const roleNames = [RoleTypes.SuperAdmin, RoleTypes.PartnerManager];
+    const trinityManagers = await this.userRepository
+      .createQueryBuilder("u")
+      .distinct(true)
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
       .leftJoin("roles", "r", "ur.role_id = r.id")
       .leftJoin("roles", "r2", "u.role_id = r2.id")
-      .where("(r.id = 1 OR r2.id = 1)");
-
-    const superAdmins = await qb.getMany();
+      .where("(r.name IN (:...roleNames) OR r2.name IN (:...roleNames))", {
+        roleNames,
+      })
+      .getMany();
 
     const partnerName =
       company_name ||
@@ -227,7 +233,7 @@ export class EmailConfirmerService {
       "Партнёр";
     const partnerEmail = email;
 
-    for (const admin of superAdmins) {
+    for (const admin of trinityManagers) {
       await this.emailSend({
         email: admin.email,
         subject: emailSendConfig({ partnerName, partnerEmail })[
@@ -258,12 +264,24 @@ export class EmailConfirmerService {
     }
   }
 
+  private async _assertResetHashNotExpired(
+    resetHashEntity: ActionParams["resetHashEntity"],
+  ) {
+    if (!resetHashEntity.expire_date) return;
+
+    const expireDate = new Date(resetHashEntity.expire_date);
+    if (Number.isNaN(expireDate.getTime()) || expireDate >= new Date()) return;
+
+    await this._deleteResetHashEntity({ resetHashEntity });
+    throw new HttpException("Срок действия ссылки истек", HttpStatus.GONE);
+  }
+
   private _createExpireDate(
-    options: { addDays: number } = { addDays: 2 },
+    options: { addHours: number } = { addHours: 1 },
   ): string {
-    const { addDays = 2 } = options;
+    const { addHours = 1 } = options;
     const d = new Date();
-    d.setDate(d.getDate() + addDays);
+    d.setHours(d.getHours() + addHours);
     const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
     const timeString = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
     return `${yearString} ${timeString}`;

@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEmailRu, IsNotEmptyRu } from "../../../../decorators/validate";
 import { RoleTypes } from "@app/types/RoleTypes";
-import { IsIn, IsOptional } from "class-validator";
+import { IsBoolean, IsIn, IsOptional } from "class-validator";
 
 export class RegistrationEmployeeRequestDto {
   @ApiProperty()
@@ -35,4 +35,12 @@ export class RegistrationEmployeeRequestDto {
   @ApiProperty()
   @IsNotEmptyRu()
   company_inn: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  agreement_accepted: boolean;
+
+  @ApiProperty()
+  @IsBoolean()
+  privacy_policy_accepted: boolean;
 }

@@ -7,8 +7,8 @@ export class ImportantAlertService {
     private readonly importantAlertRepository: ImportantAlertRepository,
   ) {}
 
-  async getActive() {
-    return await this.importantAlertRepository.findActive();
+  async getActive(companyId?: number | null) {
+    return await this.importantAlertRepository.findActiveForCompany(companyId);
   }
 
   async getCount(): Promise<number> {

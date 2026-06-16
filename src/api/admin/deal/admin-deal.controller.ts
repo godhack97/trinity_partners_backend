@@ -19,4 +19,14 @@ export class AdminDealController {
   acceptDeal(@Param("id") id: string, @Body() updateDealDto: UpdateDealDto) {
     return this.dealsService.update(+id, updateDealDto);
   }
+
+  @Patch(":id/duplicate-review")
+  @LogAction("deal_duplicate_review", "deals")
+  @ApiOperation({ summary: "Назначить итоговый статус ручной проверки дубля" })
+  reviewDuplicate(
+    @Param("id") id: string,
+    @Body() body: { status: "duplicate" | "not_duplicate" },
+  ) {
+    return this.dealsService.reviewDuplicate(+id, body.status);
+  }
 }

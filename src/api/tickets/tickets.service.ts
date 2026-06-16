@@ -1,10 +1,14 @@
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
-import { TicketRepository, TicketMessageRepository } from "@orm/repositories";
+import {
+  TicketRepository,
+  TicketMessageRepository,
+  UserRepository,
+} from "@orm/repositories";
 import { TicketEntity, UserEntity } from "@orm/entities";
 import { CreateTicketDto } from "./dto/request/create-ticket.dto";
 import { AddTicketMessageDto } from "./dto/request/add-ticket-message.dto";
 import { NotificationService } from "@api/notification/notification.service";
-import { NotificationIconType } from "@orm/entities";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 const MANAGER_ROLE = "partner_manager";
 
@@ -14,6 +18,7 @@ export class TicketsService {
     private readonly ticketRepository: TicketRepository,
     private readonly ticketMessageRepository: TicketMessageRepository,
     private readonly notificationService: NotificationService,
+    private readonly userRepository: UserRepository,
   ) {}
 
   private calcUnread(ticket: TicketEntity, userId: number): number {
@@ -72,8 +77,11 @@ export class TicketsService {
   }
 
   async create(auth_user: UserEntity, dto: CreateTicketDto) {
+    const assigneeId = await this.resolveAssigneeId(auth_user, dto.type);
+
     const ticket = await this.ticketRepository.save({
       creator_id: auth_user.id,
+      assignee_id: assigneeId,
       type: dto.type,
       subject: dto.subject,
       status: "open" as const,
@@ -88,23 +96,22 @@ export class TicketsService {
       is_read: false,
     });
 
-    // Уведомление менеджеру о новом тикете
-    Logger.log(`[Tickets] create: auth_user.id=${auth_user.id} manager_id=${auth_user.manager_id} role=${auth_user.role?.name}`);
-    if (auth_user.manager_id) {
+    Logger.log(`[Tickets] create: auth_user.id=${auth_user.id} assignee_id=${assigneeId} type=${dto.type} role=${auth_user.role?.name}`);
+    if (assigneeId) {
       try {
         await this.notificationService.send({
-          user_id: auth_user.manager_id,
+          user_id: assigneeId,
           title: "Новый запрос",
           text: `Партнёр создал новый запрос: «${dto.subject}»`,
           actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
           ticket_id: ticket.id,
         });
-        Logger.log(`[Tickets] notification sent to manager ${auth_user.manager_id}`);
+        Logger.log(`[Tickets] notification sent to assignee ${assigneeId}`);
       } catch (e) {
         Logger.error(`[Tickets] notification error: ${e.message}`);
       }
     } else {
-      Logger.warn(`[Tickets] manager_id is null for user ${auth_user.id}, no notification sent`);
+      Logger.warn(`[Tickets] assignee_id is null for user ${auth_user.id}, no notification sent`);
     }
 
     const result = await this.ticketRepository.findById(ticket.id);
@@ -147,10 +154,10 @@ export class TicketsService {
         ticket_id: ticket.id,
       });
     } else {
-      // Уведомление менеджеру: новое сообщение от партнёра
-      if (auth_user.manager_id) {
+      const assigneeId = ticket.assignee_id || auth_user.manager_id;
+      if (assigneeId) {
         await this.notificationService.send({
-          user_id: auth_user.manager_id,
+          user_id: assigneeId,
           title: "Новое сообщение в запросе",
           text: `Новое сообщение в запросе: «${ticket.subject}»`,
           actions: [{ label: "Перейти к запросу", url: `/service?ticketId=${ticket.id}` }],
@@ -242,5 +249,27 @@ export class TicketsService {
     return this.ticketRepository.count({
       where: { creator_id: auth_user.id },
     });
+  }
+
+  private async resolveAssigneeId(
+    auth_user: UserEntity,
+    type: "manager" | "tech_specialist",
+  ) {
+    if (type === "manager") {
+      return auth_user.manager_id || null;
+    }
+
+    const techSpecialist = await this.userRepository
+      .createQueryBuilder("u")
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r", "ur.role_id = r.id")
+      .leftJoin("roles", "primary_role", "u.role_id = primary_role.id")
+      .where("r.name = :roleName OR primary_role.name = :roleName", {
+        roleName: RoleTypes.TechnicalSpecialist,
+      })
+      .orderBy("u.id", "ASC")
+      .getOne();
+
+    return techSpecialist?.id || auth_user.manager_id || null;
   }
 }

@@ -5,12 +5,13 @@ import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from "@nestjs/swagg
 import { RoleTypes } from "../../../types/RoleTypes";
 import { PartnerFilterRequestDto } from "./dto/partner-filters-request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
-import { CompanyStatus } from "@orm/entities";
+import { CompanyStatus, UserEntity } from "@orm/entities";
+import { AuthUser } from "@decorators/auth-user";
 
 @ApiTags("partner")
 @ApiBearerAuth()
 @Controller("admin/partner")
-@Roles([RoleTypes.SuperAdmin])
+@Roles([RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
 export class AdminPartnerController {
   constructor(private readonly adminPartnerService: AdminPartnerService) {}
 
@@ -51,8 +52,8 @@ export class AdminPartnerController {
   @Post(":id/accept")
   @LogAction("partner_accept", "companies")
   @ApiOperation({ summary: 'Принять заявку от партнёра' })
-  acceptPartner(@Param("id") id: number) {
-    return this.adminPartnerService.accept(id);
+  acceptPartner(@Param("id") id: number, @AuthUser() auth_user: UserEntity) {
+    return this.adminPartnerService.accept(id, auth_user);
   }
 
   @Post(":id/reject")
@@ -60,5 +61,26 @@ export class AdminPartnerController {
   @ApiOperation({ summary: 'Отклонить заявку от партнёра' })
   rejectPartner(@Param("id") id: number) {
     return this.adminPartnerService.reject(id);
+  }
+
+  @Post("employee/:id/accept")
+  @LogAction("employee_trinity_accept", "company_employees")
+  @ApiOperation({ summary: "Принять заявку сотрудника менеджером Тринити" })
+  acceptEmployee(@Param("id") id: number, @AuthUser() auth_user: UserEntity) {
+    return this.adminPartnerService.acceptEmployee(id, auth_user);
+  }
+
+  @Post("employee/:id/reject")
+  @LogAction("employee_trinity_reject", "company_employees")
+  @ApiOperation({ summary: "Отклонить заявку сотрудника менеджером Тринити" })
+  rejectEmployee(@Param("id") id: number) {
+    return this.adminPartnerService.rejectEmployee(id);
+  }
+
+  @Post(":id/suspend")
+  @LogAction("partner_suspend", "companies")
+  @ApiOperation({ summary: 'Приостановить доступ партнёра' })
+  suspendPartner(@Param("id") id: number) {
+    return this.adminPartnerService.suspend(id);
   }
 }

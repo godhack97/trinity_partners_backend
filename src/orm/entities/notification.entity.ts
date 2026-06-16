@@ -13,6 +13,13 @@ export enum NotificationIconType {
   SHIELD = "shield", //ЩИТ
 }
 
+export enum NotificationCategory {
+  System = "system",
+  Company = "company",
+  Deal = "deal",
+  Education = "education",
+}
+
 @Entity({
   name: "notifications",
   orderBy: {
@@ -50,6 +57,13 @@ export class NotificationEntity extends BasisEntity {
     default: NotificationIconType.BELL,
   })
   icon: NotificationIconType;
+
+  @Column({
+    type: "enum",
+    enum: NotificationCategory,
+    default: NotificationCategory.System,
+  })
+  category: NotificationCategory;
 
   @Column({ type: "timestamp", nullable: true })
   read_at: Date;

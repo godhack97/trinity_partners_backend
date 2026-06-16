@@ -43,6 +43,16 @@ export class CompanyController {
     return this.companyService.addEmployee(auth_user, addEmployeeDto);
   }
 
+  @Post("invite-employee")
+  @LogAction("employee_invite", "company_employees")
+  @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin, RoleTypes.CompanyAdmin, RoleTypes.SuperAdmin])
+  inviteEmployee(
+    @AuthUser() auth_user: UserEntity,
+    @Body() addEmployeeDto: AddEmployeeRequestDto,
+  ) {
+    return this.companyService.inviteEmployee(auth_user, addEmployeeDto);
+  }
+
   @Get("get-employees")
   @UseInterceptors(
     new TransformResponse(CompanyEmployeesWithEmpoloyeeResponseDto, true),
@@ -63,6 +73,12 @@ export class CompanyController {
       +id,
       changeStatasEmployeeAdminDto,
     );
+  }
+
+  @Patch("transfer-admin/:id")
+  @LogAction("employee_transfer_admin", "company_employees")
+  transferAdminRights(@Req() request: Request, @Param("id") id: string) {
+    return this.companyService.transferAdminRights(request, +id);
   }
 
   @Patch("remove-employee/:id")

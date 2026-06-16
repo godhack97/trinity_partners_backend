@@ -303,6 +303,29 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.price.service_total).toBe(1);
   });
 
+  it("блокирует расчет стоимости, если выбрано меньше двух модулей RAM", async () => {
+    const { service } = makeService();
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 1 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    const requiredError = result.errors.find(
+      (error) => error.code === "REQUIRED_COMPONENT_MISSING",
+    );
+
+    expect(requiredError?.details.missing).toContain("ram");
+    expect(requiredError?.details.selected.ram_modules).toBe(1);
+    expect(result.price.is_visible).toBe(false);
+  });
+
   it("блокирует количество CPU больше 1 для socket_profile 1S", async () => {
     const rows = baseRows();
     rows.set(CnfCpuProfileEntity, [

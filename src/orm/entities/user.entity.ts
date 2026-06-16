@@ -63,6 +63,24 @@ export class UserEntity extends BasisEntity {
   @Column({ default: false })
   email_confirmed: boolean;
 
+  @Column({ default: 0 })
+  failed_login_attempts: number;
+
+  @Column({ type: "timestamp", nullable: true })
+  login_blocked_until: Date | null;
+
+  @Column({ default: false })
+  agreement_accepted: boolean;
+
+  @Column({ default: false })
+  privacy_policy_accepted: boolean;
+
+  @Column({ type: "timestamp", nullable: true })
+  legal_accepted_at: Date | null;
+
+  @Column({ nullable: true })
+  legal_accepted_source: string | null;
+
   @DeleteDateColumn()
   deleted_at: Date;
 

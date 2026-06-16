@@ -8,6 +8,10 @@ export class TicketResponseDto extends WithIdDto {
   @Expose()
   creator_id: number;
 
+  @ApiProperty()
+  @Expose()
+  assignee_id?: number;
+
   @ApiProperty({ enum: ["manager", "tech_specialist"] })
   @Expose()
   type: "manager" | "tech_specialist";

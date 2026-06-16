@@ -46,6 +46,12 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
       const ownerCompany = await user.lazy_owner_company;
       const company = ownerCompany || user.company_employee?.company;
 
+      if (company?.status === CompanyStatus.Suspended) {
+        throw new ForbiddenException(
+          "Доступ к порталу приостановлен. Обратитесь к ответственному менеджеру Тринити.",
+        );
+      }
+
       if (company?.status !== CompanyStatus.Accept) {
         throw new ForbiddenException(
           "Компания не прошла проврку администратором!",
@@ -62,6 +68,23 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
       roleNames.includes(RoleTypes.TechnicalSpecialist) ||
       roleNames.includes(RoleTypes.Staff)
     ) {
+      if (user.company_employee?.company?.status === CompanyStatus.Suspended) {
+        throw new ForbiddenException(
+          "Доступ к порталу приостановлен. Обратитесь к ответственному менеджеру Тринити.",
+        );
+      }
+
+      if (
+        [
+          CompanyEmployeeStatus.Blocked,
+          CompanyEmployeeStatus.Deleted,
+        ].includes(user.company_employee.status)
+      ) {
+        throw new ForbiddenException(
+          "Доступ к порталу заблокирован. Обратитесь к администратору компании или менеджеру Тринити.",
+        );
+      }
+
       if (user.company_employee.status !== CompanyEmployeeStatus.Accept) {
         throw new ForbiddenException("Ваш статус не подтвержен!");
       }

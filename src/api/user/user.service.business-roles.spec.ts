@@ -10,6 +10,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
     findByEmail: jest.fn().mockResolvedValue(null),
     save: jest.fn().mockResolvedValue({ id: 101, email: "user@test.local" }),
     createQueryBuilder: jest.fn(() => ({
+      distinct: jest.fn().mockReturnThis(),
       leftJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([]),
@@ -59,6 +60,10 @@ const makeService = (overrides: Record<string, any> = {}) => {
     emailSend: jest.fn().mockResolvedValue({}),
     ...overrides.emailConfirmerService,
   };
+  const notificationService = {
+    send: jest.fn().mockResolvedValue({}),
+    ...overrides.notificationService,
+  };
   const userTokenRepository = {
     save: jest.fn().mockResolvedValue({}),
     ...overrides.userTokenRepository,
@@ -78,6 +83,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
       companyEmployeeRepository as any,
       userSettingRepository as any,
       emailConfirmerService as any,
+      notificationService as any,
       userTokenRepository as any,
       userRoleRepository as any,
     ),
@@ -90,6 +96,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
       companyEmployeeRepository,
       userSettingRepository,
       emailConfirmerService,
+      notificationService,
       userTokenRepository,
       userRoleRepository,
     },

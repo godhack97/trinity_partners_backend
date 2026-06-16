@@ -4,9 +4,14 @@ import { UserEntity } from "./user.entity";
 import { CompanyEntity } from "./company.entity";
 
 export enum CompanyEmployeeStatus {
+  Invited = "invited",
   Pending = "pending",
+  TrinityPending = "trinity_pending",
+  InviteTrinityPending = "invite_trinity_pending",
+  CompanyPending = "company_pending",
   Accept = "accept",
   Reject = "reject",
+  Blocked = "blocked",
   Deleted = "deleted",
 }
 @Entity({

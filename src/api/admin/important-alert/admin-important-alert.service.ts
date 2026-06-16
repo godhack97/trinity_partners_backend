@@ -44,6 +44,9 @@ export class AdminImportantAlertService {
     if (data.message !== undefined) updateData.message = data.message;
     if (data.severity !== undefined) updateData.severity = data.severity;
     if (data.is_active !== undefined) updateData.is_active = data.is_active;
+    if (data.target_company_id !== undefined) {
+      updateData.target_company_id = data.target_company_id;
+    }
 
     const updateResult = await this.importantAlertRepository.update(id, updateData);
 

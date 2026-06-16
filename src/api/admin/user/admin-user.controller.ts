@@ -1,4 +1,4 @@
-import { Body, Controller, Get, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseInterceptors } from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { AdminUserService } from "./admin-user.service";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
@@ -19,5 +19,10 @@ export class AdminUserController {
   @ApiResponse({ type: PaginationResponseDto })
   findAll(@Body() filters: UserFilterRequestDto) {
     return this.adminUserRequest.find(filters);
+  }
+
+  @Post(":id/restore-employee")
+  restoreCompanyEmployee(@Param("id") id: string) {
+    return this.adminUserRequest.restoreCompanyEmployee(+id);
   }
 }

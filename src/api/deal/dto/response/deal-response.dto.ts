@@ -3,7 +3,7 @@ import { DistributorResponseDto } from "@api/distributor/dto/response/distributo
 import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
 import { WithIdDto } from "@app/dto/with-id.dto";
 import { ApiProperty } from "@nestjs/swagger";
-import { DealStatus } from "@orm/entities";
+import { DealStatus, DealType } from "@orm/entities";
 import { Expose, Type } from "class-transformer";
 
 export class DealResponseDto extends WithIdDto {
@@ -18,6 +18,10 @@ export class DealResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   creator_id: number;
+
+  @ApiProperty({ enum: DealType })
+  @Expose()
+  deal_type: DealType;
 
   @ApiProperty()
   @Expose()

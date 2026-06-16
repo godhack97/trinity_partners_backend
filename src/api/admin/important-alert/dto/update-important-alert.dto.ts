@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsEnum, IsBoolean } from "class-validator";
+import { IsOptional, IsEnum, IsBoolean, IsNumber } from "class-validator";
 import { ImportantAlertSeverity } from "@orm/entities";
 
 export class UpdateImportantAlertDto {
@@ -20,4 +20,9 @@ export class UpdateImportantAlertDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @ApiPropertyOptional({ description: "ID компании для адресного оповещения" })
+  @IsOptional()
+  @IsNumber()
+  target_company_id?: number | null;
 }

@@ -5,7 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DealStatusRu } from "@orm/entities";
+import {
+  DealDuplicateReviewStatus,
+  DealStatusRu,
+  NotificationCategory,
+} from "@orm/entities";
 import { UpdateDealDto } from "./dto/request/update-deals.dto";
 import { DealRepository } from "@orm/repositories";
 import { CURRENCY } from "@config/constants";
@@ -59,6 +63,60 @@ export class AdminDealService {
 
     return {
       message: `Сделка с id ${id} была успешно обновлена`,
+      success: true,
+    };
+  }
+
+  async reviewDuplicate(
+    id: number,
+    status: "duplicate" | "not_duplicate",
+  ) {
+    const deal = await this.dealRepository.findById(id);
+    if (!deal) throw new NotFoundException();
+
+    if (!Object.values(DealDuplicateReviewStatus).includes(status as DealDuplicateReviewStatus)) {
+      throw new HttpException(
+        "Некорректный статус проверки дубля",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!deal.duplicate_of_deal_id) {
+      throw new HttpException(
+        "У сделки нет связанной похожей сделки",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const updatedDeal = await this.dealRepository.update(id, {
+      duplicate_review_status: status as DealDuplicateReviewStatus,
+    });
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось обновить статус проверки дубля",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    await this.notificationService.send({
+      user_id: deal.creator_id,
+      title: "Проверка похожей сделки завершена",
+      text:
+        status === DealDuplicateReviewStatus.Duplicate
+          ? `Сделка ${deal.deal_num} отмечена как дубль сделки ID ${deal.duplicate_of_deal_id}.`
+          : `Сделка ${deal.deal_num} не является дублем сделки ID ${deal.duplicate_of_deal_id}.`,
+      category: NotificationCategory.Deal,
+      actions: [
+        {
+          label: "Открыть сделку",
+          url: `/deals.management/${deal.id}`,
+        },
+      ],
+    });
+
+    return {
+      message: `Статус проверки дубля сделки ${id} обновлён`,
       success: true,
     };
   }

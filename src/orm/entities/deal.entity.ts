@@ -25,6 +25,17 @@ export enum Bitrix24SyncStatus {
   FAILED = "failed",
 }
 
+export enum DealDuplicateReviewStatus {
+  Pending = "pending",
+  Duplicate = "duplicate",
+  NotDuplicate = "not_duplicate",
+}
+
+export enum DealType {
+  Partner = "partner",
+  TrinityStaff = "trinity_staff",
+}
+
 @Entity({
   name: "deals",
   orderBy: {
@@ -84,6 +95,13 @@ export class DealEntity extends BasisEntity {
   @Column()
   creator_id: number;
 
+  @Column({
+    type: "enum",
+    enum: DealType,
+    default: DealType.Partner,
+  })
+  deal_type: DealType;
+
   @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, { eager: true })
   @JoinColumn({ name: "creator_id" })
   partner: UserEntity;
@@ -118,6 +136,16 @@ export class DealEntity extends BasisEntity {
     default: DealStatus.Moderation,
   })
   status: DealStatus;
+
+  @Column({ nullable: true })
+  duplicate_of_deal_id?: number;
+
+  @Column({
+    type: "enum",
+    enum: DealDuplicateReviewStatus,
+    nullable: true,
+  })
+  duplicate_review_status?: DealDuplicateReviewStatus;
 
   @Column({ nullable: true, type: "varchar" })
   special_discount: string;

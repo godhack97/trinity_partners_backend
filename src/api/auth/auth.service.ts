@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Between, In, Not, Repository } from "typeorm";
 import { Request } from "express";
 import { ResetHashRepository } from "@orm/repositories/reset-hash.repository";
 import { UserRepository } from "src/orm/repositories/user.repository";
@@ -24,6 +24,13 @@ import {
 } from "src/utils/password";
 import { AuthLoginRequestDto } from "./dto/request/auth-login.request.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
+import {
+  CompanyEntity,
+  DealEntity,
+  DealStatus,
+  NotificationCategory,
+} from "@orm/entities";
+import { createHmac, randomInt, timingSafeEqual } from "crypto";
 
 @Injectable()
 export class AuthService {
@@ -37,6 +44,8 @@ export class AuthService {
     private readonly newsService: NewsService,
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
+    @InjectRepository(DealEntity)
+    private readonly dealRepository: Repository<DealEntity>,
   ) {}
 
   async login(
@@ -47,12 +56,19 @@ export class AuthService {
     let user = await this.userRepository.findByEmailWithPermissions(authLoginDto.email);
     if (!user) throw new UnauthorizedException();
 
+    this.assertLoginIsNotBlocked(user);
+    this.assertCaptchaIfRequired(user, authLoginDto);
+
     const isVerify = await verifyPassword({
       user_password: user.password,
       password: authLoginDto.password,
       salt: user.salt,
     });
-    if (!isVerify) throw new UnauthorizedException();
+    if (!isVerify) {
+      await this.registerFailedLoginAttempt(user);
+    }
+
+    await this.resetFailedLoginAttempts(user);
 
     let userToken = await this.userTokenRepository.findOneBy({
       user_id: user.id,
@@ -91,6 +107,174 @@ export class AuthService {
     return { token, user };
   }
 
+  private assertLoginIsNotBlocked(user: any) {
+    if (!user.login_blocked_until) return;
+
+    const blockedUntil = new Date(user.login_blocked_until);
+    if (Number.isNaN(blockedUntil.getTime()) || blockedUntil <= new Date()) {
+      return;
+    }
+
+    throw new HttpException(
+      `Слишком много неудачных попыток входа. Повторите попытку после ${blockedUntil.toLocaleTimeString("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}.`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  private async registerFailedLoginAttempt(user: any): Promise<never> {
+    const failedLoginAttempts = (user.failed_login_attempts || 0) + 1;
+    const patch: Record<string, unknown> = {
+      failed_login_attempts: failedLoginAttempts,
+    };
+
+    if (failedLoginAttempts >= 10) {
+      const blockedUntil = new Date();
+      blockedUntil.setMinutes(blockedUntil.getMinutes() + 15);
+      patch.login_blocked_until = blockedUntil;
+
+      await this.userRepository.update(user.id, patch);
+      throw new HttpException(
+        "Слишком много неудачных попыток входа. Вход заблокирован на 15 минут.",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    await this.userRepository.update(user.id, patch);
+
+    if (failedLoginAttempts >= 3) {
+      this.throwCaptchaRequired(user.email, failedLoginAttempts);
+    }
+
+    throw new UnauthorizedException();
+  }
+
+  private assertCaptchaIfRequired(user: any, authLoginDto: AuthLoginRequestDto) {
+    if ((user.failed_login_attempts || 0) < 3) return;
+
+    if (
+      this.isCaptchaAnswerValid(
+        user.email,
+        authLoginDto.captcha_token,
+        authLoginDto.captcha_answer,
+      )
+    ) {
+      return;
+    }
+
+    this.throwCaptchaRequired(user.email, user.failed_login_attempts || 3);
+  }
+
+  private throwCaptchaRequired(
+    email: string,
+    failedLoginAttempts: number,
+  ): never {
+    const captcha = this.createCaptchaChallenge(email);
+
+    throw new HttpException(
+      {
+        message: "Подтвердите, что вы не робот: решите пример и повторите вход.",
+        captcha_required: true,
+        captcha_question: captcha.question,
+        captcha_token: captcha.token,
+        failed_login_attempts: failedLoginAttempts,
+      },
+      HttpStatus.UNAUTHORIZED,
+    );
+  }
+
+  private createCaptchaChallenge(email: string) {
+    const a = randomInt(2, 10);
+    const b = randomInt(2, 10);
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    const payload = {
+      a,
+      b,
+      email: email.trim().toLowerCase(),
+      expiresAt,
+    };
+    const signature = this.signCaptchaPayload(payload);
+    const token = Buffer.from(
+      JSON.stringify({ ...payload, signature }),
+    ).toString("base64url");
+
+    return {
+      question: `${a} + ${b} = ?`,
+      token,
+    };
+  }
+
+  private isCaptchaAnswerValid(
+    email: string,
+    token?: string,
+    answer?: string,
+  ) {
+    if (!token || !answer) return false;
+
+    try {
+      const payload = JSON.parse(
+        Buffer.from(token, "base64url").toString("utf8"),
+      ) as {
+        a: number;
+        b: number;
+        email: string;
+        expiresAt: number;
+        signature: string;
+      };
+
+      const expectedSignature = this.signCaptchaPayload({
+        a: payload.a,
+        b: payload.b,
+        email: payload.email,
+        expiresAt: payload.expiresAt,
+      });
+
+      const signature = Buffer.from(payload.signature || "");
+      const expected = Buffer.from(expectedSignature);
+
+      if (
+        signature.length !== expected.length ||
+        !timingSafeEqual(signature, expected)
+      ) {
+        return false;
+      }
+
+      if (payload.email !== email.trim().toLowerCase()) return false;
+      if (payload.expiresAt < Date.now()) return false;
+
+      return Number(answer) === payload.a + payload.b;
+    } catch {
+      return false;
+    }
+  }
+
+  private signCaptchaPayload(payload: {
+    a: number;
+    b: number;
+    email: string;
+    expiresAt: number;
+  }) {
+    return createHmac(
+      "sha256",
+      process.env.LOGIN_CAPTCHA_SECRET || "trinity-login-captcha",
+    )
+      .update(
+        `${payload.email}|${payload.a}|${payload.b}|${payload.expiresAt}`,
+      )
+      .digest("hex");
+  }
+
+  private async resetFailedLoginAttempts(user: any) {
+    if (!user.failed_login_attempts && !user.login_blocked_until) return;
+
+    await this.userRepository.update(user.id, {
+      failed_login_attempts: 0,
+      login_blocked_until: null,
+    });
+  }
+
   async logout(authorization: string, clientId: string) {
     const token = authorization.substring(7);
 
@@ -126,6 +310,10 @@ export class AuthService {
       user.owner_company = await user.lazy_owner_company;
     }
 
+    await this.notifyCompanyProfileIncomplete(user);
+    await this.notifyCertificateExpiry(user);
+    await this.notifyPurchaseDateApproaching(user);
+
     const notifications = await this.notificationService.check(user.id);
     const notifications_unread = await this.notificationService.countUnread(
       user.id,
@@ -134,7 +322,9 @@ export class AuthService {
       user.id,
     );
     const news = await this.newsService.check();
-    const important_alerts = await this.importantAlertService.getActive();
+    const important_alerts = await this.importantAlertService.getActive(
+      this.getUserCompanyId(user),
+    );
 
     return {
       ...user,
@@ -144,6 +334,131 @@ export class AuthService {
       news,
       important_alerts,
     };
+  }
+
+  private async notifyCompanyProfileIncomplete(user: any) {
+    const roleNames = [
+      user.role?.name,
+      ...(user.roles || []).map((role) => role.name),
+    ];
+    const isCompanyAdmin =
+      roleNames.includes(RoleTypes.Partner) ||
+      roleNames.includes(RoleTypes.CompanyAdmin) ||
+      roleNames.includes(RoleTypes.EmployeeAdmin);
+
+    if (!isCompanyAdmin) return;
+
+    const company: CompanyEntity | undefined =
+      user.owner_company || user.company_employee?.company;
+    if (!company) return;
+
+    const requiredFields: Array<keyof CompanyEntity> = [
+      "name",
+      "inn",
+      "company_business_line",
+      "employees_count",
+      "site_url",
+      "promoted_products",
+      "products_of_interest",
+      "main_customers",
+    ];
+
+    const isIncomplete = requiredFields.some((field) => {
+      const value = company[field];
+      return value === null || value === undefined || `${value}`.trim() === "";
+    });
+
+    if (!isIncomplete) return;
+
+    await this.notificationService.sendOnceUnread({
+      user_id: user.id,
+      title: "Заполните профиль компании",
+      text: "В профиле компании не заполнены обязательные сведения. Заполните профиль, чтобы данные компании были актуальны для сотрудников и сделок.",
+      category: NotificationCategory.Company,
+      actions: [
+        {
+          label: "Открыть профиль",
+          url: "/company-profile",
+        },
+      ],
+    });
+  }
+
+  private getUserCompanyId(user: any) {
+    return user.owner_company?.id || user.company_employee?.company?.id || null;
+  }
+
+  private async notifyCertificateExpiry(user: any) {
+    const company: CompanyEntity | undefined =
+      user.owner_company || user.company_employee?.company;
+    if (!company?.certificate_expiry) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const expiryDate = new Date(company.certificate_expiry);
+    expiryDate.setHours(0, 0, 0, 0);
+
+    const daysLeft = Math.ceil(
+      (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (![30, 14, 7].includes(daysLeft)) return;
+
+    await this.notificationService.sendOnceUnread({
+      user_id: user.id,
+      title: `Партнёрский договор истекает через ${daysLeft} ${this.getDaysLabel(daysLeft)}`,
+      text: `Срок действия партнёрского договора/сертификата компании «${company.name}» истекает ${expiryDate.toLocaleDateString("ru-RU")}.`,
+      category: NotificationCategory.Company,
+      actions: [
+        {
+          label: "Профиль компании",
+          url: "/company-profile",
+        },
+      ],
+    });
+  }
+
+  private async notifyPurchaseDateApproaching(user: any) {
+    if (!user?.id) return;
+
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() + 7);
+
+    const endDate = new Date(startDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    const deals = await this.dealRepository.find({
+      where: {
+        creator_id: user.id,
+        purchase_date: Between(startDate, endDate),
+        status: Not(In([DealStatus.Win, DealStatus.Lose])),
+      },
+    });
+
+    await Promise.all(
+      deals.map((deal) =>
+        this.notificationService.sendOnceUnread({
+          user_id: user.id,
+          title: `Дата закупки по сделке ${deal.deal_num} через 7 дней`,
+          text: `Дата закупки по сделке ${deal.deal_num} наступит ${new Date(deal.purchase_date).toLocaleDateString("ru-RU")}.`,
+          category: NotificationCategory.Deal,
+          actions: [
+            {
+              label: "Открыть сделку",
+              url: `/deals.management/${deal.id}`,
+            },
+          ],
+        }),
+      ),
+    );
+  }
+
+  private getDaysLabel(days: number) {
+    if (days === 1) return "день";
+    if (days >= 2 && days <= 4) return "дня";
+    return "дней";
   }
 
   // метод для получения пользователя с разрешениями по токену
@@ -214,6 +529,7 @@ export class AuthService {
       email,
     });
     if (!resetHashEntity) throw new UnauthorizedException();
+    await this.assertResetHashNotExpired(resetHashEntity);
 
     const user = await this.userRepository.findById(resetHashEntity.user_id);
     if (!user) throw new UnauthorizedException();
@@ -233,6 +549,16 @@ export class AuthService {
       email,
       method: EmailConfirmerMethod.Recovery,
     });
+  }
+
+  private async assertResetHashNotExpired(resetHashEntity: ResetHashEntity) {
+    if (!resetHashEntity.expire_date) return;
+
+    const expireDate = new Date(resetHashEntity.expire_date);
+    if (Number.isNaN(expireDate.getTime()) || expireDate >= new Date()) return;
+
+    await this.resetHashRepository.delete(resetHashEntity.id);
+    throw new HttpException("Срок действия ссылки истек", HttpStatus.GONE);
   }
 
   private async updateUserActivity(userId: number, req: Request) {

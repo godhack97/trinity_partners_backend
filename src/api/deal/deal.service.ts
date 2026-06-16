@@ -11,8 +11,11 @@ import {
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
   CompanyEmployeeStatus,
+  DealDuplicateReviewStatus,
   DealStatus,
   DealStatusRu,
+  DealType,
+  NotificationCategory,
   UserEntity,
   Bitrix24SyncStatus,
 } from "@orm/entities";
@@ -137,6 +140,9 @@ export class DealService {
       createDealDto.customer.first_name,
       createDealDto.customer.last_name,
     );
+    const duplicateInnDeal = await this.findExistingDealByCustomerInn(
+      createDealDto.customer.inn,
+    );
 
     const customer =
       existingCustomer ||
@@ -177,6 +183,13 @@ export class DealService {
       customer_id: customer.id,
       creator_id: auth_user.id,
       deal_num,
+      deal_type: this.isTrinityStaffDealCreator(auth_user)
+        ? DealType.TrinityStaff
+        : DealType.Partner,
+      duplicate_of_deal_id: duplicateInnDeal?.id || null,
+      duplicate_review_status: duplicateInnDeal
+        ? DealDuplicateReviewStatus.Pending
+        : null,
     };
 
     if (dealData.customer_id) {
@@ -200,8 +213,64 @@ export class DealService {
       distributor,
       auth_user,
     );
+    await this.notifyManagerAboutDuplicateCustomerInn(
+      savedDeal,
+      duplicateInnDeal,
+      auth_user,
+    );
 
     return savedDeal;
+  }
+
+  private isTrinityStaffDealCreator(user: UserEntity) {
+    return this.hasAnyRole(user, [
+      RoleTypes.SuperAdmin,
+      RoleTypes.ContentManager,
+    ]);
+  }
+
+  private async findExistingDealByCustomerInn(inn?: string) {
+    const normalizedInn = `${inn || ""}`.trim();
+    if (!normalizedInn) return null;
+
+    return this.dealRepository
+      .createQueryBuilder("deal")
+      .leftJoinAndSelect("deal.customer", "customer")
+      .where("customer.inn = :inn", { inn: normalizedInn })
+      .orderBy("deal.created_at", "DESC")
+      .getOne();
+  }
+
+  private async notifyManagerAboutDuplicateCustomerInn(
+    newDeal: any,
+    similarDeal: any,
+    creator: UserEntity,
+  ) {
+    if (!similarDeal || similarDeal.id === newDeal.id) return;
+
+    const creatorWithManager = await this.userRepository.findByIdWithUserInfo(
+      creator.id,
+    );
+    const managerId = creatorWithManager?.manager_id || creatorWithManager?.manager?.id;
+
+    if (!managerId) return;
+
+    await this.notificationService.send({
+      user_id: managerId,
+      title: "Найдена сделка с совпадающим ИНН заказчика",
+      text: `При создании сделки ${newDeal.deal_num} найден похожий заказчик по ИНН в сделке ${similarDeal.deal_num}. Проверьте, не является ли это дублем.`,
+      category: NotificationCategory.Deal,
+      actions: [
+        {
+          label: "Новая сделка",
+          url: `/deals.management/${newDeal.id}`,
+        },
+        {
+          label: "Похожая сделка",
+          url: `/deals.management/${similarDeal.id}`,
+        },
+      ],
+    });
   }
 
   private async notifyAdminsAboutNewDeal(
@@ -934,6 +1003,15 @@ export class DealService {
       }
     }
 
+    if (hasChanges) {
+      await this.notifyDealChanged(
+        deal,
+        "Изменены данные сделки",
+        `В сделке ${deal.deal_num} изменены данные. Изменил: ${this.getActorName(auth_user)}.`,
+        auth_user,
+      );
+    }
+
     return this.findOne(dealId, auth_user);
   }
 
@@ -943,6 +1021,8 @@ export class DealService {
     addDealConfigurationsDto: AddDealConfigurationsDto,
   ) {
     const deal = await this.findOne(dealId, auth_user);
+    this.assertCanUpdateDealConfigurations(deal, auth_user);
+
     const incomingConfigurations = addDealConfigurationsDto.configurations || [];
 
     if (!incomingConfigurations.length) {
@@ -974,6 +1054,13 @@ export class DealService {
       );
     }
 
+    await this.notifyDealChanged(
+      deal,
+      "Добавлена конфигурация в сделку",
+      `В сделку ${deal.deal_num} добавлены конфигурации: ${incomingConfigurations.length}. Изменил: ${this.getActorName(auth_user)}.`,
+      auth_user,
+    );
+
     return this.findOne(dealId, auth_user);
   }
 
@@ -983,13 +1070,7 @@ export class DealService {
     auth_user: UserEntity,
   ) {
     const deal = await this.findOne(dealId, auth_user);
-
-    if (deal.creator_id !== auth_user.id) {
-      throw new HttpException(
-        "Редактировать конфигурации сделки может только создатель",
-        HttpStatus.FORBIDDEN,
-      );
-    }
+    this.assertCanUpdateDealConfigurations(deal, auth_user);
 
     const currentConfigurations = Array.isArray(deal.configurations)
       ? deal.configurations
@@ -1020,6 +1101,13 @@ export class DealService {
       );
     }
 
+    await this.notifyDealChanged(
+      deal,
+      "Удалена конфигурация из сделки",
+      `Из сделки ${deal.deal_num} удалена конфигурация. Изменил: ${this.getActorName(auth_user)}.`,
+      auth_user,
+    );
+
     return this.findOne(dealId, auth_user);
   }
 
@@ -1030,13 +1118,7 @@ export class DealService {
     addDealConfigurationsDto: AddDealConfigurationsDto,
   ) {
     const deal = await this.findOne(dealId, auth_user);
-
-    if (deal.creator_id !== auth_user.id) {
-      throw new HttpException(
-        "Редактировать конфигурации сделки может только создатель",
-        HttpStatus.FORBIDDEN,
-      );
-    }
+    this.assertCanUpdateDealConfigurations(deal, auth_user);
 
     const nextConfiguration = addDealConfigurationsDto.configurations?.[0];
     if (!nextConfiguration) {
@@ -1080,6 +1162,13 @@ export class DealService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+
+    await this.notifyDealChanged(
+      deal,
+      "Обновлена конфигурация сделки",
+      `В сделке ${deal.deal_num} обновлена конфигурация. Изменил: ${this.getActorName(auth_user)}.`,
+      auth_user,
+    );
 
     return this.findOne(dealId, auth_user);
   }
@@ -1134,10 +1223,7 @@ export class DealService {
   ) {
     const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
     const statusText = DealStatusRu[status] || status;
-    const actorName =
-      actor.user_info?.first_name && actor.user_info?.last_name
-        ? `${actor.user_info.first_name} ${actor.user_info.last_name}`
-        : actor.email;
+    const actorName = this.getActorName(actor);
 
     await Promise.all(
       recipientIds.map((userId) =>
@@ -1145,6 +1231,7 @@ export class DealService {
           user_id: userId,
           title: "Изменён этап сделки",
           text: `Этап сделки ${deal.deal_num} изменён на "${statusText}". Изменил: ${actorName}.`,
+          category: NotificationCategory.Deal,
           actions: [
             {
               label: "Открыть сделку",
@@ -1162,10 +1249,7 @@ export class DealService {
     actor: UserEntity,
   ) {
     const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
-    const actorName =
-      actor.user_info?.first_name && actor.user_info?.last_name
-        ? `${actor.user_info.first_name} ${actor.user_info.last_name}`
-        : actor.email;
+    const actorName = this.getActorName(actor);
 
     await Promise.all(
       recipientIds
@@ -1175,6 +1259,7 @@ export class DealService {
             user_id: userId,
             title: "Новый документ в сделке",
             text: `В сделку ${deal.deal_num} добавлен документ "${attachment.name}". Добавил: ${actorName}.`,
+            category: NotificationCategory.Deal,
             actions: [
               {
                 label: "Открыть сделку",
@@ -1184,6 +1269,40 @@ export class DealService {
           }),
         ),
     );
+  }
+
+  private async notifyDealChanged(
+    deal: any,
+    title: string,
+    text: string,
+    actor: UserEntity,
+  ) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+
+    await Promise.all(
+      recipientIds
+        .filter((userId) => userId !== actor.id)
+        .map((userId) =>
+          this.notificationService.send({
+            user_id: userId,
+            title,
+            text,
+            category: NotificationCategory.Deal,
+            actions: [
+              {
+                label: "Открыть сделку",
+                url: `/deals.management/${deal.id}`,
+              },
+            ],
+          }),
+        ),
+    );
+  }
+
+  private getActorName(actor: UserEntity) {
+    return actor.user_info?.first_name && actor.user_info?.last_name
+      ? `${actor.user_info.first_name} ${actor.user_info.last_name}`
+      : actor.email;
   }
 
   private async getDealStatusNotificationRecipientIds(deal: any) {
@@ -1259,7 +1378,26 @@ export class DealService {
   }
 
   private canUpdateDealConfigurations(deal: any, auth_user: UserEntity) {
-    return deal.creator_id === auth_user.id;
+    return (
+      deal.creator_id === auth_user.id &&
+      ![DealStatus.Win, DealStatus.Lose].includes(deal.status)
+    );
+  }
+
+  private assertCanUpdateDealConfigurations(deal: any, auth_user: UserEntity) {
+    if (deal.creator_id !== auth_user.id) {
+      throw new HttpException(
+        "Редактировать конфигурации сделки может только создатель",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if ([DealStatus.Win, DealStatus.Lose].includes(deal.status)) {
+      throw new HttpException(
+        "Нельзя редактировать конфигурации завершенной сделки",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   private async canUpdateDealFields(deal: any, auth_user: UserEntity) {

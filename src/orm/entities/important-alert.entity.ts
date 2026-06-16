@@ -37,6 +37,9 @@ export class ImportantAlertEntity extends BasisEntity {
   @Column()
   author_id: number;
 
+  @Column({ nullable: true })
+  target_company_id?: number;
+
   @DeleteDateColumn()
   deleted_at: Date;
 }

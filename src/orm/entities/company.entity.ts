@@ -13,6 +13,7 @@ export enum CompanyStatus {
   Pending = "pending",
   Accept = "accept",
   Reject = "reject",
+  Suspended = "suspended",
 }
 
 export enum PartnershipType {
@@ -30,12 +31,22 @@ export class CompanyEntity extends BasisEntity {
   @Column()
   owner_id: number;
 
+  @Column({ nullable: true })
+  validated_by_manager_id?: number;
+
+  @Column({ type: "timestamp", nullable: true })
+  validated_at?: Date;
+
   @Column()
   name: string;
 
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: "owner_id" })
   owner: UserEntity;
+
+  @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
+  @JoinColumn({ name: "validated_by_manager_id" })
+  validated_by_manager?: UserEntity;
 
   @ManyToMany(() => UserEntity)
   @JoinTable({
@@ -72,6 +83,9 @@ export class CompanyEntity extends BasisEntity {
 
   @Column()
   main_customers: string;
+
+  @Column({ nullable: true })
+  email_domain?: string;
 
   @Column({
     type: "enum",

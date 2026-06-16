@@ -3,6 +3,7 @@ import { MailerService } from "@nestjs-modules/mailer";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  NotificationCategory,
   NotificationType,
   UserNotificationType,
   UserSettingType,
@@ -19,6 +20,7 @@ type NotificationSendDto = {
   user_id: number;
   title: string;
   text: string;
+  category?: NotificationCategory;
   actions?: { label: string; url: string }[] | null;
   ticket_id?: number | null;
 };
@@ -37,6 +39,7 @@ type ActionDataType = {
   user_id: number;
   title: string;
   text: string;
+  category?: NotificationCategory;
   actions?: { label: string; url: string }[] | null;
   ticket_id?: number | null;
 };
@@ -56,7 +59,15 @@ export class NotificationService {
     [NotificationType.Email]: this.sendEmail.bind(this),
   };
   async send(data: NotificationSendDto & { email?: string }) {
-    const { user_id, title, text, email: additionalEmail, actions, ticket_id } = data;
+    const {
+      user_id,
+      title,
+      text,
+      category,
+      email: additionalEmail,
+      actions,
+      ticket_id,
+    } = data;
 
     if (!user_id) {
       Logger.error('User ID is null or undefined in NotificationService.send');
@@ -86,6 +97,7 @@ export class NotificationService {
         user_id: user.id,
         title,
         text,
+        category,
         type: NotificationType.Site,
         actions: actions ?? null,
         ticket_id: ticket_id ?? null,
@@ -130,16 +142,32 @@ export class NotificationService {
   }
 
   async sendWeb(data: ActionDataType & { type }) {
-    const { user_id, title, text, type, actions, ticket_id } = data;
+    const { user_id, title, text, type, category, actions, ticket_id } = data;
 
     return await this.notificationRepository.save({
       user_id,
       title,
       text,
       type,
+      category: category ?? NotificationCategory.System,
       actions: actions ?? null,
       ticket_id: ticket_id ?? null,
     });
+  }
+
+  async sendOnceUnread(data: NotificationSendDto & { email?: string }) {
+    const existing = await this.notificationRepository.findOne({
+      where: {
+        user_id: data.user_id,
+        title: data.title,
+        category: data.category ?? NotificationCategory.System,
+        is_read: false,
+      },
+    });
+
+    if (existing) return existing;
+
+    return this.send(data);
   }
 
   async getAll(id: number) {
