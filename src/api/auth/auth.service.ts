@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Between, In, Not, Repository } from "typeorm";
+import { Between, In, Repository } from "typeorm";
 import { Request } from "express";
 import { ResetHashRepository } from "@orm/repositories/reset-hash.repository";
 import { UserRepository } from "src/orm/repositories/user.repository";
@@ -25,7 +25,9 @@ import {
 import { AuthLoginRequestDto } from "./dto/request/auth-login.request.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
+  CompanyEmployeeStatus,
   CompanyEntity,
+  CompanyStatus,
   DealEntity,
   DealStatus,
   NotificationCategory,
@@ -69,6 +71,7 @@ export class AuthService {
     }
 
     await this.resetFailedLoginAttempts(user);
+    await this.assertPortalAccessAllowed(user);
 
     let userToken = await this.userTokenRepository.findOneBy({
       user_id: user.id,
@@ -149,6 +152,43 @@ export class AuthService {
     }
 
     throw new UnauthorizedException();
+  }
+
+  private async assertPortalAccessAllowed(user: any) {
+    const roleNames = [
+      user.role?.name,
+      ...(user.roles || []).map((role) => role.name),
+    ];
+
+    if (roleNames.includes(RoleTypes.SuperAdmin)) return;
+
+    let company: CompanyEntity | undefined = user.company_employee?.company;
+    if (
+      !company &&
+      (roleNames.includes(RoleTypes.Partner) ||
+        roleNames.includes(RoleTypes.CompanyAdmin))
+    ) {
+      company = await user.lazy_owner_company;
+    }
+
+    if (company?.status === CompanyStatus.Suspended) {
+      throw new HttpException(
+        "Доступ к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (
+      [
+        CompanyEmployeeStatus.Blocked,
+        CompanyEmployeeStatus.Deleted,
+      ].includes(user.company_employee?.status)
+    ) {
+      throw new HttpException(
+        "Доступ к порталу заблокирован. Есть вопросы? Обратитесь к КЦ Тринити.",
+        HttpStatus.FORBIDDEN,
+      );
+    }
   }
 
   private assertCaptchaIfRequired(user: any, authLoginDto: AuthLoginRequestDto) {
@@ -433,7 +473,7 @@ export class AuthService {
       where: {
         creator_id: user.id,
         purchase_date: Between(startDate, endDate),
-        status: Not(In([DealStatus.Win, DealStatus.Lose])),
+        status: In([DealStatus.Moderation, DealStatus.Registered]),
       },
     });
 
@@ -441,12 +481,12 @@ export class AuthService {
       deals.map((deal) =>
         this.notificationService.sendOnceUnread({
           user_id: user.id,
-          title: `Дата закупки по сделке ${deal.deal_num} через 7 дней`,
-          text: `Дата закупки по сделке ${deal.deal_num} наступит ${new Date(deal.purchase_date).toLocaleDateString("ru-RU")}.`,
+          title: `В сделке №${deal.deal_num} приближается дата закупки`,
+          text: `В сделке №${deal.deal_num} приближается дата закупки: ${new Date(deal.purchase_date).toLocaleDateString("ru-RU")}.`,
           category: NotificationCategory.Deal,
           actions: [
             {
-              label: "Открыть сделку",
+              label: "Актуализировать",
               url: `/deals.management/${deal.id}`,
             },
           ],

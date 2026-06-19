@@ -16,6 +16,18 @@ export class ConfiguratorDraftEntity extends BasisEntity {
   @JoinColumn({ name: "creator_id" })
   creator: UserEntity;
 
+  @Column({ nullable: true })
+  shared_by_id?: number;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, {
+    nullable: true,
+  })
+  @JoinColumn({ name: "shared_by_id" })
+  shared_by?: UserEntity;
+
+  @Column({ nullable: true })
+  deal_id?: number;
+
   @Column({ length: 255 })
   title: string;
 

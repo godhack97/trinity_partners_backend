@@ -129,6 +129,7 @@ export class ConfiguratorDraftsService {
 
     const copy = await this.draftRepository.save({
       creator_id: dto.employee_id,
+      shared_by_id: auth_user.id,
       title: original.title,
       server_id: original.server_id,
       serverbox_height_id: original.serverbox_height_id,
@@ -151,7 +152,7 @@ export class ConfiguratorDraftsService {
       ],
     });
 
-    return copy;
+    return this.draftRepository.findById(copy.id);
   }
 
   async remove(id: number, auth_user: UserEntity) {

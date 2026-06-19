@@ -13,12 +13,16 @@ export class ConfiguratorDraftRepository extends Repository<ConfiguratorDraftEnt
   }
 
   async findById(id: number): Promise<ConfiguratorDraftEntity | null> {
-    return await this.findOneBy({ id });
+    return await this.findOne({
+      where: { id },
+      relations: ["shared_by", "shared_by.user_info"],
+    });
   }
 
   async findByCreatorId(creatorId: number): Promise<ConfiguratorDraftEntity[]> {
     return await this.find({
       where: { creator_id: creatorId },
+      relations: ["shared_by", "shared_by.user_info"],
       order: { id: "DESC" },
     });
   }

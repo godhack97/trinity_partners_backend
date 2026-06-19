@@ -1,5 +1,6 @@
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { NotificationService } from "@api/notification/notification.service";
+import { RoleTypes } from "@app/types/RoleTypes";
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import {
@@ -116,6 +117,59 @@ export default class AdminPartnerService {
       dealsCount: dealsMap.get(company.owner.id) || 0,
       employeesCount: employeesMap.get(company.id) || 0,
     }));
+  }
+
+  async getEmployeeRequests(auth_user: UserEntity) {
+    const qb = this.companyEmployeeRepository
+      .createQueryBuilder("ce")
+      .leftJoinAndMapOne("ce.company", "companies", "cmp", "cmp.id = ce.company_id")
+      .leftJoinAndMapOne("ce.employee", "users", "usr", "usr.id = ce.employee_id")
+      .leftJoinAndMapOne(
+        "usr.info",
+        "users_info",
+        "uinf",
+        "uinf.user_id = usr.id",
+      )
+      .leftJoinAndMapOne("cmp.owner", "users", "owner", "owner.id = cmp.owner_id")
+      .leftJoinAndMapOne(
+        "owner.info",
+        "owner_info",
+        "owner_info.user_id = owner.id",
+      )
+      .where("ce.status IN (:...statuses)", {
+        statuses: [
+          CompanyEmployeeStatus.TrinityPending,
+          CompanyEmployeeStatus.InviteTrinityPending,
+        ],
+      })
+      .orderBy("ce.created_at", "DESC");
+
+    if (!this.hasRole(auth_user, RoleTypes.SuperAdmin)) {
+      qb.andWhere(
+        "(cmp.validated_by_manager_id = :managerId OR owner.manager_id = :managerId)",
+        { managerId: auth_user.id },
+      );
+    }
+
+    const requests = await qb.getMany();
+
+    return requests.map((request) => ({
+      id: request.id,
+      status: request.status,
+      request_type:
+        request.status === CompanyEmployeeStatus.InviteTrinityPending
+          ? "Приглашение администратором"
+          : "Самостоятельная регистрация",
+      created_at: request.created_at,
+      company: request.company,
+      employee: request.employee,
+    }));
+  }
+
+  private hasRole(user: UserEntity, roleName: RoleTypes): boolean {
+    if (user.role?.name === roleName) return true;
+    if (user.roles?.some((role) => role.name === roleName)) return true;
+    return user.user_roles?.some((userRole) => userRole.role?.name === roleName) || false;
   }
 
   async accept(id: number, validator: UserEntity) {
@@ -388,11 +442,23 @@ export default class AdminPartnerService {
       is_activated: false,
     });
 
+    const user = await this.userRepository.findById(companyEntity.owner_id);
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: "Партнёрство приостановлено",
+      template: "request-company-reject",
+      context: {
+        link: "https://partner.trinity.ru/",
+      },
+    });
+
     await this.notifyCompanyAccessChanged(
       companyEntity.owner_id,
       "Партнёрство приостановлено",
-      `Доступ компании «${companyEntity.name}» к порталу приостановлен. Обратитесь к ответственному менеджеру Тринити.`,
+      `Доступ компании «${companyEntity.name}» к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.`,
     );
+
+    await this.notifyTrinityAdminsAboutCompanySuspended(companyEntity);
   }
 
   private async notifyCompanyAccessChanged(
@@ -412,6 +478,47 @@ export default class AdminPartnerService {
         },
       ],
     });
+  }
+
+  private async notifyTrinityAdminsAboutCompanySuspended(company: {
+    id: number;
+    name: string;
+  }) {
+    const roleNames = [RoleTypes.SuperAdmin, RoleTypes.PartnerManager];
+    const admins = await this.userRepository
+      .createQueryBuilder("u")
+      .distinct(true)
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r", "ur.role_id = r.id")
+      .leftJoin("roles", "r2", "u.role_id = r2.id")
+      .where("(r.name IN (:...roleNames) OR r2.name IN (:...roleNames))", {
+        roleNames,
+      })
+      .getMany();
+
+    for (const admin of admins) {
+      await this.emailConfirmerService.emailSend({
+        email: admin.email,
+        subject: `Партнёрство компании «${company.name}» приостановлено`,
+        template: "request-company-reject",
+        context: {
+          link: "https://partner.trinity.ru/",
+        },
+      });
+
+      await this.notificationService.send({
+        user_id: admin.id,
+        title: "Партнёрство приостановлено",
+        text: `Доступ компании «${company.name}» к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.`,
+        category: NotificationCategory.Company,
+        actions: [
+          {
+            label: "Открыть партнёров",
+            url: `/admin/partner?status=${CompanyStatus.Suspended}`,
+          },
+        ],
+      });
+    }
   }
 
   private getUserName(user: UserEntity) {

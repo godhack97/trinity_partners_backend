@@ -7,6 +7,28 @@ export class ConfiguratorDraftResponseDto extends WithIdDto {
   @Expose()
   creator_id: number;
 
+  @ApiProperty({ required: false })
+  @Expose()
+  shared_by_id?: number;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  @Transform(({ obj }) => {
+    const info = obj.shared_by?.user_info;
+    const name = [info?.first_name, info?.last_name].filter(Boolean).join(" ");
+    return name || obj.shared_by?.email || null;
+  })
+  shared_by_name?: string;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  deal_id?: number;
+
+  @ApiProperty()
+  @Expose()
+  @Transform(({ obj }) => (obj.deal_id ? "deal" : "draft"))
+  status: "draft" | "deal";
+
   @ApiProperty()
   @Expose()
   title: string;

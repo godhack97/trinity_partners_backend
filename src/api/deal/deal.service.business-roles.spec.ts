@@ -138,7 +138,7 @@ describe("DealService business roles", () => {
     ).resolves.toMatchObject({
       id: 1,
       creator_id: 2,
-      can_update_status: true,
+      can_update_status: false,
       can_update_configurations: false,
     });
   });

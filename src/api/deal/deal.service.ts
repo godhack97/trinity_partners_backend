@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { CreateDealDto } from "./dto/request/create-deal.dto";
 import {
   CompanyRepository,
@@ -7,6 +8,7 @@ import {
   DistributorRepository,
   DealDeletionRequestRepository,
   CompanyEmployeeRepository,
+  ConfiguratorDraftRepository,
 } from "@orm/repositories";
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
@@ -52,6 +54,7 @@ export class DealService {
     private readonly emailConfirmerService: EmailConfirmerService,
     private readonly dealDeletionRequestRepository: DealDeletionRequestRepository,
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
+    private readonly configuratorDraftRepository: ConfiguratorDraftRepository,
     private configService: ConfigService,
     private readonly notificationService: NotificationService,
   ) {}
@@ -133,6 +136,9 @@ export class DealService {
               createDealDto.distributor_id,
             )
           : null;
+    const integratorCompany = createDealDto.integrator_company_id
+      ? await this.companyRepository.findById(createDealDto.integrator_company_id)
+      : null;
 
     const existingCustomer = await this.customerRepository.findSimilar(
       createDealDto.customer.inn,
@@ -157,6 +163,18 @@ export class DealService {
 
     createDealDto.distributor_id = distributor.id;
 
+    if (createDealDto.integrator_company_id) {
+      if (
+        !integratorCompany ||
+        integratorCompany.partnership_type !== PartnershipType.Integrator
+      ) {
+        throw new HttpException(
+          "Данного интегратора не существует",
+          HttpStatus.FORBIDDEN,
+        );
+      }
+    }
+
     if (!customer) {
       throw new HttpException(
         "Произошла ошибка при создании заказчика",
@@ -166,6 +184,12 @@ export class DealService {
 
     const countDealsInDay = await this.dealRepository.countDealsForToday();
     const date = new Date();
+    const dealTitleDate = `${String(date.getDate()).padStart(2, "0")}.${String(
+      date.getMonth() + 1,
+    ).padStart(2, "0")}.${date.getFullYear()}`;
+    createDealDto.title =
+      createDealDto.title?.trim() ||
+      `${customer.company_name || "Новый заказчик"} ${dealTitleDate}`;
 
     const deal_num = `${auth_user.id}-${date.getFullYear()}/${(
       date.getMonth() + 1
@@ -183,6 +207,10 @@ export class DealService {
       customer_id: customer.id,
       creator_id: auth_user.id,
       deal_num,
+      integrator_company_id:
+        authUserCompany?.partnership_type === PartnershipType.Distributor
+          ? integratorCompany?.id || null
+          : null,
       deal_type: this.isTrinityStaffDealCreator(auth_user)
         ? DealType.TrinityStaff
         : DealType.Partner,
@@ -197,6 +225,11 @@ export class DealService {
     }
 
     const savedDeal = await this.dealRepository.save(dealData);
+    await this.linkConfiguratorDraftsToDeal(
+      createDealDto.configurations,
+      savedDeal.id,
+      auth_user.id,
+    );
 
     this.sendLeadToBitrix24(savedDeal, customer, distributor, auth_user).catch(
       (error) => {
@@ -220,6 +253,30 @@ export class DealService {
     );
 
     return savedDeal;
+  }
+
+  private async linkConfiguratorDraftsToDeal(
+    configurations: CreateDealDto["configurations"],
+    dealId: number,
+    creatorId: number,
+  ) {
+    const draftIds = Array.from(
+      new Set(
+        (configurations || [])
+          .map((config) => Number(config.meta?.draftId))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    );
+
+    if (!draftIds.length) return;
+
+    await this.configuratorDraftRepository
+      .createQueryBuilder()
+      .update()
+      .set({ deal_id: dealId })
+      .where("id IN (:...draftIds)", { draftIds })
+      .andWhere("creator_id = :creatorId", { creatorId })
+      .execute();
   }
 
   private isTrinityStaffDealCreator(user: UserEntity) {
@@ -912,6 +969,7 @@ export class DealService {
 
     const dealPatch: Record<string, unknown> = {};
     const customerPatch: Record<string, unknown> = {};
+    const changedFieldLabels: string[] = [];
 
     if (updateDealDto.distributor_id !== undefined) {
       const distributor = await this.distributorRepository.findById(
@@ -926,37 +984,58 @@ export class DealService {
       }
 
       dealPatch.distributor_id = distributor.id;
+      changedFieldLabels.push("дистрибьютор");
     }
 
     if (updateDealDto.deal_sum !== undefined) {
       dealPatch.deal_sum = updateDealDto.deal_sum;
+      changedFieldLabels.push("сумма сделки");
     }
 
     if (updateDealDto.competition_link !== undefined) {
       dealPatch.competition_link = updateDealDto.competition_link;
+      changedFieldLabels.push("ссылка на процедуру");
     }
 
     if (updateDealDto.configuration_link !== undefined) {
       dealPatch.configuration_link = updateDealDto.configuration_link;
+      changedFieldLabels.push("файл конфигурации");
     }
 
     if (updateDealDto.purchase_date !== undefined) {
       dealPatch.purchase_date = updateDealDto.purchase_date;
+      changedFieldLabels.push("дата закупки");
     }
 
     if (updateDealDto.comment !== undefined) {
       dealPatch.comment = updateDealDto.comment;
+      changedFieldLabels.push("комментарий");
     }
 
     if (updateDealDto.customer) {
       const { first_name, last_name, company_name, email, phone } =
         updateDealDto.customer;
 
-      if (first_name !== undefined) customerPatch.first_name = first_name;
-      if (last_name !== undefined) customerPatch.last_name = last_name;
-      if (company_name !== undefined) customerPatch.company_name = company_name;
-      if (email !== undefined) customerPatch.email = email;
-      if (phone !== undefined) customerPatch.phone = phone;
+      if (first_name !== undefined) {
+        customerPatch.first_name = first_name;
+        changedFieldLabels.push("имя заказчика");
+      }
+      if (last_name !== undefined) {
+        customerPatch.last_name = last_name;
+        changedFieldLabels.push("фамилия заказчика");
+      }
+      if (company_name !== undefined) {
+        customerPatch.company_name = company_name;
+        changedFieldLabels.push("компания заказчика");
+      }
+      if (email !== undefined) {
+        customerPatch.email = email;
+        changedFieldLabels.push("email заказчика");
+      }
+      if (phone !== undefined) {
+        customerPatch.phone = phone;
+        changedFieldLabels.push("телефон заказчика");
+      }
     }
 
     const hasChanges =
@@ -1004,10 +1083,14 @@ export class DealService {
     }
 
     if (hasChanges) {
+      const changedFieldsText =
+        changedFieldLabels.length > 0
+          ? Array.from(new Set(changedFieldLabels)).join(", ")
+          : "данные";
       await this.notifyDealChanged(
         deal,
-        "Изменены данные сделки",
-        `В сделке ${deal.deal_num} изменены данные. Изменил: ${this.getActorName(auth_user)}.`,
+        `В сделке №${deal.deal_num} изменены: ${changedFieldsText}`,
+        `В сделке №${deal.deal_num} изменены: ${changedFieldsText}. Изменил: ${this.getActorName(auth_user)}.`,
         auth_user,
       );
     }
@@ -1056,8 +1139,8 @@ export class DealService {
 
     await this.notifyDealChanged(
       deal,
-      "Добавлена конфигурация в сделку",
-      `В сделку ${deal.deal_num} добавлены конфигурации: ${incomingConfigurations.length}. Изменил: ${this.getActorName(auth_user)}.`,
+      `В сделке №${deal.deal_num} добавлена конфигурация`,
+      `В сделке №${deal.deal_num} добавлены конфигурации: ${incomingConfigurations.length}. Изменил: ${this.getActorName(auth_user)}.`,
       auth_user,
     );
 
@@ -1103,8 +1186,8 @@ export class DealService {
 
     await this.notifyDealChanged(
       deal,
-      "Удалена конфигурация из сделки",
-      `Из сделки ${deal.deal_num} удалена конфигурация. Изменил: ${this.getActorName(auth_user)}.`,
+      `В сделке №${deal.deal_num} удалена конфигурация`,
+      `В сделке №${deal.deal_num} удалена конфигурация. Изменил: ${this.getActorName(auth_user)}.`,
       auth_user,
     );
 
@@ -1165,8 +1248,8 @@ export class DealService {
 
     await this.notifyDealChanged(
       deal,
-      "Обновлена конфигурация сделки",
-      `В сделке ${deal.deal_num} обновлена конфигурация. Изменил: ${this.getActorName(auth_user)}.`,
+      `В сделке №${deal.deal_num} изменена конфигурация`,
+      `В сделке №${deal.deal_num} изменена конфигурация. Изменил: ${this.getActorName(auth_user)}.`,
       auth_user,
     );
 
@@ -1229,18 +1312,52 @@ export class DealService {
       recipientIds.map((userId) =>
         this.notificationService.send({
           user_id: userId,
-          title: "Изменён этап сделки",
-          text: `Этап сделки ${deal.deal_num} изменён на "${statusText}". Изменил: ${actorName}.`,
+          title: `Сделка №${deal.deal_num} перешла в статус "${statusText}"`,
+          text: `Сделка №${deal.deal_num} перешла в статус "${statusText}". Изменил: ${actorName}.`,
           category: NotificationCategory.Deal,
           actions: [
             {
-              label: "Открыть сделку",
+              label: "Перейти к сделке",
               url: `/deals.management/${deal.id}`,
             },
           ],
         }),
       ),
     );
+  }
+
+  @Cron("0 9 * * *")
+  async notifyPurchaseDateOverdue() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const overdueDeals = await this.dealRepository
+      .createQueryBuilder("deal")
+      .where("deal.status IN (:...statuses)", {
+        statuses: [DealStatus.Moderation, DealStatus.Registered],
+      })
+      .andWhere("deal.purchase_date < :today", { today })
+      .andWhere("deal.purchase_overdue_notified_at IS NULL")
+      .getMany();
+
+    for (const deal of overdueDeals) {
+      await this.notificationService.send({
+        user_id: deal.creator_id,
+        title: `В сделке №${deal.deal_num} дата закупки просрочена`,
+        text: `В сделке №${deal.deal_num} дата закупки просрочена: ${new Date(deal.purchase_date).toLocaleDateString("ru-RU")}.`,
+        category: NotificationCategory.Deal,
+        actions: [
+          {
+            label: "Актуализировать",
+            url: `/deals.management/${deal.id}`,
+          },
+        ],
+      });
+
+      await this.dealRepository.update(deal.id, {
+        purchase_overdue_notified_at: new Date(),
+      });
+    }
   }
 
   private async notifyDealAttachmentAdded(
@@ -1257,12 +1374,12 @@ export class DealService {
         .map((userId) =>
           this.notificationService.send({
             user_id: userId,
-            title: "Новый документ в сделке",
-            text: `В сделку ${deal.deal_num} добавлен документ "${attachment.name}". Добавил: ${actorName}.`,
+            title: `В сделке №${deal.deal_num} добавлено вложение`,
+            text: `В сделке №${deal.deal_num} добавлено вложение "${attachment.name}". Добавил: ${actorName}.`,
             category: NotificationCategory.Deal,
             actions: [
               {
-                label: "Открыть сделку",
+                label: "Перейти к сделке",
                 url: `/deals.management/${deal.id}`,
               },
             ],
@@ -1290,7 +1407,7 @@ export class DealService {
             category: NotificationCategory.Deal,
             actions: [
               {
-                label: "Открыть сделку",
+                label: "Перейти к сделке",
                 url: `/deals.management/${deal.id}`,
               },
             ],
@@ -1319,6 +1436,9 @@ export class DealService {
       recipientIds.add(creator.manager_id);
     }
 
+    const trinityAdminIds = await this.findTrinityDealAdminIds();
+    trinityAdminIds.forEach((userId) => recipientIds.add(userId));
+
     const distributorName = deal.distributor?.name;
     if (distributorName) {
       const distributorCompany = await this.companyRepository.findOne({
@@ -1346,11 +1466,54 @@ export class DealService {
       }
     }
 
+    if (deal.integrator_company_id) {
+      const integratorCompany = await this.companyRepository.findByIdWithEmployees(
+        deal.integrator_company_id,
+      );
+
+      if (integratorCompany?.owner_id) {
+        recipientIds.add(integratorCompany.owner_id);
+      }
+
+      if (integratorCompany?.id) {
+        const employees =
+          await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+            integratorCompany.id,
+          );
+        employees
+          .filter(
+            (employee) => employee.status === CompanyEmployeeStatus.Accept,
+          )
+          .forEach((employee) => recipientIds.add(employee.employee_id));
+      }
+    }
+
     return Array.from(recipientIds);
   }
 
+  private async findTrinityDealAdminIds() {
+    const roleNames = [RoleTypes.SuperAdmin, RoleTypes.PartnerManager];
+    const admins = await this.userRepository
+      .createQueryBuilder("u")
+      .distinct(true)
+      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
+      .leftJoin("roles", "r", "ur.role_id = r.id")
+      .leftJoin("roles", "r2", "u.role_id = r2.id")
+      .where("(r.name IN (:...roleNames) OR r2.name IN (:...roleNames))", {
+        roleNames,
+      })
+      .getMany();
+
+    return admins.map((admin) => admin.id);
+  }
+
   private async canUpdateDealStatus(deal: any, auth_user: UserEntity) {
-    if (this.isSuperAdmin(auth_user)) {
+    if (
+      this.hasAnyRole(auth_user, [
+        RoleTypes.SuperAdmin,
+        RoleTypes.PartnerManager,
+      ])
+    ) {
       return true;
     }
 
@@ -1361,17 +1524,6 @@ export class DealService {
 
     if (creator?.manager_id === auth_user.id) {
       return true;
-    }
-
-    if (
-      this.hasAnyRole(auth_user, [
-        RoleTypes.EmployeeAdmin,
-        RoleTypes.Partner,
-        RoleTypes.CompanyAdmin,
-      ])
-    ) {
-      const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
-      return creatorIds.includes(deal.creator_id);
     }
 
     return false;

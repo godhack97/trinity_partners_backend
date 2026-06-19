@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
-import { CustomerEntity, DistributorEntity, UserEntity } from ".";
+import { CompanyEntity, CustomerEntity, DistributorEntity, UserEntity } from ".";
 import { DeleteDateColumn } from "typeorm";
 
 export enum DealStatus {
@@ -83,6 +83,16 @@ export class DealEntity extends BasisEntity {
   @JoinColumn({ name: "distributor_id" })
   distributor: DistributorEntity;
 
+  @Column({ nullable: true })
+  integrator_company_id?: number;
+
+  @ManyToOne(() => CompanyEntity, (company: CompanyEntity) => company.id, {
+    eager: true,
+    nullable: true,
+  })
+  @JoinColumn({ name: "integrator_company_id" })
+  integrator_company?: CompanyEntity;
+
   @Column()
   customer_id: number;
 
@@ -126,6 +136,9 @@ export class DealEntity extends BasisEntity {
 
   @Column()
   purchase_date: Date;
+
+  @Column({ type: "datetime", nullable: true })
+  purchase_overdue_notified_at: Date | null;
 
   @Column()
   comment: string;

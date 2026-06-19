@@ -18,7 +18,16 @@ export class UserRepository {
   async findByEmailWithPermissions(email: string) {
     return this.findOne({
       where: { email, deleted_at: null },
-      relations: ['role', 'role.permissions', 'user_info', 'user_roles', 'user_roles.role', 'user_roles.role.permissions']
+      relations: [
+        'role',
+        'role.permissions',
+        'user_info',
+        'company_employee',
+        'company_employee.company',
+        'user_roles',
+        'user_roles.role',
+        'user_roles.role.permissions',
+      ]
     });
   }
 

@@ -10,12 +10,18 @@ import { Type } from "class-transformer";
 import { IsArray, IsOptional } from "class-validator";
 import { ValidateNested } from "class-validator";
 import { DealConfigurationDto } from "./deal-configuration.dto";
+import { AddDealAttachmentDto } from "./add-deal-attachment.dto";
 
 export class CreateDealDto {
   @ApiProperty()
   @IsOptional()
   @IsNumberRu()
   distributor_id?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumberRu()
+  integrator_company_id?: number;
 
   @ApiProperty({ type: () => CreateCustomerDto })
   @ValidateNested()
@@ -53,4 +59,11 @@ export class CreateDealDto {
 
   @ApiProperty()
   comment?: string;
+
+  @ApiProperty({ required: false, type: () => [AddDealAttachmentDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddDealAttachmentDto)
+  attachments?: AddDealAttachmentDto[];
 }

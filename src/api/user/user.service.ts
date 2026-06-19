@@ -242,12 +242,12 @@ export class UserService {
 
       await this.notificationService.send({
         user_id: partnerUser.id,
-        title: "Новая заявка сотрудника",
+        title: "Новый сотрудник запросил доступ",
         text: `${employeeName} зарегистрировался в компании ${company.name} и ожидает подтверждения.`,
         category: NotificationCategory.Company,
         actions: [
           {
-            label: "Открыть сотрудников",
+            label: "Подробнее",
             url: "/employee.management",
           },
         ],
@@ -299,12 +299,12 @@ export class UserService {
 
       await this.notificationService.send({
         user_id: manager.id,
-        title: "Новая заявка сотрудника",
+        title: "Новый сотрудник запросил доступ",
         text: `${employeeName} зарегистрировался в компании ${company.name} и ожидает проверки менеджером Тринити.`,
         category: NotificationCategory.Company,
         actions: [
           {
-            label: "Открыть заявки",
+            label: "Подробнее",
             url: "/admin/partner",
           },
         ],

@@ -36,6 +36,15 @@ export class EventEntity extends BasisEntity {
   @Column({ default: true })
   is_active: boolean;
 
+  @Column({ type: "datetime", nullable: true })
+  notification_sent_at: Date | null;
+
+  @Column({ type: "datetime", nullable: true })
+  reminder_3_days_sent_at: Date | null;
+
+  @Column({ type: "datetime", nullable: true })
+  reminder_1_day_sent_at: Date | null;
+
   @DeleteDateColumn({ name: "deleted_at" })
   deleted_at: Date;
 }

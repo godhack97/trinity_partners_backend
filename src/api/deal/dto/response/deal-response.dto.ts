@@ -11,6 +11,10 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   distributor_id: number;
 
+  @ApiProperty({ required: false })
+  @Expose()
+  integrator_company_id?: number;
+
   @ApiProperty()
   @Expose()
   customer_id: number;
@@ -89,6 +93,10 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   @Type(() => DistributorResponseDto)
   distributor: DistributorResponseDto;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  integrator_company?: unknown;
 
   @ApiProperty()
   @Expose()

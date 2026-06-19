@@ -43,6 +43,12 @@ export class AdminPartnerController {
     return this.adminPartnerService.getCountByStatus(CompanyStatus.Reject);
   }
 
+  @Get("employee/requests")
+  @ApiOperation({ summary: "Получить заявки сотрудников на проверку менеджером Тринити" })
+  getEmployeeRequests(@AuthUser() auth_user: UserEntity) {
+    return this.adminPartnerService.getEmployeeRequests(auth_user);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Получить список партнёров' })
   getAll(@Query() filters: PartnerFilterRequestDto) {

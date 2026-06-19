@@ -387,6 +387,15 @@ export class CompanyService {
       throw new InternalServerErrorException("Не удалось удалить пользователя");
     }
 
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: "Доступ к компании заблокирован",
+      template: "request-company-reject",
+      context: {
+        link: "https://partner.trinity.ru/",
+      },
+    });
+
     return {
       message: `Cотрудник c ${user.id} был успешно удален`,
       reassigned_deals_count: reassignment.reassignedDealsCount,
