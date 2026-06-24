@@ -64,8 +64,8 @@ export class NewsService {
   }
 
   async findAll(filters: NewsPaginationDto) {
-    const page = filters.page;
-    const limit = filters.limit;
+    const page = Number(filters?.page || 0);
+    const limit = Number(filters?.limit || 0);
 
     const qb = this.newsRepository.createQueryBuilder();
     let data: NewsEntity[];
@@ -79,10 +79,10 @@ export class NewsService {
     const total = await qb.getCount();
 
     return {
-      current_page: page,
-      limit,
+      current_page: page || undefined,
+      limit: limit || undefined,
       total,
-      pages_count: Math.ceil(total / limit),
+      pages_count: limit ? Math.ceil(total / limit) : 1,
       data,
     };
   }

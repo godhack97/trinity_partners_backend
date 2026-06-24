@@ -16,6 +16,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseInterceptors,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
@@ -31,7 +32,7 @@ export class NewsController {
   @Get()
   //@UseInterceptors(new TransformResponse(PaginationResponseDto<NewsResponseListDto>))
   @ApiResponse({ type: PaginationResponseDto<NewsResponseListDto> })
-  async findAll(@Body() filters: NewsPaginationDto) {
+  async findAll(@Query() filters: NewsPaginationDto) {
     return this.newsService.findAll(filters);
   }
 
