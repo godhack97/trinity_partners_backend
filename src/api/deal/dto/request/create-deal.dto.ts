@@ -23,6 +23,16 @@ export class CreateDealDto {
   @IsNumberRu()
   integrator_company_id?: number;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsStringRu()
+  integrator_name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsStringRu()
+  integrator_inn?: string;
+
   @ApiProperty({ type: () => CreateCustomerDto })
   @ValidateNested()
   @Type(() => CreateCustomerDto)

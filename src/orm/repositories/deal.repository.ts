@@ -37,6 +37,7 @@ export class DealRepository extends Repository<DealEntity> {
   public async findById(id: number) {
     const deal = await this.createQueryBuilder("deal")
       .leftJoinAndSelect("deal.distributor", "distributor")
+      .leftJoinAndSelect("deal.integrator_company", "integrator_company")
       .leftJoinAndSelect("deal.customer", "customer")
       .leftJoinAndSelect("deal.partner", "partner")
       .leftJoinAndSelect("partner.role", "role")
@@ -64,6 +65,7 @@ export class DealRepository extends Repository<DealEntity> {
 
     const queryBuilder = this.createQueryBuilder("deal")
       .leftJoinAndSelect("deal.distributor", "distributor")
+      .leftJoinAndSelect("deal.integrator_company", "integrator_company")
       .leftJoinAndSelect("deal.customer", "customer")
       .leftJoinAndSelect("deal.partner", "partner")
       .leftJoinAndSelect("partner.role", "role")

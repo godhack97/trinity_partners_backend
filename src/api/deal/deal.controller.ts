@@ -34,6 +34,7 @@ import { UpdateDealStatusDto } from "./dto/request/update-deal-status.dto";
 import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.dto";
 import { UpdateDealDto } from "./dto/request/update-deal.dto";
 import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
+import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
 
 @ApiTags("deal")
 @ApiBearerAuth()
@@ -316,6 +317,23 @@ export class DealController {
       +id,
       auth_user,
       addDealAttachmentDto,
+    );
+  }
+
+  @Put(":id/comments")
+  @RequirePermissions('api.deals.write')
+  @LogAction("deal_comment_add", "deals")
+  @ApiBody({ type: AddDealCommentDto })
+  @ApiResponse({ type: DealResponseDto })
+  async addComment(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body() addDealCommentDto: AddDealCommentDto,
+  ) {
+    return this.dealService.addComment(
+      +id,
+      auth_user,
+      addDealCommentDto,
     );
   }
 

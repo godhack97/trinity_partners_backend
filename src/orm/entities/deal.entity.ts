@@ -86,6 +86,20 @@ export class DealEntity extends BasisEntity {
   @Column({ nullable: true })
   integrator_company_id?: number;
 
+  @Column({ nullable: true })
+  integrator_name?: string;
+
+  @Column({ nullable: true })
+  integrator_inn?: string;
+
+  @Column({
+    name: "bitrix24_integrator_contact_id",
+    type: "int",
+    unsigned: true,
+    nullable: true,
+  })
+  bitrix24_integrator_contact_id?: number;
+
   @ManyToOne(() => CompanyEntity, (company: CompanyEntity) => company.id, {
     eager: true,
     nullable: true,
@@ -142,6 +156,9 @@ export class DealEntity extends BasisEntity {
 
   @Column()
   comment: string;
+
+  @Column({ type: "json", nullable: true })
+  comments?: unknown[];
 
   @Column({
     type: "enum",

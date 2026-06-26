@@ -39,6 +39,7 @@ import { NotificationService } from "@api/notification/notification.service";
 import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.dto";
 import { UpdateDealDto } from "./dto/request/update-deal.dto";
 import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
+import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
 
 @Injectable()
 export class DealService {
@@ -136,9 +137,23 @@ export class DealService {
               createDealDto.distributor_id,
             )
           : null;
-    const integratorCompany = createDealDto.integrator_company_id
-      ? await this.companyRepository.findById(createDealDto.integrator_company_id)
-      : null;
+    let integratorCompany =
+      authUserCompany?.partnership_type === PartnershipType.Integrator
+        ? authUserCompany
+        : createDealDto.integrator_company_id
+          ? await this.companyRepository.findById(createDealDto.integrator_company_id)
+          : null;
+    const requestedIntegratorInn = `${createDealDto.integrator_inn || ""}`.trim();
+    const requestedIntegratorName = `${createDealDto.integrator_name || ""}`.trim();
+
+    if (!integratorCompany && requestedIntegratorInn) {
+      integratorCompany = await this.companyRepository.findOne({
+        where: {
+          inn: requestedIntegratorInn,
+          partnership_type: PartnershipType.Integrator,
+        },
+      });
+    }
 
     const existingCustomer = await this.customerRepository.findSimilar(
       createDealDto.customer.inn,
@@ -156,24 +171,38 @@ export class DealService {
 
     if (!distributor) {
       throw new HttpException(
-        "Данного дистрибьютора не существует",
+        "Укажите дистрибьютора сделки",
         HttpStatus.FORBIDDEN,
       );
     }
 
     createDealDto.distributor_id = distributor.id;
 
-    if (createDealDto.integrator_company_id) {
-      if (
-        !integratorCompany ||
-        integratorCompany.partnership_type !== PartnershipType.Integrator
-      ) {
-        throw new HttpException(
-          "Данного интегратора не существует",
-          HttpStatus.FORBIDDEN,
-        );
-      }
+    if (
+      integratorCompany &&
+      integratorCompany.partnership_type !== PartnershipType.Integrator
+    ) {
+      throw new HttpException(
+        "Укажите интегратора сделки",
+        HttpStatus.FORBIDDEN,
+      );
     }
+
+    const integratorName = integratorCompany?.name || requestedIntegratorName;
+    const integratorInn = integratorCompany?.inn || requestedIntegratorInn;
+
+    if (!integratorName || !integratorInn) {
+      throw new HttpException(
+        "Укажите название и ИНН интегратора",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const bitrix24IntegratorContactId =
+      await this.bitrix24Service.findOrCreateIntegratorContact({
+        name: integratorName,
+        inn: integratorInn,
+      });
 
     if (!customer) {
       throw new HttpException(
@@ -207,10 +236,11 @@ export class DealService {
       customer_id: customer.id,
       creator_id: auth_user.id,
       deal_num,
-      integrator_company_id:
-        authUserCompany?.partnership_type === PartnershipType.Distributor
-          ? integratorCompany?.id || null
-          : null,
+      distributor_id: distributor.id,
+      integrator_company_id: integratorCompany?.id || null,
+      integrator_name: integratorName,
+      integrator_inn: integratorInn,
+      bitrix24_integrator_contact_id: bitrix24IntegratorContactId,
       deal_type: this.isTrinityStaffDealCreator(auth_user)
         ? DealType.TrinityStaff
         : DealType.Partner,
@@ -245,6 +275,14 @@ export class DealService {
       customer,
       distributor,
       auth_user,
+    );
+    await this.notifyCounterpartyAdminsAboutNewDeal(
+      savedDeal,
+      authUserCompany,
+      distributor,
+      integratorCompany,
+      integratorName,
+      integratorInn,
     );
     await this.notifyManagerAboutDuplicateCustomerInn(
       savedDeal,
@@ -378,6 +416,92 @@ export class DealService {
     }
   }
 
+  private async notifyCounterpartyAdminsAboutNewDeal(
+    deal: any,
+    creatorCompany: CompanyEntity | null,
+    distributor: any,
+    integratorCompany: CompanyEntity | null,
+    integratorName: string,
+    integratorInn: string,
+  ) {
+    if (!creatorCompany) return;
+
+    let recipientCompanyId: number | null = null;
+    let title = "";
+
+    if (creatorCompany.partnership_type === PartnershipType.Distributor) {
+      if (!integratorCompany) {
+        await this.notifyResponsibleManagerAboutUnregisteredIntegrator(
+          deal,
+          integratorName,
+          integratorInn,
+        );
+        return;
+      }
+
+      recipientCompanyId = integratorCompany.id;
+      title = `Дистрибьютор ${distributor.name} создал сделку №${deal.deal_num} с вашим участием`;
+    }
+
+    if (creatorCompany.partnership_type === PartnershipType.Integrator) {
+      const distributorCompany = await this.findDistributorCompanyForDeal({
+        distributor,
+      });
+      recipientCompanyId = distributorCompany?.id || null;
+      title = `Интегратор ${creatorCompany.name} создал сделку №${deal.deal_num} с вашим участием`;
+    }
+
+    if (!recipientCompanyId || !title) return;
+
+    const recipientIds = await this.getCompanyAdminUserIds(recipientCompanyId);
+
+    await Promise.all(
+      recipientIds
+        .filter((userId) => userId !== deal.creator_id)
+        .map((userId) =>
+          this.notificationService.send({
+            user_id: userId,
+            title,
+            text: title,
+            category: NotificationCategory.Deal,
+            actions: [
+              {
+                label: "Перейти к сделке",
+                url: `/deals.management/${deal.id}`,
+              },
+            ],
+          }),
+        ),
+      );
+  }
+
+  private async notifyResponsibleManagerAboutUnregisteredIntegrator(
+    deal: any,
+    integratorName: string,
+    integratorInn: string,
+  ) {
+    const creator = await this.userRepository.findOne({
+      where: { id: deal.creator_id },
+      relations: ["manager"],
+    });
+
+    const managerId = creator?.manager_id || creator?.manager?.id;
+    if (!managerId) return;
+
+    await this.notificationService.send({
+      user_id: managerId,
+      title: `В сделке №${deal.deal_num} указан незарегистрированный интегратор`,
+      text: `Интегратор: ${integratorName}, ИНН: ${integratorInn}. Контакт Bitrix24: ${deal.bitrix24_integrator_contact_id || "не создан"}.`,
+      category: NotificationCategory.Deal,
+      actions: [
+        {
+          label: "Перейти к сделке",
+          url: `/deals.management/${deal.id}`,
+        },
+      ],
+    });
+  }
+
   private async sendLeadToBitrix24(
     deal: any,
     customer: any,
@@ -465,7 +589,10 @@ export class DealService {
     ) {
       const authUserCompany = await this.getUserCompany(auth_user);
 
-      if (authUserCompany?.partnership_type === PartnershipType.Distributor) {
+      if (
+        authUserCompany?.partnership_type === PartnershipType.Distributor &&
+        this.isCompanyDealAdmin(auth_user)
+      ) {
         const distributor = await this.findDistributorForCompany(
           authUserCompany,
         );
@@ -478,6 +605,14 @@ export class DealService {
           : [];
 
         return deals;
+      }
+
+      if (
+        authUserCompany?.partnership_type === PartnershipType.Integrator &&
+        this.isCompanyDealAdmin(auth_user)
+      ) {
+        deals = await this.dealRepository.findDealsWithFilters(entry);
+        return deals.filter((deal) => this.isDealVisibleForCompany(deal, authUserCompany));
       }
 
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
@@ -593,6 +728,7 @@ export class DealService {
     if (this.isSuperAdmin(auth_user)) {
       return Object.assign(deal, {
         can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+        can_update_fields: await this.canUpdateDealFields(deal, auth_user),
         can_update_configurations: this.canUpdateDealConfigurations(
           deal,
           auth_user,
@@ -616,9 +752,15 @@ export class DealService {
       ])
     ) {
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);
-      if (creatorIds.includes(deal.creator_id)) {
+      const authUserCompany = await this.getUserCompany(auth_user);
+      if (
+        creatorIds.includes(deal.creator_id) ||
+        (this.isCompanyDealAdmin(auth_user) &&
+          this.isDealVisibleForCompany(deal, authUserCompany))
+      ) {
         return Object.assign(deal, {
           can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+          can_update_fields: await this.canUpdateDealFields(deal, auth_user),
           can_update_configurations: this.canUpdateDealConfigurations(
             deal,
             auth_user,
@@ -641,6 +783,7 @@ export class DealService {
       if (deal.creator_id === auth_user.id) {
         return Object.assign(deal, {
           can_update_status: await this.canUpdateDealStatus(deal, auth_user),
+          can_update_fields: await this.canUpdateDealFields(deal, auth_user),
           can_update_configurations: this.canUpdateDealConfigurations(
             deal,
             auth_user,
@@ -987,6 +1130,50 @@ export class DealService {
       changedFieldLabels.push("дистрибьютор");
     }
 
+    if (updateDealDto.integrator_company_id !== undefined) {
+      const integratorCompany = await this.companyRepository.findById(
+        updateDealDto.integrator_company_id,
+      );
+
+      if (
+        !integratorCompany ||
+        integratorCompany.partnership_type !== PartnershipType.Integrator
+      ) {
+        throw new HttpException(
+          "Данного интегратора не существует",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      dealPatch.integrator_company_id = integratorCompany.id;
+      dealPatch.integrator_name = integratorCompany.name;
+      dealPatch.integrator_inn = integratorCompany.inn;
+      changedFieldLabels.push("интегратор");
+    }
+
+    if (updateDealDto.integrator_name !== undefined) {
+      dealPatch.integrator_name = updateDealDto.integrator_name.trim();
+      changedFieldLabels.push("интегратор");
+    }
+
+    if (updateDealDto.integrator_inn !== undefined) {
+      const integratorInn = updateDealDto.integrator_inn.trim();
+      dealPatch.integrator_inn = integratorInn;
+      changedFieldLabels.push("ИНН интегратора");
+
+      const registeredIntegrator = await this.companyRepository.findOne({
+        where: {
+          inn: integratorInn,
+          partnership_type: PartnershipType.Integrator,
+        },
+      });
+
+      if (registeredIntegrator) {
+        dealPatch.integrator_company_id = registeredIntegrator.id;
+        dealPatch.integrator_name = registeredIntegrator.name;
+      }
+    }
+
     if (updateDealDto.deal_sum !== undefined) {
       dealPatch.deal_sum = updateDealDto.deal_sum;
       changedFieldLabels.push("сумма сделки");
@@ -1040,6 +1227,34 @@ export class DealService {
 
     const hasChanges =
       Object.keys(dealPatch).length || Object.keys(customerPatch).length;
+
+    const nextDistributorId =
+      (dealPatch.distributor_id as number | undefined) || deal.distributor_id;
+    const nextIntegratorCompanyId =
+      (dealPatch.integrator_company_id as number | undefined) ||
+      deal.integrator_company_id;
+    const nextIntegratorName =
+      (dealPatch.integrator_name as string | undefined) || deal.integrator_name;
+    const nextIntegratorInn =
+      (dealPatch.integrator_inn as string | undefined) || deal.integrator_inn;
+
+    if (
+      !nextDistributorId ||
+      (!nextIntegratorCompanyId && (!nextIntegratorName || !nextIntegratorInn))
+    ) {
+      throw new HttpException(
+        "В сделке должны быть указаны дистрибьютор и интегратор",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (dealPatch.integrator_inn || dealPatch.integrator_name) {
+      dealPatch.bitrix24_integrator_contact_id =
+        await this.bitrix24Service.findOrCreateIntegratorContact({
+          name: nextIntegratorName || "",
+          inn: nextIntegratorInn || "",
+        });
+    }
 
     if (Object.keys(customerPatch).length) {
       await this.customerRepository.update(deal.customer_id, customerPatch);
@@ -1299,6 +1514,53 @@ export class DealService {
     return this.findOne(dealId, auth_user);
   }
 
+  async addComment(
+    dealId: number,
+    auth_user: UserEntity,
+    addDealCommentDto: AddDealCommentDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+    const text = addDealCommentDto.text.trim();
+
+    if (!text) {
+      throw new HttpException(
+        "Комментарий не может быть пустым",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const currentComments = Array.isArray(deal.comments)
+      ? deal.comments
+      : [];
+    const comment = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      text,
+      author_id: auth_user.id,
+      author_name: this.getActorName(auth_user),
+      created_at: new Date().toISOString(),
+    };
+
+    const updatedDeal = await this.dealRepository.update(dealId, {
+      comments: [...currentComments, comment],
+    });
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось добавить комментарий к сделке",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    await this.notifyDealChanged(
+      deal,
+      `В сделке №${deal.deal_num} добавлен комментарий`,
+      `В сделке №${deal.deal_num} добавлен комментарий. Автор: ${this.getActorName(auth_user)}.`,
+      auth_user,
+    );
+
+    return this.findOne(dealId, auth_user);
+  }
+
   private async notifyDealStatusChanged(
     deal: any,
     status: DealStatus,
@@ -1439,53 +1701,26 @@ export class DealService {
     const trinityAdminIds = await this.findTrinityDealAdminIds();
     trinityAdminIds.forEach((userId) => recipientIds.add(userId));
 
-    const distributorName = deal.distributor?.name;
-    if (distributorName) {
-      const distributorCompany = await this.companyRepository.findOne({
-        where: {
-          name: distributorName,
-          partnership_type: PartnershipType.Distributor,
-        },
-        relations: ["employee"],
-      });
-
-      if (distributorCompany?.owner_id) {
-        recipientIds.add(distributorCompany.owner_id);
-      }
-
-      if (distributorCompany?.id) {
-        const employees =
-          await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
-            distributorCompany.id,
-          );
-        employees
-          .filter(
-            (employee) => employee.status === CompanyEmployeeStatus.Accept,
-          )
-          .forEach((employee) => recipientIds.add(employee.employee_id));
-      }
+    const distributorCompany = await this.findDistributorCompanyForDeal(deal);
+    if (distributorCompany) {
+      const companyAdminIds = await this.getCompanyAdminUserIds(distributorCompany.id);
+      companyAdminIds.forEach((userId) => recipientIds.add(userId));
     }
 
-    if (deal.integrator_company_id) {
-      const integratorCompany = await this.companyRepository.findByIdWithEmployees(
-        deal.integrator_company_id,
-      );
+    const integratorCompany = deal.integrator_company_id
+      ? await this.companyRepository.findById(deal.integrator_company_id)
+      : deal.integrator_inn
+        ? await this.companyRepository.findOne({
+            where: {
+              inn: deal.integrator_inn,
+              partnership_type: PartnershipType.Integrator,
+            },
+          })
+        : null;
 
-      if (integratorCompany?.owner_id) {
-        recipientIds.add(integratorCompany.owner_id);
-      }
-
-      if (integratorCompany?.id) {
-        const employees =
-          await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
-            integratorCompany.id,
-          );
-        employees
-          .filter(
-            (employee) => employee.status === CompanyEmployeeStatus.Accept,
-          )
-          .forEach((employee) => recipientIds.add(employee.employee_id));
-      }
+    if (integratorCompany) {
+      const companyAdminIds = await this.getCompanyAdminUserIds(integratorCompany.id);
+      companyAdminIds.forEach((userId) => recipientIds.add(userId));
     }
 
     return Array.from(recipientIds);
@@ -1558,6 +1793,73 @@ export class DealService {
     }
 
     return this.canUpdateDealStatus(deal, auth_user);
+  }
+
+  private isCompanyDealAdmin(user: UserEntity) {
+    return this.hasAnyRole(user, [
+      RoleTypes.CompanyAdmin,
+      RoleTypes.Partner,
+      RoleTypes.EmployeeAdmin,
+    ]);
+  }
+
+  private isDealVisibleForCompany(deal: any, company?: CompanyEntity | null) {
+    if (!company) return false;
+
+    if (
+      company.partnership_type === PartnershipType.Integrator &&
+      (deal.integrator_company_id === company.id ||
+        (deal.integrator_inn && deal.integrator_inn === company.inn))
+    ) {
+      return true;
+    }
+
+    if (company.partnership_type === PartnershipType.Distributor) {
+      return deal.distributor?.name === company.name;
+    }
+
+    return false;
+  }
+
+  private async findDistributorCompanyForDeal(deal: any) {
+    const distributorName = deal.distributor?.name;
+    if (!distributorName) return null;
+
+    return this.companyRepository.findOne({
+      where: {
+        name: distributorName,
+        partnership_type: PartnershipType.Distributor,
+      },
+    });
+  }
+
+  private async getCompanyAdminUserIds(companyId: number) {
+    const company = await this.companyRepository.findById(companyId);
+    const userIds = new Set<number>();
+
+    if (company?.owner_id) {
+      userIds.add(company.owner_id);
+    }
+
+    const employees =
+      await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+        companyId,
+      );
+
+    employees
+      .filter((employee) => employee.status === CompanyEmployeeStatus.Accept)
+      .filter((employee) =>
+        employee.employee
+          ? this.hasAnyRole(employee.employee, [
+              RoleTypes.CompanyAdmin,
+              RoleTypes.Partner,
+              RoleTypes.EmployeeAdmin,
+            ])
+          : false,
+      )
+      .forEach((employee) => userIds.add(employee.employee_id));
+
+    return Array.from(userIds);
   }
 
   async convertLeadToDeal(dealId: number, auth_user: UserEntity): Promise<any> {

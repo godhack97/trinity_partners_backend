@@ -60,6 +60,8 @@ export const DealStatusRu = {
   loose: "проиграна",
 };
 
+const BITRIX24_CONTACT_PARTNER_INN_FIELD = "UF_CRM_68500D3603B21";
+
 @Injectable()
 export class Bitrix24Service {
   private readonly logger = new Logger(Bitrix24Service.name);
@@ -148,7 +150,7 @@ export class Bitrix24Service {
         PHONE: userData?.info?.phone
           ? [{ VALUE: userData?.info?.phone, VALUE_TYPE: "WORK" }]
           : undefined,
-        UF_CRM_68500D3603B21:
+        [BITRIX24_CONTACT_PARTNER_INN_FIELD]:
           (
             await this.companyRepository.findOne({
               where: { owner_id: userData.id },
@@ -252,6 +254,84 @@ export class Bitrix24Service {
     } catch (error) {
       this.logger.error(
         "Ошибка при создании контакта заказчика в Bitrix24:",
+        error.message,
+      );
+      return null;
+    }
+  }
+
+  async findContactByInn(inn: string): Promise<number | null> {
+    const normalizedInn = `${inn || ""}`.trim();
+    if (!normalizedInn || !this.webhookUrl) return null;
+
+    try {
+      const response = await this.httpRequestWithRetry(() =>
+        firstValueFrom(
+          this.httpService.post(`${this.webhookUrl}/crm.contact.list.json`, {
+            filter: {
+              [BITRIX24_CONTACT_PARTNER_INN_FIELD]: normalizedInn,
+            },
+            select: ["ID", "NAME", "LAST_NAME", "COMPANY_TITLE"],
+          }),
+        ),
+      );
+
+      const result = response.data?.result;
+      const contactId = Array.isArray(result) ? Number(result[0]?.ID) : null;
+      return Number.isInteger(contactId) && contactId > 0 ? contactId : null;
+    } catch (error) {
+      this.logger.error(
+        `Ошибка поиска контакта Bitrix24 по ИНН ${normalizedInn}:`,
+        error.message,
+      );
+      return null;
+    }
+  }
+
+  async findOrCreateIntegratorContact(input: {
+    name: string;
+    inn: string;
+  }): Promise<number | null> {
+    const inn = `${input.inn || ""}`.trim();
+    const name = `${input.name || ""}`.trim();
+
+    if (!inn || !this.webhookUrl) return null;
+
+    const existingContactId = await this.findContactByInn(inn);
+    if (existingContactId) return existingContactId;
+
+    try {
+      const contactData = {
+        NAME: name || `Интегратор ${inn}`,
+        COMPANY_TITLE: name || "",
+        OPENED: "Y",
+        COMMENTS: `Контакт интегратора создан автоматически из сделки партнерского портала. ИНН: ${inn}`,
+        [BITRIX24_CONTACT_PARTNER_INN_FIELD]: inn,
+      };
+
+      const response = await this.httpRequestWithRetry(() =>
+        firstValueFrom(
+          this.httpService.post(`${this.webhookUrl}/crm.contact.add.json`, {
+            fields: contactData,
+          }),
+        ),
+      );
+
+      if (response.data?.result) {
+        this.logger.log(
+          `Контакт интегратора создан в Bitrix24 с ID: ${response.data.result}`,
+        );
+        return Number(response.data.result);
+      }
+
+      this.logger.error(
+        "Ошибка создания контакта интегратора в Bitrix24:",
+        response.data,
+      );
+      return null;
+    } catch (error) {
+      this.logger.error(
+        "Ошибка при создании контакта интегратора в Bitrix24:",
         error.message,
       );
       return null;

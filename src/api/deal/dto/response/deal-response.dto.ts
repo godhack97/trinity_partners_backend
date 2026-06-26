@@ -15,6 +15,18 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   integrator_company_id?: number;
 
+  @ApiProperty({ required: false })
+  @Expose()
+  integrator_name?: string;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  integrator_inn?: string;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  bitrix24_integrator_contact_id?: number;
+
   @ApiProperty()
   @Expose()
   customer_id: number;
@@ -58,6 +70,10 @@ export class DealResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   comment: string;
+
+  @ApiProperty()
+  @Expose()
+  comments?: unknown[];
 
   @ApiProperty()
   @Expose()
@@ -121,4 +137,10 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   can_update_configurations: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю редактировать поля сделки",
+  })
+  @Expose()
+  can_update_fields: boolean;
 }
