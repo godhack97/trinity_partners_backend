@@ -389,10 +389,14 @@ export class CompanyService {
 
     await this.emailConfirmerService.emailSend({
       email: user.email,
-      subject: "Доступ к компании заблокирован",
-      template: "request-company-reject",
+      subject: "Ваш доступ к партнерскому порталу Тринити ограничен",
+      template: "employee-access-limited",
       context: {
-        link: "https://partner.trinity.ru/",
+        reason: "Сотрудник удален из компании",
+        companyAdmins: await this.getCompanyAdminsText(
+          user.company_employee.company_id,
+          user.id,
+        ),
       },
     });
 
@@ -453,6 +457,52 @@ export class CompanyService {
 
   private hasAnyRole(userRoleNames: string[], roleNames: RoleTypes[]) {
     return roleNames.some((roleName) => userRoleNames.includes(roleName));
+  }
+
+  private async getCompanyAdminsText(companyId: number, excludedUserId?: number) {
+    const company = await this.companyRepository.findOne({
+      where: { id: companyId },
+      relations: ["owner", "owner.user_info"],
+    });
+    const admins = new Map<number, string>();
+
+    if (company?.owner && company.owner.id !== excludedUserId) {
+      admins.set(company.owner.id, this.getUserName(company.owner));
+    }
+
+    const employees =
+      await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+        companyId,
+      );
+
+    employees
+      .filter((employee) => employee.employee_id !== excludedUserId)
+      .filter((employee) => employee.status === CompanyEmployeeStatus.Accept)
+      .filter((employee) =>
+        this.hasAnyRole(
+          employee.employee?.roles?.map((role) => role.name) || [],
+          [
+            RoleTypes.CompanyAdmin,
+            RoleTypes.Partner,
+            RoleTypes.EmployeeAdmin,
+          ],
+        ),
+      )
+      .forEach((employee) =>
+        admins.set(employee.employee_id, this.getUserName(employee.employee)),
+      );
+
+    return Array.from(admins.values()).join(", ") || "администратором компании";
+  }
+
+  private getUserName(user?: UserEntity | null) {
+    if (!user) return "администратором компании";
+
+    return (
+      [user.user_info?.first_name, user.user_info?.last_name]
+        .filter(Boolean)
+        .join(" ") || user.email
+    );
   }
 
   private async setUserRole(userId: number, roleName: RoleTypes) {

@@ -406,9 +406,10 @@ export default class AdminPartnerService {
     await this.emailConfirmerService.emailSend({
       email: companyEmployee.employee.email,
       subject: "Заявка сотрудника отклонена",
-      template: "request-company-reject",
+      template: "employee-access-limited",
       context: {
-        link: "https://partner.trinity.ru/",
+        reason: "Заявка на присоединение к компании отклонена менеджером Тринити",
+        companyAdmins: await this.getCompanyAdminsText(companyEmployee.company_id),
       },
     });
 
@@ -445,17 +446,19 @@ export default class AdminPartnerService {
     const user = await this.userRepository.findById(companyEntity.owner_id);
     await this.emailConfirmerService.emailSend({
       email: user.email,
-      subject: "Партнёрство приостановлено",
-      template: "request-company-reject",
-      context: {
-        link: "https://partner.trinity.ru/",
-      },
+      subject: "Доступ к партнерскому порталу Тринити ограничен",
+      template: "company-access-limited",
+      context: await this.getCompanyAccessLimitedContext(
+        companyEntity.id,
+        "приостановлен",
+        "Партнерство приостановлено менеджером Тринити",
+      ),
     });
 
     await this.notifyCompanyAccessChanged(
       companyEntity.owner_id,
       "Партнёрство приостановлено",
-      `Доступ компании «${companyEntity.name}» к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.`,
+      `Доступ компании «${companyEntity.name}» к порталу приостановлен. Свяжитесь с вашим менеджером Тринити.`,
     );
 
     await this.notifyTrinityAdminsAboutCompanySuspended(companyEntity);
@@ -500,16 +503,18 @@ export default class AdminPartnerService {
       await this.emailConfirmerService.emailSend({
         email: admin.email,
         subject: `Партнёрство компании «${company.name}» приостановлено`,
-        template: "request-company-reject",
-        context: {
-          link: "https://partner.trinity.ru/",
-        },
+        template: "company-access-limited",
+        context: await this.getCompanyAccessLimitedContext(
+          company.id,
+          "приостановлен",
+          "Партнерство приостановлено менеджером Тринити",
+        ),
       });
 
       await this.notificationService.send({
         user_id: admin.id,
         title: "Партнёрство приостановлено",
-        text: `Доступ компании «${company.name}» к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.`,
+        text: `Доступ компании «${company.name}» к порталу приостановлен. Свяжитесь с ответственным менеджером Тринити.`,
         category: NotificationCategory.Company,
         actions: [
           {
@@ -521,7 +526,82 @@ export default class AdminPartnerService {
     }
   }
 
-  private getUserName(user: UserEntity) {
+  private async getCompanyAccessLimitedContext(
+    companyId: number,
+    accessState: string,
+    reason: string,
+  ) {
+    const company = await this.companyRepository.findOne({
+      where: { id: companyId },
+      relations: [
+        "owner",
+        "owner.manager",
+        "owner.manager.user_info",
+        "validated_by_manager",
+        "validated_by_manager.user_info",
+      ],
+    });
+    const manager = company?.validated_by_manager || company?.owner?.manager;
+
+    return {
+      companyName: company?.name || "Компания",
+      accessState,
+      reason,
+      managerName: this.getUserName(manager) || "Менеджер Тринити",
+      managerPhone: manager?.user_info?.phone || "Телефон не указан",
+      managerEmail: manager?.email || "Email не указан",
+    };
+  }
+
+  private async getCompanyAdminsText(companyId: number) {
+    const company = await this.companyRepository.findOne({
+      where: { id: companyId },
+      relations: ["owner", "owner.user_info"],
+    });
+    const admins = new Map<number, string>();
+
+    if (company?.owner) {
+      admins.set(company.owner.id, this.getUserName(company.owner) || company.owner.email);
+    }
+
+    const employees =
+      await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+        companyId,
+      );
+
+    employees
+      .filter((employee) => employee.status === CompanyEmployeeStatus.Accept)
+      .filter((employee) =>
+        employee.employee
+          ? this.hasAnyRole(employee.employee, [
+              RoleTypes.CompanyAdmin,
+              RoleTypes.Partner,
+              RoleTypes.EmployeeAdmin,
+            ])
+          : false,
+      )
+      .forEach((employee) =>
+        admins.set(
+          employee.employee_id,
+          this.getUserName(employee.employee) || employee.employee.email,
+        ),
+      );
+
+    return Array.from(admins.values()).join(", ") || "администратором компании";
+  }
+
+  private hasAnyRole(user: UserEntity, roleNames: RoleTypes[]) {
+    const userRoleNames = [
+      user.role?.name,
+      ...(user.roles || []).map((role) => role.name),
+    ].filter(Boolean);
+
+    return roleNames.some((roleName) => userRoleNames.includes(roleName));
+  }
+
+  private getUserName(user?: UserEntity | null) {
+    if (!user) return "";
+
     return (
       [user.user_info?.first_name, user.user_info?.last_name]
         .filter(Boolean)

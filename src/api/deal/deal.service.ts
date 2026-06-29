@@ -64,6 +64,19 @@ export class DealService {
     return this.configService.get<string>("HOSTNAME") || "localhost";
   }
 
+  private get frontendHostname(): string {
+    return this.configService.get<string>("FRONTEND_HOSTNAME") || this.hostname;
+  }
+
+  private getDealUrl(dealId: number): string {
+    const hostname = this.frontendHostname;
+    const baseUrl = /^https?:\/\//.test(hostname)
+      ? hostname
+      : `https://${hostname}`;
+
+    return `${baseUrl.replace(/\/$/, "")}/deals.management/${dealId}`;
+  }
+
   private hasRole(user: UserEntity, roleName: string): boolean {
     if (user.role?.name === roleName) {
       return true;
@@ -1191,6 +1204,12 @@ export class DealService {
 
     if (updateDealDto.purchase_date !== undefined) {
       dealPatch.purchase_date = updateDealDto.purchase_date;
+      dealPatch.purchase_overdue_notified_at = null;
+      dealPatch.purchase_due_email_sent_at = null;
+      dealPatch.purchase_reminder_7_days_sent_at = null;
+      dealPatch.purchase_reminder_3_days_sent_at = null;
+      dealPatch.purchase_reminder_1_day_sent_at = null;
+      dealPatch.purchase_due_web_notified_at = null;
       changedFieldLabels.push("дата закупки");
     }
 
@@ -1571,15 +1590,138 @@ export class DealService {
     const actorName = this.getActorName(actor);
 
     await Promise.all(
+      recipientIds
+        .filter((userId) => userId !== actor.id)
+        .map((userId) =>
+          this.notificationService.send({
+            user_id: userId,
+            title: `Сделка №${deal.deal_num} перешла в статус "${statusText}"`,
+            text: `Сделка №${deal.deal_num} перешла в статус "${statusText}". Изменил: ${actorName}.`,
+            category: NotificationCategory.Deal,
+            actions: [
+              {
+                label: "Перейти к сделке",
+                url: `/deals.management/${deal.id}`,
+              },
+            ],
+          }),
+        ),
+    );
+  }
+
+  @Cron("0 9 * * *")
+  async notifyPurchaseDateOverdue() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const trackedStatuses = [DealStatus.Moderation, DealStatus.Registered];
+    const reminderSchedule = [
+      {
+        daysBefore: 7,
+        marker: "purchase_reminder_7_days_sent_at",
+      },
+      {
+        daysBefore: 3,
+        marker: "purchase_reminder_3_days_sent_at",
+      },
+      {
+        daysBefore: 1,
+        marker: "purchase_reminder_1_day_sent_at",
+      },
+      {
+        daysBefore: 0,
+        marker: "purchase_due_web_notified_at",
+      },
+    ];
+
+    for (const reminder of reminderSchedule) {
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() + reminder.daysBefore);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+
+      const reminderDeals = await this.dealRepository
+        .createQueryBuilder("deal")
+        .where("deal.status IN (:...statuses)", { statuses: trackedStatuses })
+        .andWhere("deal.purchase_date >= :startDate", { startDate })
+        .andWhere("deal.purchase_date < :endDate", { endDate })
+        .andWhere(`deal.${reminder.marker} IS NULL`)
+        .getMany();
+
+      for (const deal of reminderDeals) {
+        await this.sendPurchaseDateReminderWebNotifications(
+          deal,
+          reminder.daysBefore,
+        );
+
+        await this.dealRepository.update(deal.id, {
+          [reminder.marker]: new Date(),
+        });
+      }
+    }
+
+    const dueTodayDeals = await this.dealRepository
+      .createQueryBuilder("deal")
+      .where("deal.status IN (:...statuses)", { statuses: trackedStatuses })
+      .andWhere("deal.purchase_date >= :today", { today })
+      .andWhere("deal.purchase_date < :tomorrow", { tomorrow })
+      .andWhere("deal.purchase_due_email_sent_at IS NULL")
+      .getMany();
+
+    for (const deal of dueTodayDeals) {
+      await this.sendPurchaseDateOverdueEmails(deal);
+
+      await this.dealRepository.update(deal.id, {
+        purchase_due_email_sent_at: new Date(),
+      });
+    }
+
+    const overdueDeals = await this.dealRepository
+      .createQueryBuilder("deal")
+      .where("deal.status IN (:...statuses)", { statuses: trackedStatuses })
+      .andWhere("deal.purchase_date >= :threeDaysAgo", { threeDaysAgo })
+      .andWhere("deal.purchase_date < :twoDaysAgo", { twoDaysAgo })
+      .andWhere("deal.purchase_overdue_notified_at IS NULL")
+      .getMany();
+
+    for (const deal of overdueDeals) {
+      await this.sendPurchaseDateOverdueWebNotifications(deal);
+
+      await this.dealRepository.update(deal.id, {
+        purchase_overdue_notified_at: new Date(),
+      });
+    }
+  }
+
+  private async sendPurchaseDateReminderWebNotifications(
+    deal: any,
+    daysBefore: number,
+  ) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const purchaseDate = new Date(deal.purchase_date).toLocaleDateString(
+      "ru-RU",
+    );
+    const text =
+      daysBefore > 0
+        ? `В сделке №${deal.deal_num} приближается дата закупки: ${purchaseDate}.`
+        : `В сделке №${deal.deal_num} сегодня дата закупки: ${purchaseDate}.`;
+
+    await Promise.all(
       recipientIds.map((userId) =>
         this.notificationService.send({
           user_id: userId,
-          title: `Сделка №${deal.deal_num} перешла в статус "${statusText}"`,
-          text: `Сделка №${deal.deal_num} перешла в статус "${statusText}". Изменил: ${actorName}.`,
+          title: `В сделке №${deal.deal_num} приближается дата закупки`,
+          text,
           category: NotificationCategory.Deal,
           actions: [
             {
-              label: "Перейти к сделке",
+              label: "Актуализировать",
               url: `/deals.management/${deal.id}`,
             },
           ],
@@ -1588,38 +1730,58 @@ export class DealService {
     );
   }
 
-  @Cron("0 9 * * *")
-  async notifyPurchaseDateOverdue() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  private async sendPurchaseDateOverdueWebNotifications(deal: any) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const purchaseDate = new Date(deal.purchase_date).toLocaleDateString(
+      "ru-RU",
+    );
 
-    const overdueDeals = await this.dealRepository
-      .createQueryBuilder("deal")
-      .where("deal.status IN (:...statuses)", {
-        statuses: [DealStatus.Moderation, DealStatus.Registered],
-      })
-      .andWhere("deal.purchase_date < :today", { today })
-      .andWhere("deal.purchase_overdue_notified_at IS NULL")
-      .getMany();
+    await Promise.all(
+      recipientIds.map((userId) =>
+        this.notificationService.send({
+          user_id: userId,
+          title: `В сделке №${deal.deal_num} дата закупки просрочена`,
+          text: `В сделке №${deal.deal_num} дата закупки просрочена: ${purchaseDate}.`,
+          category: NotificationCategory.Deal,
+          actions: [
+            {
+              label: "Актуализировать",
+              url: `/deals.management/${deal.id}`,
+            },
+          ],
+        }),
+      ),
+    );
+  }
 
-    for (const deal of overdueDeals) {
-      await this.notificationService.send({
-        user_id: deal.creator_id,
-        title: `В сделке №${deal.deal_num} дата закупки просрочена`,
-        text: `В сделке №${deal.deal_num} дата закупки просрочена: ${new Date(deal.purchase_date).toLocaleDateString("ru-RU")}.`,
-        category: NotificationCategory.Deal,
-        actions: [
-          {
-            label: "Актуализировать",
-            url: `/deals.management/${deal.id}`,
-          },
-        ],
-      });
+  private async sendPurchaseDateOverdueEmails(deal: any) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const purchaseDate = new Date(deal.purchase_date).toLocaleDateString(
+      "ru-RU",
+    );
+    const title = `Просрочена дата закупки в сделке №${deal.deal_num} на партнерском портала Тринити`;
+    const dealUrl = this.getDealUrl(deal.id);
+    const html = `
+      <p>Здравствуйте!</p>
+      <p>Дата закупки по сделке №${deal.deal_num} была ${purchaseDate}. Сделка до сих пор не закрыта.</p>
+      <p>Для завершения сделки перейдите по ссылке: <a href="${dealUrl}">${dealUrl}</a></p>
+      <p>С уважением,<br>Команда Тринити</p>
+    `;
 
-      await this.dealRepository.update(deal.id, {
-        purchase_overdue_notified_at: new Date(),
-      });
-    }
+    await Promise.all(
+      recipientIds.map(async (userId) => {
+        const user = await this.userRepository.findById(userId);
+        if (!user?.email) return;
+
+        await this.notificationService.sendEmail({
+          user_id: user.id,
+          email: user.email,
+          title,
+          text: html,
+          category: NotificationCategory.Deal,
+        });
+      }),
+    );
   }
 
   private async notifyDealAttachmentAdded(

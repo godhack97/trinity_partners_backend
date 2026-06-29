@@ -55,15 +55,6 @@ export class EventsService {
       image: dto.image,
     });
 
-    await this.notifyEventAudience(
-      event,
-      `Приглашаем: ${event.title}`,
-      "Приглашаем вас на мероприятие",
-    );
-    await this.eventRepository.update(event.id, {
-      notification_sent_at: new Date(),
-    });
-
     return event;
   }
 
@@ -91,8 +82,7 @@ export class EventsService {
 
   @Cron("0 * * * *")
   async sendEventReminders() {
-    await this.sendReminderForDays(3);
-    await this.sendReminderForDays(1);
+    return;
   }
 
   private async sendReminderForDays(daysBefore: 3 | 1) {

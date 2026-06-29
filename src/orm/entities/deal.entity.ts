@@ -154,6 +154,21 @@ export class DealEntity extends BasisEntity {
   @Column({ type: "datetime", nullable: true })
   purchase_overdue_notified_at: Date | null;
 
+  @Column({ type: "datetime", nullable: true })
+  purchase_due_email_sent_at: Date | null;
+
+  @Column({ type: "datetime", nullable: true })
+  purchase_reminder_7_days_sent_at: Date | null;
+
+  @Column({ type: "datetime", nullable: true })
+  purchase_reminder_3_days_sent_at: Date | null;
+
+  @Column({ type: "datetime", nullable: true })
+  purchase_reminder_1_day_sent_at: Date | null;
+
+  @Column({ type: "datetime", nullable: true })
+  purchase_due_web_notified_at: Date | null;
+
   @Column()
   comment: string;
 

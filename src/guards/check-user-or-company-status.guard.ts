@@ -48,7 +48,7 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
 
       if (company?.status === CompanyStatus.Suspended) {
         throw new ForbiddenException(
-          "Доступ к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.",
+          "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         );
       }
 
@@ -70,7 +70,7 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
     ) {
       if (user.company_employee?.company?.status === CompanyStatus.Suspended) {
         throw new ForbiddenException(
-          "Доступ к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.",
+          "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         );
       }
 
@@ -81,7 +81,7 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
         ].includes(user.company_employee.status)
       ) {
         throw new ForbiddenException(
-          "Доступ к порталу заблокирован. Есть вопросы? Обратитесь к КЦ Тринити.",
+          "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         );
       }
 

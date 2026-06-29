@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Between, In, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { Request } from "express";
 import { ResetHashRepository } from "@orm/repositories/reset-hash.repository";
 import { UserRepository } from "src/orm/repositories/user.repository";
@@ -28,8 +28,6 @@ import {
   CompanyEmployeeStatus,
   CompanyEntity,
   CompanyStatus,
-  DealEntity,
-  DealStatus,
   NotificationCategory,
 } from "@orm/entities";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
@@ -46,8 +44,6 @@ export class AuthService {
     private readonly newsService: NewsService,
     @InjectRepository(UserToken)
     private readonly userTokenRepository: Repository<UserToken>,
-    @InjectRepository(DealEntity)
-    private readonly dealRepository: Repository<DealEntity>,
   ) {}
 
   async login(
@@ -173,7 +169,7 @@ export class AuthService {
 
     if (company?.status === CompanyStatus.Suspended) {
       throw new HttpException(
-        "Доступ к порталу приостановлен. Есть вопросы? Обратитесь к КЦ Тринити.",
+        "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         HttpStatus.FORBIDDEN,
       );
     }
@@ -185,7 +181,7 @@ export class AuthService {
       ].includes(user.company_employee?.status)
     ) {
       throw new HttpException(
-        "Доступ к порталу заблокирован. Есть вопросы? Обратитесь к КЦ Тринити.",
+        "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         HttpStatus.FORBIDDEN,
       );
     }
@@ -352,7 +348,6 @@ export class AuthService {
 
     await this.notifyCompanyProfileIncomplete(user);
     await this.notifyCertificateExpiry(user);
-    await this.notifyPurchaseDateApproaching(user);
 
     const notifications = await this.notificationService.check(user.id);
     const notifications_unread = await this.notificationService.countUnread(
@@ -457,42 +452,6 @@ export class AuthService {
         },
       ],
     });
-  }
-
-  private async notifyPurchaseDateApproaching(user: any) {
-    if (!user?.id) return;
-
-    const startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
-    startDate.setDate(startDate.getDate() + 7);
-
-    const endDate = new Date(startDate);
-    endDate.setHours(23, 59, 59, 999);
-
-    const deals = await this.dealRepository.find({
-      where: {
-        creator_id: user.id,
-        purchase_date: Between(startDate, endDate),
-        status: In([DealStatus.Moderation, DealStatus.Registered]),
-      },
-    });
-
-    await Promise.all(
-      deals.map((deal) =>
-        this.notificationService.sendOnceUnread({
-          user_id: user.id,
-          title: `В сделке №${deal.deal_num} приближается дата закупки`,
-          text: `В сделке №${deal.deal_num} приближается дата закупки: ${new Date(deal.purchase_date).toLocaleDateString("ru-RU")}.`,
-          category: NotificationCategory.Deal,
-          actions: [
-            {
-              label: "Актуализировать",
-              url: `/deals.management/${deal.id}`,
-            },
-          ],
-        }),
-      ),
-    );
   }
 
   private getDaysLabel(days: number) {
