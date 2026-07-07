@@ -447,6 +447,13 @@ export class ConfiguratorService {
       warnings,
     });
 
+    this.applyCpuDependentPcieLimits({
+      resources,
+      selectedCpus,
+      platformProfile,
+      server,
+    });
+
     this.validateRam({
       selectedCpus,
       selectedRam,
@@ -480,7 +487,7 @@ export class ConfiguratorService {
 
     if (resources.pcie_total.used > resources.pcie_total.limit) {
       errors.push({
-        code: "PCIE_TOTAL_EXCEEDED",
+        code: "PCIE_TOTAL_LINES_EXCEEDED",
         message: "Превышен общий Лимит PCIe-линий",
         details: resources.pcie_total,
       });
@@ -488,7 +495,7 @@ export class ConfiguratorService {
 
     if (resources.rear_pcie_ocp.used > resources.rear_pcie_ocp.limit) {
       errors.push({
-        code: "REAR_PCIE_EXCEEDED",
+        code: "REAR_PCIE_LINES_EXCEEDED",
         message: "Превышен Лимит rear PCIe/OCP",
         details: resources.rear_pcie_ocp,
       });
@@ -709,6 +716,91 @@ export class ConfiguratorService {
     }
 
     return resourceProfile;
+  }
+
+  private applyCpuDependentPcieLimits({
+    resources,
+    selectedCpus,
+    platformProfile,
+    server,
+  }: {
+    resources: any;
+    selectedCpus: any[];
+    platformProfile: any;
+    server: any;
+  }) {
+    const installedCpuQty = Math.max(
+      1,
+      selectedCpus.reduce((sum, item) => sum + Number(item.qty || 0), 0),
+    );
+    const platformTotalLimit = Number(
+      platformProfile?.pcie_lanes_total ?? this.inferPcieTotalLimit(server),
+    );
+    const totalLinesPerCpu =
+      Number(platformProfile?.pcie_lanes_per_cpu || 0) ||
+      this.inferPcieLinesPerCpu({ platformProfile, server });
+    const totalLimit = totalLinesPerCpu > 0
+      ? Math.min(totalLinesPerCpu * installedCpuQty, platformTotalLimit)
+      : platformTotalLimit;
+
+    resources.pcie_total.limit = totalLimit;
+
+    const platformRearLimit = Number(platformProfile?.rear_pcie_ocp_limit ?? 96);
+    const rearLinesPerCpu = this.inferRearPcieLinesPerCpu({
+      platformProfile,
+      server,
+      platformRearLimit,
+    });
+
+    resources.rear_pcie_ocp.limit = rearLinesPerCpu > 0
+      ? Math.min(rearLinesPerCpu * installedCpuQty, platformRearLimit)
+      : platformRearLimit;
+  }
+
+  private inferPcieLinesPerCpu({
+    platformProfile,
+    server,
+  }: {
+    platformProfile?: any;
+    server?: any;
+  }) {
+    const code = `${platformProfile?.platform_code || server?.name || ""}`.toUpperCase();
+    const generation = `${platformProfile?.pcie_generation || server?.server_generation_id || ""}`.toUpperCase();
+
+    if (code.includes("TSGM240")) return 104;
+    if (code.includes("M7") || generation.includes("M7") || generation.includes("GEN3")) return 64;
+    if (
+      code.includes("M8") ||
+      generation.includes("M8") ||
+      generation.includes("GEN4") ||
+      generation.includes("GEN5")
+    ) {
+      return 80;
+    }
+
+    return 0;
+  }
+
+  private inferRearPcieLinesPerCpu({
+    platformProfile,
+    server,
+    platformRearLimit,
+  }: {
+    platformProfile?: any;
+    server?: any;
+    platformRearLimit: number;
+  }) {
+    const code = `${platformProfile?.platform_code || server?.name || ""}`.toUpperCase();
+
+    if (code.includes("TSGM240")) return 88;
+    if (code.includes("ER220") || code.includes("ER225")) return 48;
+
+    const cpuLimit = Number(platformProfile?.cpu_limit || 0);
+    if (platformRearLimit > 0 && cpuLimit > 0) {
+      return Math.ceil(platformRearLimit / cpuLimit);
+    }
+
+    return 0;
   }
 
   private validateCpu({
@@ -1007,7 +1099,7 @@ export class ConfiguratorService {
         continue;
       }
 
-      const driveType = `${driveProfile.drive_type || ""}`.toUpperCase();
+      const driveType = this.normalizeDriveType(driveProfile.drive_type);
 
       if (driveType === "SATA") {
         sataQty += qty;
@@ -1017,7 +1109,7 @@ export class ConfiguratorService {
         sasQty += qty;
       }
 
-      if (driveType === "M.2") {
+      if (driveType === "M2") {
         resources.internal_m2.used += qty;
         continue;
       }
@@ -1049,7 +1141,7 @@ export class ConfiguratorService {
 
       for (const unplacedDrive of placementResult.unplaced) {
         errors.push({
-          code: "DRIVE_BAYS_EXCEEDED",
+          code: "DRIVE_BAY_LIMIT_EXCEEDED",
           message: unplacedDrive.message || "Недостаточно дисковых корзин для выбранных дисков",
           details: unplacedDrive.details || unplacedDrive,
         });
@@ -1093,7 +1185,7 @@ export class ConfiguratorService {
 
     if (resources.internal_m2.limit !== null && resources.internal_m2.used > resources.internal_m2.limit) {
       errors.push({
-        code: "DRIVE_BAYS_EXCEEDED",
+        code: "DRIVE_BAY_LIMIT_EXCEEDED",
         message: "Превышен лимит внутренних M.2",
         details: resources.internal_m2,
       });
@@ -1104,6 +1196,11 @@ export class ConfiguratorService {
         resources.rear_pcie_ocp.used += placement.pcie_lanes * placement.qty;
       }
     }
+  }
+
+  private normalizeDriveType(value: string) {
+    const driveType = `${value || ""}`.trim().toUpperCase();
+    return driveType === "M.2" ? "M2" : driveType;
   }
 
   private validatePsu({

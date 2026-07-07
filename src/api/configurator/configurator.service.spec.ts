@@ -654,6 +654,139 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.warnings)).toContain("GPU_WARRANTY_MANAGER_REQUIRED");
   });
 
+  it("считает PCIe total и Rear PCIe/OCP по количеству CPU для ER220HDR-M7", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "ER220HDR-M7",
+        ram_type: "DDR4",
+        pcie_lanes_per_cpu: 64,
+        pcie_lanes_total: 128,
+        rear_pcie_ocp_limit: 96,
+      },
+    ]);
+    rows.set(CnfCpuProfileEntity, [
+      {
+        component_id: baseComponents.cpu.id,
+        socket_profile: "2S",
+        ram_type: "DDR4",
+        tdp_w: 250,
+        memory_channels: 8,
+        max_ram_modules_per_cpu: 16,
+        max_ram_gb_per_cpu: 2048,
+        memory_speed_1dpc: 3200,
+        memory_speed_2dpc: 2933,
+      },
+    ]);
+    rows.set(CnfRamProfileEntity, [
+      {
+        component_id: baseComponents.ram.id,
+        ram_type: "DDR4",
+        capacity_gb: 64,
+        frequency_mhz: 3200,
+        rank: null,
+        form_factor: "RDIMM",
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const oneCpuResult = await service.validateConfiguration(baseDto() as any);
+    const twoCpuResult = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 2 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(oneCpuResult.resources.pcie_total.limit).toBe(64);
+    expect(oneCpuResult.resources.rear_pcie_ocp.limit).toBe(48);
+    expect(twoCpuResult.resources.pcie_total.limit).toBe(128);
+    expect(twoCpuResult.resources.rear_pcie_ocp.limit).toBe(96);
+  });
+
+  it("считает PCIe total и Rear PCIe/OCP по количеству CPU для ER220HDR-M8", async () => {
+    const { service } = makeService();
+
+    const oneCpuResult = await service.validateConfiguration(baseDto() as any);
+    const twoCpuResult = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 2 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(oneCpuResult.resources.pcie_total.limit).toBe(80);
+    expect(oneCpuResult.resources.rear_pcie_ocp.limit).toBe(48);
+    expect(twoCpuResult.resources.pcie_total.limit).toBe(160);
+    expect(twoCpuResult.resources.rear_pcie_ocp.limit).toBe(96);
+  });
+
+  it("пересчитывает ошибки PCIe после добавления второго CPU", async () => {
+    const rows = baseRows();
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.gpu.id,
+        component_type_key: "gpu",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: baseComponents.gpu.id,
+        resource_kind: "gpu",
+        pcie_lanes: 96,
+        rear_pcie_lanes: 64,
+        physical_slots: 1,
+        ocp_slots: 0,
+        power_w: 0,
+        uses_power: false,
+      },
+    ]);
+    const { service } = makeService({
+      rows,
+      components: [...Object.values(baseComponents)],
+    });
+
+    const oneCpuResult = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+          { component_id: baseComponents.gpu.id, qty: 1 },
+        ],
+      }) as any,
+    );
+    const twoCpuResult = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 2 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+          { component_id: baseComponents.gpu.id, qty: 1 },
+        ],
+      }) as any,
+    );
+
+    expect(codes(oneCpuResult.errors)).toContain("PCIE_TOTAL_LINES_EXCEEDED");
+    expect(codes(oneCpuResult.errors)).toContain("REAR_PCIE_LINES_EXCEEDED");
+    expect(codes(twoCpuResult.errors)).not.toContain("PCIE_TOTAL_LINES_EXCEEDED");
+    expect(codes(twoCpuResult.errors)).not.toContain("REAR_PCIE_LINES_EXCEEDED");
+  });
+
   it("для ocp_only платформы OCP не расходует rear PCIe/OCP", async () => {
     const rows = baseRows();
     const resourceRows = rows.get(CnfComponentResourceProfileEntity) || [];
@@ -781,6 +914,39 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.resources.front_bays).toEqual({ used: 0, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
     expect(codes(result.errors)).not.toContain("DRIVE_BAYS_EXCEEDED");
+    expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+  });
+
+  it("принимает drive_type M2 как M.2 и ограничивает только internal M.2 slots", async () => {
+    const rows = baseRows();
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "M2",
+        interface_type: "NVME",
+        form_factor: "M.2",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 3 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(result.resources.internal_m2).toEqual({ used: 3, limit: 2 });
+    expect(result.resources.front_bays).toEqual({ used: 0, limit: 12 });
+    expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
+    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("для HSR учитывает типы передних бэкплейнов 3x8 при смешивании NVMe и SATA/SAS", async () => {
@@ -887,11 +1053,11 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 23, limit: 24 });
     expect(result.resources.rear_bays).toEqual({ used: 4, limit: 4 });
-    expect(codes(result.errors)).toContain("DRIVE_BAYS_EXCEEDED");
+    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(result.errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          code: "DRIVE_BAYS_EXCEEDED",
+          code: "DRIVE_BAY_LIMIT_EXCEEDED",
           details: expect.objectContaining({
             platform_rule: "HSR_FRONT_3X8_BACKPLANES",
             selected_nvme: 21,
@@ -964,6 +1130,6 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.front_bays).toEqual({ used: 2, limit: 2 });
-    expect(codes(result.errors)).toContain("DRIVE_BAYS_EXCEEDED");
+    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 });
