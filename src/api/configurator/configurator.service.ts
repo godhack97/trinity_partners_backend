@@ -207,6 +207,14 @@ export class ConfiguratorService {
         used: 0,
         limit: platformProfile?.internal_m2_bays ?? 0,
       },
+      sata_direct_ports: {
+        used: 0,
+        limit: platformProfile?.direct_sata_limit ?? 0,
+      },
+      sas_sata_controller_ports: {
+        used: 0,
+        limit: 0,
+      },
       power_w: {
         used: platformProfile?.base_power_w ?? 360,
         limit: null,
@@ -1031,10 +1039,7 @@ export class ConfiguratorService {
     let vrocQty = 0;
     let hasSasHardwareController = false;
 
-    const controllerPorts = {
-      sata: 0,
-      sas: 0,
-    };
+    let sasSataControllerPorts = 0;
 
     for (const controller of selectedControllers) {
       const { component, qty, typeKey, controllerProfile } = controller;
@@ -1055,15 +1060,14 @@ export class ConfiguratorService {
       }
 
       const ports = Number(controllerProfile.internal_ports || 0) * qty;
-      const isSasHardwareController = ["RAID", "HBA"].includes(controllerType);
+      const isSasHardwareController = ["RAID", "HBA", "EHBA"].includes(controllerType);
 
-      if (controllerProfile.supports_sata) {
-        controllerPorts.sata += ports;
+      if (controllerProfile.supports_sata || controllerProfile.supports_sas) {
+        sasSataControllerPorts += ports;
       }
 
       if (isSasHardwareController && controllerProfile.supports_sas) {
         hasSasHardwareController = true;
-        controllerPorts.sas += ports;
       }
     }
 
@@ -1100,6 +1104,32 @@ export class ConfiguratorService {
       }
 
       const driveType = this.normalizeDriveType(driveProfile.drive_type);
+      const m2Interface = this.resolveM2Interface({
+        driveProfile,
+        componentName: component.name,
+        warnings,
+        componentId: component.id,
+      });
+      const formFactorInvalid = this.isDriveFormFactorInvalidForPlatform({
+        platformProfile,
+        formFactor: driveProfile.form_factor,
+      });
+
+      if (formFactorInvalid) {
+        errors.push({
+          code: "DRIVE_FORM_FACTOR_INVALID",
+          message: "Форм-фактор диска не поддерживается выбранной платформой",
+          details: {
+            component_id: component.id,
+            name: component.name,
+            platform_code: platformProfile?.platform_code || null,
+            drive_type: driveType,
+            form_factor: driveProfile.form_factor,
+            reason: formFactorInvalid,
+          },
+        });
+        continue;
+      }
 
       if (driveType === "SATA") {
         sataQty += qty;
@@ -1110,6 +1140,19 @@ export class ConfiguratorService {
       }
 
       if (driveType === "M2") {
+        if (m2Interface === "SATA" && this.isGen3M7Platform(platformProfile)) {
+          errors.push({
+            code: "M2_SATA_GEN3_FORBIDDEN",
+            message: "M.2 SATA не поддерживается на платформах Gen3/M7",
+            details: {
+              component_id: component.id,
+              name: component.name,
+              platform_code: platformProfile?.platform_code || null,
+              m2_interface: m2Interface,
+            },
+          });
+        }
+
         resources.internal_m2.used += qty;
         continue;
       }
@@ -1157,25 +1200,39 @@ export class ConfiguratorService {
     }
 
     const sataRequiringController = Math.max(0, sataQty - directSataLimit);
-    const sasPortsNeeded = sasQty;
+    const requiredControllerPorts = sataRequiringController + sasQty;
+    resources.sata_direct_ports = {
+      used: Math.min(sataQty, directSataLimit),
+      limit: directSataLimit,
+    };
+    resources.sas_sata_controller_ports = {
+      used: requiredControllerPorts,
+      limit: sasSataControllerPorts,
+    };
 
-    if (controllerPorts.sata < sataRequiringController) {
+    if (requiredControllerPorts > 0 && sasSataControllerPorts === 0) {
       errors.push({
-        code: "CONTROLLER_PORTS_NOT_ENOUGH",
-        message: "Недостаточно внутренних портов контроллера для SATA-дисков сверх direct-limit",
+        code: "SAS_SATA_CONTROLLER_REQUIRED",
+        message: "Для выбранных SAS-дисков и SATA сверх direct-limit требуется RAID/HBA/eHBA",
         details: {
-          needed: sataRequiringController,
-          available: controllerPorts.sata,
+          needed: requiredControllerPorts,
+          available: sasSataControllerPorts,
+          sata_drives: sataQty,
+          sas_drives: sasQty,
           direct_sata_limit: directSataLimit,
         },
       });
-    }
-
-    if (controllerPorts.sas < sasPortsNeeded) {
+    } else if (sasSataControllerPorts < requiredControllerPorts) {
       errors.push({
-        code: "CONTROLLER_PORTS_NOT_ENOUGH",
-        message: "Недостаточно внутренних портов контроллера для SAS-дисков",
-        details: { needed: sasPortsNeeded, available: controllerPorts.sas },
+        code: "SAS_SATA_CONTROLLER_CAPACITY_EXCEEDED",
+        message: "Недостаточно внутренних портов RAID/HBA/eHBA для SAS/SATA-дисков",
+        details: {
+          needed: requiredControllerPorts,
+          available: sasSataControllerPorts,
+          sata_drives: sataQty,
+          sas_drives: sasQty,
+          direct_sata_limit: directSataLimit,
+        },
       });
     }
 
@@ -1201,6 +1258,95 @@ export class ConfiguratorService {
   private normalizeDriveType(value: string) {
     const driveType = `${value || ""}`.trim().toUpperCase();
     return driveType === "M.2" ? "M2" : driveType;
+  }
+
+  private resolveM2Interface({
+    driveProfile,
+    componentName,
+    warnings,
+    componentId,
+  }: {
+    driveProfile: any;
+    componentName: string;
+    warnings: any[];
+    componentId: string;
+  }) {
+    const driveType = this.normalizeDriveType(driveProfile?.drive_type);
+    const formFactor = `${driveProfile?.form_factor || ""}`.trim().toUpperCase();
+
+    if (driveType !== "M2" && formFactor !== "M.2") {
+      return null;
+    }
+
+    const explicit = `${driveProfile?.m2_interface || ""}`.trim().toUpperCase();
+    if (["NVME", "SATA"].includes(explicit)) {
+      return explicit;
+    }
+
+    const interfaceType = `${driveProfile?.interface_type || ""}`.trim().toUpperCase();
+    if (["NVME", "SATA"].includes(interfaceType)) {
+      warnings.push({
+        code: "M2_INTERFACE_INFERRED",
+        message: "M.2 интерфейс взят из legacy interface_type",
+        details: { component_id: componentId, interface_type: interfaceType },
+      });
+      return interfaceType;
+    }
+
+    const name = `${componentName || ""}`.toUpperCase();
+    if (name.includes("SATA")) {
+      warnings.push({
+        code: "M2_INTERFACE_INFERRED",
+        message: "M.2 интерфейс определен из названия компонента",
+        details: { component_id: componentId, inferred: "SATA" },
+      });
+      return "SATA";
+    }
+
+    if (name.includes("NVME")) {
+      warnings.push({
+        code: "M2_INTERFACE_INFERRED",
+        message: "M.2 интерфейс определен из названия компонента",
+        details: { component_id: componentId, inferred: "NVME" },
+      });
+      return "NVME";
+    }
+
+    warnings.push({
+      code: "M2_INTERFACE_UNKNOWN",
+      message: "Для M.2 диска не указан интерфейс NVMe/SATA",
+      details: { component_id: componentId },
+    });
+
+    return null;
+  }
+
+  private isGen3M7Platform(platformProfile: any) {
+    const code = `${platformProfile?.platform_code || ""}`.toUpperCase();
+    const generation = `${platformProfile?.pcie_generation || ""}`.toUpperCase();
+
+    return code.includes("M7") || generation.includes("M7") || generation.includes("GEN3");
+  }
+
+  private isDriveFormFactorInvalidForPlatform({
+    platformProfile,
+    formFactor,
+  }: {
+    platformProfile: any;
+    formFactor: string;
+  }) {
+    const code = `${platformProfile?.platform_code || ""}`.toUpperCase();
+    const family = `${platformProfile?.family || ""}`.toUpperCase();
+    const normalizedFormFactor = `${formFactor || ""}`.trim().toUpperCase();
+
+    if (
+      (code.includes("ER225") || family.includes("ER225")) &&
+      normalizedFormFactor === "3.5"
+    ) {
+      return "ER225 поддерживает только 2.5-диски во front/rear корзинах";
+    }
+
+    return null;
   }
 
   private validatePsu({
@@ -2133,6 +2279,7 @@ export class ConfiguratorService {
               ? {
                   drive_type: mappedComponent.drive_profile.drive_type,
                   interface_type: mappedComponent.drive_profile.interface_type,
+                  m2_interface: mappedComponent.drive_profile.m2_interface,
                   media_kind: mappedComponent.drive_profile.media_kind,
                   form_factor: mappedComponent.drive_profile.form_factor,
                   capacity_gb: mappedComponent.drive_profile.capacity_gb,

@@ -167,6 +167,7 @@ export class CreateConfiguratorProfiles1776178000000
         component_id varchar(36) COLLATE utf8mb4_bin NOT NULL,
         drive_type varchar(20) NOT NULL,
         interface_type varchar(30) DEFAULT NULL,
+        m2_interface varchar(20) DEFAULT NULL,
         media_kind varchar(20) DEFAULT NULL,
         form_factor varchar(20) NOT NULL,
         capacity_gb int NOT NULL,

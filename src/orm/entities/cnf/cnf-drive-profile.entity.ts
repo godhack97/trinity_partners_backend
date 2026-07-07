@@ -18,6 +18,9 @@ export class CnfDriveProfileEntity extends BasisUUIDEntity {
   interface_type: string;
 
   @Column({ nullable: true })
+  m2_interface: string;
+
+  @Column({ nullable: true })
   media_kind: string;
 
   @Column()

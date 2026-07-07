@@ -178,6 +178,10 @@ export class DriveProfileDto {
 
   @IsOptional()
   @IsString()
+  m2_interface?: string;
+
+  @IsOptional()
+  @IsString()
   media_kind?: string;
 
   @IsString()

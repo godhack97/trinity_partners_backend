@@ -405,7 +405,47 @@ describe("ConfiguratorService.validateConfiguration", () => {
     const result = await service.validateConfiguration(baseDto() as any);
 
     expect(codes(result.errors)).toContain("SAS_REQUIRES_RAID");
-    expect(codes(result.errors)).toContain("CONTROLLER_PORTS_NOT_ENOUGH");
+    expect(codes(result.errors)).toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 1, limit: 0 });
+  });
+
+  it("не требует контроллер для SATA-дисков в пределах direct-limit", async () => {
+    const { service } = makeService();
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 4 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_CAPACITY_EXCEEDED");
+    expect(result.resources.sata_direct_ports).toEqual({ used: 4, limit: 12 });
+    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 0, limit: 0 });
+  });
+
+  it("требует порт контроллера для SATA сверх direct-limit", async () => {
+    const { service } = makeService();
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 13 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(codes(result.errors)).toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(result.resources.sata_direct_ports).toEqual({ used: 12, limit: 12 });
+    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 1, limit: 0 });
   });
 
   it("не считает VROC контроллером для SAS-дисков", async () => {
@@ -474,7 +514,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(result.errors)).toContain("SAS_REQUIRES_RAID");
-    expect(codes(result.errors)).toContain("CONTROLLER_PORTS_NOT_ENOUGH");
+    expect(codes(result.errors)).toContain("SAS_SATA_CONTROLLER_REQUIRED");
   });
 
   it("разрешает SAS-диски при наличии HBA с внутренними SAS-портами", async () => {
@@ -543,7 +583,9 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(result.errors)).not.toContain("SAS_REQUIRES_RAID");
-    expect(codes(result.errors)).not.toContain("CONTROLLER_PORTS_NOT_ENOUGH");
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_CAPACITY_EXCEEDED");
+    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 1, limit: 8 });
   });
 
   it("считает PSU по N+1: один блок дает warning, перегруз одного блока дает error", async () => {
@@ -949,6 +991,89 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
+  it("запрещает M.2 SATA на Gen3/M7", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "ER220HDR-M7",
+        ram_type: "DDR4",
+        pcie_generation: "GEN3",
+        pcie_lanes_per_cpu: 64,
+        pcie_lanes_total: 128,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "M2",
+        interface_type: "SATA",
+        m2_interface: "SATA",
+        form_factor: "M.2",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(codes(result.errors)).toContain("M2_SATA_GEN3_FORBIDDEN");
+  });
+
+  it("разрешает M.2 NVMe на Gen3/M7", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "ER220HDR-M7",
+        ram_type: "DDR4",
+        pcie_generation: "GEN3",
+        pcie_lanes_per_cpu: 64,
+        pcie_lanes_total: 128,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "M2",
+        interface_type: "NVME",
+        m2_interface: "NVME",
+        form_factor: "M.2",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(codes(result.errors)).not.toContain("M2_SATA_GEN3_FORBIDDEN");
+  });
+
+  it("разрешает M.2 SATA на Gen4/M8", async () => {
+    const rows = baseRows();
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "M2",
+        interface_type: "SATA",
+        m2_interface: "SATA",
+        form_factor: "M.2",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(codes(result.errors)).not.toContain("M2_SATA_GEN3_FORBIDDEN");
+  });
+
   it("для HSR учитывает типы передних бэкплейнов 3x8 при смешивании NVMe и SATA/SAS", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformProfileEntity, [
@@ -1131,5 +1256,78 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 2, limit: 2 });
     expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+  });
+
+  it("запрещает 3.5-диски для ER225", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "ER225HR-M8",
+        family: "ER225",
+      },
+    ]);
+    rows.set(CnfPlatformBayEntity, [
+      {
+        ...baseBays[0],
+        platform_profile_id: basePlatformProfile.id,
+        placement: "rear",
+        form_factor: "2.5",
+        capacity: 4,
+        allowed_drive_types: ["SATA", "SAS"],
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "SATA",
+        interface_type: "SATA",
+        form_factor: "3.5",
+        capacity_gb: 1000,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(codes(result.errors)).toContain("DRIVE_FORM_FACTOR_INVALID");
+  });
+
+  it("разрешает 3.5-диски для ER220 front-bay", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformBayEntity, [
+      {
+        ...baseBays[0],
+        form_factor: "2.5/3.5",
+        capacity: 12,
+      },
+      {
+        ...baseBays[0],
+        id: "rear-bays",
+        placement: "rear",
+        form_factor: "2.5",
+        capacity: 4,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "SATA",
+        interface_type: "SATA",
+        form_factor: "3.5",
+        capacity_gb: 1000,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(result.resources.front_bays).toEqual({ used: 1, limit: 12 });
+    expect(result.resources.rear_bays).toEqual({ used: 0, limit: 4 });
+    expect(codes(result.errors)).not.toContain("DRIVE_FORM_FACTOR_INVALID");
   });
 });
