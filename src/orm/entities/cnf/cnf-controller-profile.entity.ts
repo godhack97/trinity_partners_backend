@@ -26,6 +26,12 @@ export class CnfControllerProfileEntity extends BasisUUIDEntity {
   @Column({ type: "int", default: 0 })
   internal_ports: number;
 
+  @Column({ type: "int", default: 0 })
+  m2_slot_count: number;
+
+  @Column({ nullable: true })
+  m2_drive_type: string;
+
   @Column({ default: true })
   supports_sata: boolean;
 

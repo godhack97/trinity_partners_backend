@@ -25,11 +25,16 @@ import {
   CnfPsuProfileEntity,
   CnfRamProfileEntity,
   CnfServiceProfileEntity,
+  CnfTransceiverCompatibilityRuleEntity,
+  CnfTransceiverProfileEntity,
 } from "@orm/entities";
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
 import { CreateComponentTypeDto } from "./dto/request/create-component-type.dto";
 import { UpdateComponentTypeDto } from "./dto/request/update-component-type.dto";
-import { ValidateConfiguratorRequestDto } from "./dto/request/validate-configurator.request.dto";
+import {
+  DryRunRemoveConfiguratorRequestDto,
+  ValidateConfiguratorRequestDto,
+} from "./dto/request/validate-configurator.request.dto";
 import { DataSource, In } from "typeorm";
 
 @Injectable()
@@ -89,6 +94,7 @@ export class ConfiguratorService {
       .map((item) => ({
         component_id: item.component_id,
         qty: Number(item.qty || 0),
+        source: item.source || "manual",
       }));
 
     const componentIds = [...new Set(normalizedItems.map((item) => item.component_id))];
@@ -105,6 +111,10 @@ export class ConfiguratorService {
 
     const warnings = [];
     const errors = [];
+    const requestedOptions = {
+      strict: dto.options?.strict ?? true,
+      rear_to_pcie: Boolean(dto.options?.rear_to_pcie),
+    };
 
     const platformProfile = await this.safeFindOne(CnfPlatformProfileEntity, {
       server_id: dto.server_id,
@@ -129,6 +139,14 @@ export class ConfiguratorService {
     const networkProfiles = await this.safeFindByComponentIds(
       CnfNetworkProfileEntity,
       componentIds,
+    );
+    const transceiverProfiles = await this.safeFindByComponentIds(
+      CnfTransceiverProfileEntity,
+      componentIds,
+    );
+    const transceiverCompatibilityRules = await this.safeFindMany(
+      CnfTransceiverCompatibilityRuleEntity,
+      { is_allowed: true },
     );
     const serviceProfiles = await this.safeFindByComponentIds(
       CnfServiceProfileEntity,
@@ -164,6 +182,12 @@ export class ConfiguratorService {
           platform_profile_id: platformProfile.id,
         })
       : [];
+    const rearToPcieEnabled = this.canUseRearToPcie(platformProfile)
+      ? requestedOptions.rear_to_pcie
+      : false;
+    const effectivePlatformBays = rearToPcieEnabled
+      ? platformBays.filter((bay) => `${bay.placement}`.toLowerCase() !== "rear")
+      : platformBays;
     const forbiddenTypesByKey = new Map(
       platformForbiddenTypes.map((rule) => [rule.component_type_key, rule]),
     );
@@ -207,6 +231,10 @@ export class ConfiguratorService {
         used: 0,
         limit: platformProfile?.internal_m2_bays ?? 0,
       },
+      adapter_m2_slots: {
+        used: 0,
+        limit: 0,
+      },
       sata_direct_ports: {
         used: 0,
         limit: platformProfile?.direct_sata_limit ?? 0,
@@ -221,6 +249,21 @@ export class ConfiguratorService {
       },
     };
 
+    if (requestedOptions.rear_to_pcie) {
+      if (rearToPcieEnabled) {
+        resources.pcie_slots.limit = Number(resources.pcie_slots.limit || 0) + 2;
+      } else {
+        errors.push({
+          code: "REAR_TO_PCIE_UNAVAILABLE",
+          message: "Замена rear disk cage на PCIe riser недоступна для выбранной платформы",
+          details: {
+            option: "rear_to_pcie",
+            platform_code: platformProfile?.platform_code || server.name,
+          },
+        });
+      }
+    }
+
     let hasCpu = false;
     let ramModulesTotal = 0;
     let hasDrive = false;
@@ -228,10 +271,13 @@ export class ConfiguratorService {
     let hasPremiumServiceWithoutManualPrice = false;
     let equipmentSubtotal = Number(server.price || 0);
     let serviceTotal = 0;
+    let selectedGpuQty = 0;
     const selectedCpus = [];
     const selectedRam = [];
     const selectedDrives = [];
     const selectedControllers = [];
+    const selectedNetworkPorts = [];
+    const selectedTransceivers = [];
     const selectedPsu = [];
     const selectedServices = [];
     const virtualSupport = this.buildVirtualSupportService(dto.support);
@@ -277,6 +323,7 @@ export class ConfiguratorService {
       const controllerProfile = controllerProfiles.get(component.id);
       const gpuProfile = gpuProfiles.get(component.id);
       const networkProfile = networkProfiles.get(component.id);
+      const transceiverProfile = transceiverProfiles.get(component.id);
       const psuProfile = psuProfiles.get(component.id);
       const typeKey = catalogProfile?.component_type_key || this.mapLegacyTypeKey(component.type_id);
       const effectiveResourceProfile = this.normalizeEffectiveResourceProfile({
@@ -297,7 +344,7 @@ export class ConfiguratorService {
 
       if (forbiddenRule) {
         errors.push({
-          code: "COMPONENT_FORBIDDEN_ON_PLATFORM",
+          code: this.getForbiddenComponentErrorCode(platformProfile, typeKey),
           message: "Компонент запрещен для выбранной платформы",
           details: {
             component_id: component.id,
@@ -352,6 +399,7 @@ export class ConfiguratorService {
       }
 
       if (typeKey === "gpu" || gpuProfile) {
+        selectedGpuQty += qty;
         warnings.push({
           code: "GPU_WARRANTY_MANAGER_REQUIRED",
           message:
@@ -398,6 +446,24 @@ export class ConfiguratorService {
           typeKey,
           controllerProfile,
           resourceProfile: effectiveResourceProfile,
+        });
+      }
+
+      if (this.isNetworkType(typeKey) || networkProfile) {
+        selectedNetworkPorts.push({
+          component,
+          qty,
+          typeKey,
+          networkProfile,
+        });
+      }
+
+      if (this.isTransceiverType(typeKey) || transceiverProfile) {
+        selectedTransceivers.push({
+          component,
+          qty,
+          typeKey,
+          transceiverProfile,
         });
       }
 
@@ -474,8 +540,16 @@ export class ConfiguratorService {
       selectedDrives,
       selectedControllers,
       platformProfile,
-      platformBays,
+      platformBays: effectivePlatformBays,
       resources,
+      errors,
+      warnings,
+    });
+
+    this.validateTransceivers({
+      selectedNetworkPorts,
+      selectedTransceivers,
+      compatibilityRules: transceiverCompatibilityRules,
       errors,
       warnings,
     });
@@ -492,6 +566,19 @@ export class ConfiguratorService {
       equipmentSubtotal,
       warnings,
     });
+
+    const maxGpuCount = this.inferMaxGpuCount(platformProfile, server);
+    if (maxGpuCount !== null && selectedGpuQty > maxGpuCount) {
+      errors.push({
+        code: "GPU_COUNT_LIMIT_EXCEEDED",
+        message: "Превышено максимальное количество GPU для выбранной платформы",
+        details: {
+          used: selectedGpuQty,
+          limit: maxGpuCount,
+          platform_code: platformProfile?.platform_code || server.name,
+        },
+      });
+    }
 
     if (resources.pcie_total.used > resources.pcie_total.limit) {
       errors.push({
@@ -571,13 +658,59 @@ export class ConfiguratorService {
       normalized_configuration: {
         server_id: dto.server_id,
         items: normalizedItems,
+        options: {
+          ...requestedOptions,
+          rear_to_pcie: rearToPcieEnabled,
+        },
       },
       resources,
       price,
-      errors,
-      warnings,
+      errors: this.withValidationLevel(errors, "error"),
+      warnings: this.withValidationLevel(warnings, "warning"),
       auto_added_items: [],
     };
+  }
+
+  async dryRunRemoveComponent(dto: DryRunRemoveConfiguratorRequestDto) {
+    const sourceItems = (dto.items || []).filter(
+      (item) => item?.component_id && Number(item.qty || 0) > 0,
+    );
+    const removedItems = sourceItems.filter(
+      (item) => item.component_id === dto.remove_component_id,
+    );
+    const retainedItems = sourceItems.filter(
+      (item) => item.component_id !== dto.remove_component_id,
+    );
+    const suppressedDependencyItems = removedItems
+      .filter((item) => item.source === "auto_added")
+      .map((item) => ({
+        ...item,
+        source: "suppressed" as const,
+      }));
+    const validation = await this.validateConfiguration({
+      server_id: dto.server_id,
+      items: retainedItems,
+      options: dto.options,
+      support: dto.support,
+    });
+
+    return {
+      action: "remove_component",
+      remove_component_id: dto.remove_component_id,
+      removed_items: removedItems,
+      retained_items: retainedItems,
+      suppressed_dependency_items: suppressedDependencyItems,
+      invalid_after_removal: validation.errors,
+      warnings_after_removal: validation.warnings,
+      validation,
+    };
+  }
+
+  private withValidationLevel(items: any[], level: "error" | "warning") {
+    return items.map((item) => ({
+      ...item,
+      level,
+    }));
   }
 
   private async safeFindOne(entity: any, where: Record<string, any>) {
@@ -726,6 +859,32 @@ export class ConfiguratorService {
     return resourceProfile;
   }
 
+  private isPlutonPlatform(platformProfile: any) {
+    const code = `${platformProfile?.platform_code || ""}`.toUpperCase();
+    const family = `${platformProfile?.family || ""}`.toUpperCase();
+    return code.includes("ER225HTR") || family.includes("ER225HTR");
+  }
+
+  private getForbiddenComponentErrorCode(platformProfile: any, typeKey: string) {
+    if (!this.isPlutonPlatform(platformProfile)) {
+      return "COMPONENT_FORBIDDEN_ON_PLATFORM";
+    }
+
+    if (["gpu", "nic", "network", "raid", "hba", "ehba", "vroc"].includes(typeKey)) {
+      return "PLUTON_NO_PCIE";
+    }
+
+    if (["ssd_nvme", "hdd_sas", "ssd_sas"].includes(typeKey)) {
+      return "PLUTON_STORAGE_FORBIDDEN";
+    }
+
+    return "COMPONENT_FORBIDDEN_ON_PLATFORM";
+  }
+
+  private isPlutonStorageForbidden(driveType: string) {
+    return ["SAS", "NVME"].includes(driveType);
+  }
+
   private applyCpuDependentPcieLimits({
     resources,
     selectedCpus,
@@ -787,6 +946,34 @@ export class ConfiguratorService {
     }
 
     return 0;
+  }
+
+  private canUseRearToPcie(platformProfile: any) {
+    const code = `${platformProfile?.platform_code || ""}`.toUpperCase();
+    const family = `${platformProfile?.family || ""}`.toUpperCase();
+
+    if (code.includes("ER225HTR") || code.includes("PLUTON")) return false;
+    if (code.includes("TSGM240") || family.includes("TSGM240")) return false;
+
+    return (
+      code.includes("ER220HDR") ||
+      code.includes("ER225HR") ||
+      code.includes("ER225HSR") ||
+      family.includes("ER220HDR") ||
+      family.includes("ER225HR") ||
+      family.includes("ER225HSR")
+    );
+  }
+
+  private inferMaxGpuCount(platformProfile: any, server: any) {
+    const code = `${platformProfile?.platform_code || server?.name || ""}`.toUpperCase();
+    const family = `${platformProfile?.family || ""}`.toUpperCase();
+
+    if (code.includes("TSGM240") || family.includes("TSGM240")) {
+      return 8;
+    }
+
+    return null;
   }
 
   private inferRearPcieLinesPerCpu({
@@ -1040,6 +1227,7 @@ export class ConfiguratorService {
     let hasSasHardwareController = false;
 
     let sasSataControllerPorts = 0;
+    const m2AdapterPools = [];
 
     for (const controller of selectedControllers) {
       const { component, qty, typeKey, controllerProfile } = controller;
@@ -1069,6 +1257,16 @@ export class ConfiguratorService {
       if (isSasHardwareController && controllerProfile.supports_sas) {
         hasSasHardwareController = true;
       }
+
+      const m2SlotCount = Number(controllerProfile.m2_slot_count || 0) * qty;
+      if (m2SlotCount > 0) {
+        m2AdapterPools.push({
+          component_id: component.id,
+          name: component.name,
+          remaining: m2SlotCount,
+          drive_type: this.normalizeM2DriveType(controllerProfile.m2_drive_type),
+        });
+      }
     }
 
     if (vrocQty > 1) {
@@ -1081,6 +1279,7 @@ export class ConfiguratorService {
 
     const drivePlacements = [];
     const drivesToPlace = [];
+    const m2Drives = [];
     const availableBays = this.cloneBays(platformBays);
 
     if (!availableBays.length && selectedDrives.length) {
@@ -1131,6 +1330,21 @@ export class ConfiguratorService {
         continue;
       }
 
+      if (this.isPlutonPlatform(platformProfile) && this.isPlutonStorageForbidden(driveType)) {
+        errors.push({
+          code: "PLUTON_STORAGE_FORBIDDEN",
+          message: "Плутон поддерживает только front SATA 2.5 и internal M.2 диски",
+          details: {
+            component_id: component.id,
+            name: component.name,
+            platform_code: platformProfile?.platform_code || null,
+            drive_type: driveType,
+            form_factor: driveProfile.form_factor,
+          },
+        });
+        continue;
+      }
+
       if (driveType === "SATA") {
         sataQty += qty;
       }
@@ -1140,20 +1354,12 @@ export class ConfiguratorService {
       }
 
       if (driveType === "M2") {
-        if (m2Interface === "SATA" && this.isGen3M7Platform(platformProfile)) {
-          errors.push({
-            code: "M2_SATA_GEN3_FORBIDDEN",
-            message: "M.2 SATA не поддерживается на платформах Gen3/M7",
-            details: {
-              component_id: component.id,
-              name: component.name,
-              platform_code: platformProfile?.platform_code || null,
-              m2_interface: m2Interface,
-            },
-          });
-        }
-
-        resources.internal_m2.used += qty;
+        m2Drives.push({
+          component_id: component.id,
+          name: component.name,
+          qty,
+          m2_interface: m2Interface,
+        });
         continue;
       }
 
@@ -1170,6 +1376,33 @@ export class ConfiguratorService {
         drive_type: driveType,
         form_factor: driveProfile.form_factor,
         qty,
+      });
+    }
+
+    const m2Placement = this.placeM2DrivesIntoSlots({
+      drives: m2Drives,
+      platformProfile,
+      adapterPools: m2AdapterPools,
+    });
+    resources.internal_m2.used = m2Placement.native_used;
+    resources.adapter_m2_slots = {
+      used: m2Placement.adapter_used,
+      limit: m2Placement.adapter_limit,
+    };
+
+    for (const forbiddenDrive of m2Placement.gen3_sata_native_forbidden) {
+      errors.push({
+        code: "M2_SATA_GEN3_FORBIDDEN",
+        message: "M.2 SATA не поддерживается в native M.2 слотах платформ Gen3/M7",
+        details: forbiddenDrive,
+      });
+    }
+
+    for (const unplacedM2 of m2Placement.unplaced) {
+      errors.push({
+        code: "DRIVE_BAY_LIMIT_EXCEEDED",
+        message: "Недостаточно native или adapter M.2 слотов для выбранных дисков",
+        details: unplacedM2,
       });
     }
 
@@ -1260,6 +1493,125 @@ export class ConfiguratorService {
     return driveType === "M.2" ? "M2" : driveType;
   }
 
+  private normalizeM2DriveType(value: string) {
+    const normalized = `${value || ""}`.trim().toUpperCase().replace(/\s+/g, "");
+
+    if (["SATA+NVME", "NVME+SATA", "BOTH", "ALL"].includes(normalized)) {
+      return "SATA+NVME";
+    }
+
+    if (normalized === "SATA") return "SATA";
+    if (normalized === "NVME") return "NVME";
+
+    return "NVME";
+  }
+
+  private m2PoolSupportsInterface(poolType: string, m2Interface: string) {
+    if (!m2Interface) {
+      return false;
+    }
+
+    if (poolType === "SATA+NVME") {
+      return ["SATA", "NVME"].includes(m2Interface);
+    }
+
+    return poolType === m2Interface;
+  }
+
+  private nativeM2SupportsInterface(platformProfile: any, m2Interface: string) {
+    if (!m2Interface) {
+      return false;
+    }
+
+    if (m2Interface === "SATA" && this.isGen3M7Platform(platformProfile)) {
+      return false;
+    }
+
+    return ["SATA", "NVME"].includes(m2Interface);
+  }
+
+  private placeM2DrivesIntoSlots({
+    drives,
+    platformProfile,
+    adapterPools,
+  }: {
+    drives: Array<{
+      component_id: string;
+      name: string;
+      qty: number;
+      m2_interface: string;
+    }>;
+    platformProfile: any;
+    adapterPools: Array<{
+      component_id: string;
+      name: string;
+      remaining: number;
+      drive_type: string;
+    }>;
+  }) {
+    let nativeRemaining = Number(platformProfile?.internal_m2_bays || 0);
+    let nativeUsed = 0;
+    let adapterUsed = 0;
+    const adapterLimit = adapterPools.reduce(
+      (sum, pool) => sum + Number(pool.remaining || 0),
+      0,
+    );
+    const unplaced = [];
+    const gen3SataNativeForbidden = [];
+
+    for (const drive of drives) {
+      const m2Interface = `${drive.m2_interface || ""}`.toUpperCase();
+      let remaining = Number(drive.qty || 0);
+
+      if (this.nativeM2SupportsInterface(platformProfile, m2Interface)) {
+        const nativeQty = Math.min(nativeRemaining, remaining);
+        nativeRemaining -= nativeQty;
+        nativeUsed += nativeQty;
+        remaining -= nativeQty;
+      }
+
+      for (const pool of adapterPools) {
+        if (remaining <= 0) {
+          break;
+        }
+
+        if (pool.remaining <= 0 || !this.m2PoolSupportsInterface(pool.drive_type, m2Interface)) {
+          continue;
+        }
+
+        const adapterQty = Math.min(pool.remaining, remaining);
+        pool.remaining -= adapterQty;
+        adapterUsed += adapterQty;
+        remaining -= adapterQty;
+      }
+
+      if (remaining > 0) {
+        const details = {
+          component_id: drive.component_id,
+          name: drive.name,
+          m2_interface: m2Interface || null,
+          unplaced: remaining,
+          native_m2_available: Number(platformProfile?.internal_m2_bays || 0),
+          adapter_m2_available: adapterLimit,
+        };
+
+        if (m2Interface === "SATA" && this.isGen3M7Platform(platformProfile)) {
+          gen3SataNativeForbidden.push(details);
+        } else {
+          unplaced.push(details);
+        }
+      }
+    }
+
+    return {
+      native_used: nativeUsed,
+      adapter_used: adapterUsed,
+      adapter_limit: adapterLimit,
+      unplaced,
+      gen3_sata_native_forbidden: gen3SataNativeForbidden,
+    };
+  }
+
   private resolveM2Interface({
     driveProfile,
     componentName,
@@ -1347,6 +1699,194 @@ export class ConfiguratorService {
     }
 
     return null;
+  }
+
+  private validateTransceivers({
+    selectedNetworkPorts,
+    selectedTransceivers,
+    compatibilityRules,
+    errors,
+    warnings,
+  }: {
+    selectedNetworkPorts: any[];
+    selectedTransceivers: any[];
+    compatibilityRules: any[];
+    errors: any[];
+    warnings: any[];
+  }) {
+    if (!selectedTransceivers.length) {
+      return;
+    }
+
+    const portGroups: Array<{
+      connectorType: string;
+      speedGbps: number;
+      remaining: number;
+      acceptedKeys: Set<string>;
+    }> = [];
+
+    for (const selectedNetwork of selectedNetworkPorts) {
+      const { component, qty, networkProfile } = selectedNetwork;
+
+      if (!networkProfile) {
+        warnings.push({
+          code: "NETWORK_PROFILE_MISSING",
+          message: "Для сетевого компонента не заполнен профиль портов",
+          details: { component_id: component.id, name: component.name },
+        });
+        continue;
+      }
+
+      const connectorType = this.normalizeConnectorType(
+        networkProfile.connector_type || networkProfile.port_type,
+      );
+      const speedGbps =
+        Number(networkProfile.port_speed_gbps || 0) ||
+        this.normalizeSpeedGbps(networkProfile.port_speed);
+
+      if (!connectorType || !speedGbps || connectorType === "RJ45") {
+        continue;
+      }
+
+      const portCount =
+        Number(networkProfile.port_count || networkProfile.ports_count || 0) *
+        Number(qty || 0);
+      const key = this.buildTransceiverCompatibilityKey(connectorType, speedGbps);
+      portGroups.push({
+        connectorType,
+        speedGbps,
+        remaining: portCount,
+        acceptedKeys: new Set([key]),
+      });
+    }
+
+    for (const rule of compatibilityRules || []) {
+      const networkConnectorType = this.normalizeConnectorType(
+        rule.network_connector_type,
+      );
+      const networkSpeedGbps = Number(rule.network_speed_gbps || 0);
+      const transceiverConnectorType = this.normalizeConnectorType(
+        rule.transceiver_connector_type,
+      );
+      const transceiverSpeedGbps = Number(rule.transceiver_speed_gbps || 0);
+
+      if (!transceiverConnectorType || !transceiverSpeedGbps) {
+        continue;
+      }
+
+      for (const networkPort of portGroups) {
+        if (
+          networkConnectorType &&
+          networkPort.connectorType !== networkConnectorType
+        ) {
+          continue;
+        }
+
+        if (
+          networkSpeedGbps > 0 &&
+          networkPort.speedGbps !== networkSpeedGbps
+        ) {
+          continue;
+        }
+
+        const ruleKey = this.buildTransceiverCompatibilityKey(
+          transceiverConnectorType,
+          transceiverSpeedGbps,
+        );
+        networkPort.acceptedKeys.add(ruleKey);
+      }
+    }
+
+    for (const selectedTransceiver of selectedTransceivers) {
+      const { component, qty, transceiverProfile } = selectedTransceiver;
+
+      if (!transceiverProfile) {
+        warnings.push({
+          code: "TRANSCEIVER_PROFILE_MISSING",
+          message: "Для трансивера не заполнен профиль совместимости",
+          details: { component_id: component.id, name: component.name },
+        });
+        continue;
+      }
+
+      const connectorType = this.normalizeConnectorType(
+        transceiverProfile.connector_type ||
+          transceiverProfile.compatible_port_type ||
+          transceiverProfile.interface_type,
+      );
+      const speedGbps =
+        Number(transceiverProfile.speed_gbps || 0) ||
+        this.normalizeSpeedGbps(transceiverProfile.speed);
+      const key = this.buildTransceiverCompatibilityKey(connectorType, speedGbps);
+      const requestedQty = Number(qty || 0);
+      let remainingQty = requestedQty;
+
+      for (const portGroup of portGroups) {
+        if (remainingQty <= 0) {
+          break;
+        }
+
+        if (!portGroup.acceptedKeys.has(key) || portGroup.remaining <= 0) {
+          continue;
+        }
+
+        const allocated = Math.min(portGroup.remaining, remainingQty);
+        portGroup.remaining -= allocated;
+        remainingQty -= allocated;
+      }
+
+      if (!connectorType || !speedGbps || remainingQty > 0) {
+        errors.push({
+          code: "TRANSCEIVER_INCOMPATIBLE",
+          message: "Трансивер несовместим с выбранными сетевыми портами по разъему или скорости",
+          details: {
+            component_id: component.id,
+            name: component.name,
+            connector_type: connectorType || null,
+            speed_gbps: speedGbps || null,
+            selected: requestedQty,
+            compatible_ports_available: requestedQty - remainingQty,
+          },
+        });
+      }
+    }
+  }
+
+  private normalizeConnectorType(value: string) {
+    const normalized = `${value || ""}`.trim().toUpperCase();
+
+    if (!normalized) return null;
+    if (normalized.includes("RJ45") || normalized.includes("BASE-T")) return "RJ45";
+    if (normalized.includes("SFP28")) return "SFP28";
+    if (normalized.includes("SFP+") || normalized.includes("SFP PLUS")) return "SFP+";
+    if (normalized === "SFP") return "SFP";
+    if (normalized.includes("QSFP28")) return "QSFP28";
+    if (normalized.includes("QSFP+")) return "QSFP+";
+    if (normalized.includes("QSFP")) return "QSFP";
+
+    return normalized;
+  }
+
+  private normalizeSpeedGbps(value: string) {
+    const normalized = `${value || ""}`.trim().toUpperCase().replace(",", ".");
+
+    if (!normalized) return null;
+
+    const match = normalized.match(/([0-9]+(?:\.[0-9]+)?)/);
+    if (!match) return null;
+
+    const speed = Number(match[1]);
+    if (!Number.isFinite(speed)) return null;
+
+    if (normalized.includes("M") && !normalized.includes("G")) {
+      return speed / 1000;
+    }
+
+    return speed;
+  }
+
+  private buildTransceiverCompatibilityKey(connectorType: string, speedGbps: number) {
+    return `${connectorType || ""}:${speedGbps || ""}`;
   }
 
   private validatePsu({
@@ -1566,8 +2106,9 @@ export class ConfiguratorService {
 
     const placements = [];
     const unplaced = [];
+    const orderedDrives = this.orderDrivesForPlacement(drives, platformProfile);
 
-    for (const drive of drives) {
+    for (const drive of orderedDrives) {
       const placementResult = this.placeDriveIntoBays(drive, availableBays);
       placements.push(...placementResult.placements);
 
@@ -1583,6 +2124,40 @@ export class ConfiguratorService {
     }
 
     return { placements, unplaced };
+  }
+
+  private orderDrivesForPlacement(drives: any[], platformProfile: any) {
+    const isEr220 = `${platformProfile?.platform_code || platformProfile?.family || ""}`
+      .toUpperCase()
+      .includes("ER220");
+
+    return [...drives].sort((a, b) => {
+      if (isEr220) {
+        const formFactorDiff =
+          this.er220DriveFormFactorRank(a.form_factor) -
+          this.er220DriveFormFactorRank(b.form_factor);
+        if (formFactorDiff !== 0) return formFactorDiff;
+      }
+
+      return (
+        this.driveTypePlacementRank(a.drive_type) -
+          this.driveTypePlacementRank(b.drive_type) ||
+        `${a.form_factor || ""}`.localeCompare(`${b.form_factor || ""}`) ||
+        `${a.name || ""}`.localeCompare(`${b.name || ""}`, "ru")
+      );
+    });
+  }
+
+  private er220DriveFormFactorRank(formFactor: string) {
+    return `${formFactor || ""}`.trim() === "3.5" ? 0 : 1;
+  }
+
+  private driveTypePlacementRank(driveType: string) {
+    const normalized = `${driveType || ""}`.toUpperCase();
+    if (normalized === "NVME") return 0;
+    if (normalized === "SAS") return 1;
+    if (normalized === "SATA") return 2;
+    return 9;
   }
 
   private isHsrPlatform(platformProfile: any) {
@@ -1967,6 +2542,14 @@ export class ConfiguratorService {
     return ["raid", "hba", "ehba", "vroc"].includes(typeKey);
   }
 
+  private isNetworkType(typeKey: string) {
+    return ["nic", "network", "ocp", "fc", "ib"].includes(typeKey);
+  }
+
+  private isTransceiverType(typeKey: string) {
+    return ["transceiver", "dac_cable", "optical_cable"].includes(typeKey);
+  }
+
   private defaultCoefficient(typeKey: string) {
     return ["platform", "psu", "service", "software", "raidix_license", "power_cable"].includes(
       typeKey,
@@ -2293,8 +2876,14 @@ export class ConfiguratorService {
               ? {
                   network_kind: mappedComponent.network_profile.network_kind,
                   port_type: mappedComponent.network_profile.port_type,
+                  connector_type: mappedComponent.network_profile.connector_type,
                   port_speed: mappedComponent.network_profile.port_speed,
+                  port_speed_gbps:
+                    mappedComponent.network_profile.port_speed_gbps,
                   ports_count: mappedComponent.network_profile.ports_count,
+                  port_count: mappedComponent.network_profile.port_count,
+                  supported_media:
+                    mappedComponent.network_profile.supported_media,
                   pcie_lanes: mappedComponent.network_profile.pcie_lanes,
                   rear_pcie_lanes: mappedComponent.network_profile.rear_pcie_lanes,
                   physical_slots: mappedComponent.network_profile.physical_slots,
@@ -2313,6 +2902,10 @@ export class ConfiguratorService {
                     mappedComponent.controller_profile.physical_slots,
                   internal_ports:
                     mappedComponent.controller_profile.internal_ports,
+                  m2_slot_count:
+                    mappedComponent.controller_profile.m2_slot_count,
+                  m2_drive_type:
+                    mappedComponent.controller_profile.m2_drive_type,
                   supports_sata:
                     mappedComponent.controller_profile.supports_sata,
                   supports_sas: mappedComponent.controller_profile.supports_sas,
@@ -2341,9 +2934,14 @@ export class ConfiguratorService {
               ? {
                   interface_type:
                     mappedComponent.transceiver_profile.interface_type,
+                  connector_type:
+                    mappedComponent.transceiver_profile.connector_type,
                   speed: mappedComponent.transceiver_profile.speed,
+                  speed_gbps: mappedComponent.transceiver_profile.speed_gbps,
                   media_type: mappedComponent.transceiver_profile.media_type,
                   wavelength: mappedComponent.transceiver_profile.wavelength,
+                  wavelength_or_length:
+                    mappedComponent.transceiver_profile.wavelength_or_length,
                   compatible_port_type:
                     mappedComponent.transceiver_profile.compatible_port_type,
                 }
@@ -2380,7 +2978,76 @@ export class ConfiguratorService {
       return result;
     }
 
-    return transformData(data);
+    return this.sortPublicComponents(transformData(data));
+  }
+
+  private sortPublicComponents(components: any[]) {
+    return [...components].sort((a, b) => {
+      if (a?.profile?.drive && b?.profile?.drive) {
+        return this.compareDriveComponents(a, b);
+      }
+
+      return 0;
+    });
+  }
+
+  private compareDriveComponents(a: any, b: any) {
+    const capacityA = this.getDriveCapacityGb(a);
+    const capacityB = this.getDriveCapacityGb(b);
+    const capacityRankA = capacityA == null ? Number.MAX_SAFE_INTEGER : capacityA;
+    const capacityRankB = capacityB == null ? Number.MAX_SAFE_INTEGER : capacityB;
+    const capacityDiff = capacityRankA - capacityRankB;
+    if (capacityDiff !== 0) return capacityDiff;
+
+    const driveA = a?.profile?.drive;
+    const driveB = b?.profile?.drive;
+    const interfaceDiff = this.normalizeSortText(
+      driveA?.m2_interface || driveA?.interface_type || driveA?.drive_type,
+    ).localeCompare(
+      this.normalizeSortText(driveB?.m2_interface || driveB?.interface_type || driveB?.drive_type),
+      "ru",
+    );
+    if (interfaceDiff !== 0) return interfaceDiff;
+
+    const formFactorDiff = this.normalizeSortText(driveA?.form_factor).localeCompare(
+      this.normalizeSortText(driveB?.form_factor),
+      "ru",
+    );
+    if (formFactorDiff !== 0) return formFactorDiff;
+
+    const classDiff = this.normalizeSortText(
+      driveA?.workload_class || driveA?.speed_class || driveA?.media_kind,
+    ).localeCompare(
+      this.normalizeSortText(driveB?.workload_class || driveB?.speed_class || driveB?.media_kind),
+      "ru",
+    );
+    if (classDiff !== 0) return classDiff;
+
+    return `${a?.name || ""}`.localeCompare(`${b?.name || ""}`, "ru", {
+      numeric: true,
+    });
+  }
+
+  private getDriveCapacityGb(component: any) {
+    const explicit = Number(component?.profile?.drive?.capacity_gb || 0);
+    if (explicit > 0) return explicit;
+    return this.parseCapacityGb(component?.name);
+  }
+
+  private parseCapacityGb(value?: string | null) {
+    const source = `${value || ""}`.replace(",", ".");
+    const match = source.match(/(\d+(?:\.\d+)?)\s*(TB|Tb|ТБ|GB|Gb|ГБ)(?=$|[\s,.;)/-])/i);
+    if (!match) return null;
+
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return null;
+
+    const unit = match[2].toUpperCase();
+    return unit.includes("T") || unit.includes("Т") ? amount * 1000 : amount;
+  }
+
+  private normalizeSortText(value?: string | null) {
+    return `${value || ""}`.trim().toUpperCase();
   }
 
   async getComponentTypes() {

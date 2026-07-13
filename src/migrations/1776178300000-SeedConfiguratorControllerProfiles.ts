@@ -15,6 +15,8 @@ type ControllerProfile = {
   rear_pcie_lanes: number;
   physical_slots: number;
   internal_ports: number;
+  m2_slot_count: number;
+  m2_drive_type: string | null;
   supports_sata: boolean;
   supports_sas: boolean;
   supports_nvme: boolean;
@@ -95,6 +97,8 @@ export class SeedConfiguratorControllerProfiles1776178300000
         rear_pcie_lanes: 0,
         physical_slots: 0,
         internal_ports: 0,
+        m2_slot_count: 0,
+        m2_drive_type: null,
         supports_sata: false,
         supports_sas: false,
         supports_nvme: true,
@@ -117,6 +121,8 @@ export class SeedConfiguratorControllerProfiles1776178300000
       rear_pcie_lanes: 8,
       physical_slots: 1,
       internal_ports: this.parseInternalPorts(upper),
+      m2_slot_count: this.parseM2SlotCount(upper),
+      m2_drive_type: this.parseM2DriveType(upper),
       supports_sata: !isEhba,
       supports_sas: true,
       supports_nvme: false,
@@ -138,6 +144,32 @@ export class SeedConfiguratorControllerProfiles1776178300000
     }
 
     return 0;
+  }
+
+  private parseM2SlotCount(upperName: string) {
+    if (!upperName.includes("M.2")) {
+      return 0;
+    }
+
+    const explicitMatch = upperName.match(/([0-9]+)\s*(?:X|PORT|PORTS|ПОРТ)/);
+    if (explicitMatch) {
+      return Number(explicitMatch[1]);
+    }
+
+    return 2;
+  }
+
+  private parseM2DriveType(upperName: string) {
+    if (!upperName.includes("M.2")) {
+      return null;
+    }
+
+    const hasSata = upperName.includes("SATA");
+    const hasNvme = upperName.includes("NVME");
+
+    if (hasSata && hasNvme) return "SATA+NVME";
+    if (hasSata) return "SATA";
+    return "NVME";
   }
 
   private async seedCatalogProfile(
@@ -213,12 +245,14 @@ export class SeedConfiguratorControllerProfiles1776178300000
           rear_pcie_lanes,
           physical_slots,
           internal_ports,
+          m2_slot_count,
+          m2_drive_type,
           supports_sata,
           supports_sas,
           supports_nvme,
           power_w
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         randomUUID(),
@@ -228,6 +262,8 @@ export class SeedConfiguratorControllerProfiles1776178300000
         profile.rear_pcie_lanes,
         profile.physical_slots,
         profile.internal_ports,
+        profile.m2_slot_count,
+        profile.m2_drive_type,
         profile.supports_sata ? 1 : 0,
         profile.supports_sas ? 1 : 0,
         profile.supports_nvme ? 1 : 0,

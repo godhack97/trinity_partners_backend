@@ -15,13 +15,22 @@ export class CnfTransceiverProfileEntity extends BasisUUIDEntity {
   interface_type: string;
 
   @Column({ nullable: true })
+  connector_type: string;
+
+  @Column({ nullable: true })
   speed: string;
+
+  @Column({ type: "float", nullable: true })
+  speed_gbps: number;
 
   @Column({ nullable: true })
   media_type: string;
 
   @Column({ nullable: true })
   wavelength: string;
+
+  @Column({ nullable: true })
+  wavelength_or_length: string;
 
   @Column({ nullable: true })
   compatible_port_type: string;

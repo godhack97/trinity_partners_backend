@@ -235,6 +235,15 @@ export class ControllerProfileDto {
   internal_ports?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  m2_slot_count?: number;
+
+  @IsOptional()
+  @IsString()
+  m2_drive_type?: string;
+
+  @IsOptional()
   @IsBoolean()
   supports_sata?: boolean;
 
@@ -262,12 +271,30 @@ export class NetworkProfileDto {
 
   @IsOptional()
   @IsString()
+  connector_type?: string;
+
+  @IsOptional()
+  @IsString()
   port_speed?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  port_speed_gbps?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
   ports_count?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  port_count?: number;
+
+  @IsOptional()
+  @IsString()
+  supported_media?: string;
 
   @IsOptional()
   @IsInt()
@@ -323,7 +350,16 @@ export class TransceiverProfileDto {
 
   @IsOptional()
   @IsString()
+  connector_type?: string;
+
+  @IsOptional()
+  @IsString()
   speed?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  speed_gbps?: number;
 
   @IsOptional()
   @IsString()
@@ -332,6 +368,10 @@ export class TransceiverProfileDto {
   @IsOptional()
   @IsString()
   wavelength?: string;
+
+  @IsOptional()
+  @IsString()
+  wavelength_or_length?: string;
 
   @IsOptional()
   @IsString()

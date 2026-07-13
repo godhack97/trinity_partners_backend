@@ -4,7 +4,10 @@ import { ConfiguratorService } from "./configurator.service";
 import { SearchComponentsDto } from "./dto/request/search-components.request.dto";
 import { CreateComponentTypeDto } from "./dto/request/create-component-type.dto";
 import { UpdateComponentTypeDto } from "./dto/request/update-component-type.dto";
-import { ValidateConfiguratorRequestDto } from "./dto/request/validate-configurator.request.dto";
+import {
+  DryRunRemoveConfiguratorRequestDto,
+  ValidateConfiguratorRequestDto,
+} from "./dto/request/validate-configurator.request.dto";
 import { LogAction } from "@app/logs/log-action.decorator";
 @ApiTags("configurator")
 @Controller("configurator")
@@ -96,6 +99,12 @@ export class ConfiguratorController {
   @ApiOperation({ summary: "Проверить конфигурацию и рассчитать ресурсы" })
   validateConfiguration(@Body() dto: ValidateConfiguratorRequestDto) {
     return this.configuratorService.validateConfiguration(dto);
+  }
+
+  @Post("dry-run/remove-component")
+  @ApiOperation({ summary: "Предварительно проверить удаление компонента из конфигурации" })
+  dryRunRemoveComponent(@Body() dto: DryRunRemoveConfiguratorRequestDto) {
+    return this.configuratorService.dryRunRemoveComponent(dto);
   }
 
   @Get("componentType/:id")

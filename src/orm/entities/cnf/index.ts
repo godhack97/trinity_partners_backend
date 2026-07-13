@@ -25,5 +25,6 @@ export * from "./cnf-controller-profile.entity";
 export * from "./cnf-network-profile.entity";
 export * from "./cnf-gpu-profile.entity";
 export * from "./cnf-transceiver-profile.entity";
+export * from "./cnf-transceiver-compatibility-rule.entity";
 export * from "./cnf-psu-profile.entity";
 export * from "./cnf-service-profile.entity";

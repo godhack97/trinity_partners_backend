@@ -182,7 +182,7 @@ const SEEDS: PlatformSeed[] = [
       base_power_w: 360,
       direct_sata_limit: 2,
       internal_m2_bays: 2,
-      is_active: false,
+      is_active: true,
     },
     bays: [
       {

@@ -189,6 +189,20 @@ function parseSpeed(name) {
   return match ? `${match[1]}Gbps` : null;
 }
 
+function parseSpeedGbps(speed) {
+  const value = String(speed || "");
+  const dualSpeed = value.match(/(\d+)\/(\d+)/);
+  if (dualSpeed) return Number(dualSpeed[2]);
+
+  const match = value.match(/(\d+(?:[.,]\d+)?)/);
+  return match ? toNumber(match[1], null) : null;
+}
+
+function isCopperConnector(connector) {
+  const value = String(connector || "").toUpperCase();
+  return value.includes("RJ45") || value.includes("RJ-45") || value.includes("BASE-T");
+}
+
 function parsePsuPower(name, explicitPower) {
   const explicit = toNumber(explicitPower, 0);
   if (explicit > 0) return explicit;
@@ -709,13 +723,18 @@ async function insertSpecialProfile(connection, componentId, component) {
   }
 
   if (["nic", "ocp"].includes(component.typeKey)) {
+    const portSpeedGbps = parseSpeedGbps(component.portSpeed);
     await insert(connection, "cnf_network_profiles", {
       id: randomUUID(),
       component_id: componentId,
       network_kind: component.typeKey === "ocp" ? "ocp" : component.networkKind || "nic",
       port_type: component.portType,
+      connector_type: component.portType,
       port_speed: component.portSpeed,
+      port_speed_gbps: portSpeedGbps,
       ports_count: component.portsCount || 1,
+      port_count: component.portsCount || 1,
+      supported_media: isCopperConnector(component.portType) ? "copper" : "optical,dac",
       pcie_lanes: component.pcieLanes || 0,
       rear_pcie_lanes: component.rearPcieLanes || 0,
       physical_slots: component.typeKey === "ocp" ? 0 : component.physicalSlots || 1,
@@ -736,13 +755,17 @@ async function insertSpecialProfile(connection, componentId, component) {
   }
 
   if (component.typeKey === "transceiver") {
+    const speedGbps = parseSpeedGbps(component.portSpeed);
     await insert(connection, "cnf_transceiver_profiles", {
       id: randomUUID(),
       component_id: componentId,
       interface_type: component.interfaceType || "optical",
+      connector_type: component.interfaceType,
       speed: component.portSpeed,
+      speed_gbps: speedGbps,
       media_type: "optical",
       wavelength: null,
+      wavelength_or_length: null,
       compatible_port_type: component.interfaceType,
     });
   }

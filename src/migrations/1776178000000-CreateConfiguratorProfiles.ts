@@ -192,6 +192,8 @@ export class CreateConfiguratorProfiles1776178000000
         rear_pcie_lanes int NOT NULL DEFAULT 8,
         physical_slots int NOT NULL DEFAULT 1,
         internal_ports int NOT NULL DEFAULT 0,
+        m2_slot_count int NOT NULL DEFAULT 0,
+        m2_drive_type varchar(20) DEFAULT NULL,
         supports_sata tinyint NOT NULL DEFAULT 1,
         supports_sas tinyint NOT NULL DEFAULT 1,
         supports_nvme tinyint NOT NULL DEFAULT 0,
@@ -210,8 +212,12 @@ export class CreateConfiguratorProfiles1776178000000
         component_id varchar(36) COLLATE utf8mb4_bin NOT NULL,
         network_kind varchar(20) NOT NULL,
         port_type varchar(30) DEFAULT NULL,
+        connector_type varchar(30) DEFAULT NULL,
         port_speed varchar(30) DEFAULT NULL,
+        port_speed_gbps float DEFAULT NULL,
         ports_count int NOT NULL DEFAULT 1,
+        port_count int DEFAULT NULL,
+        supported_media varchar(100) DEFAULT NULL,
         pcie_lanes int NOT NULL DEFAULT 8,
         rear_pcie_lanes int NOT NULL DEFAULT 8,
         physical_slots int NOT NULL DEFAULT 1,
@@ -247,15 +253,33 @@ export class CreateConfiguratorProfiles1776178000000
         id varchar(36) COLLATE utf8mb4_bin NOT NULL,
         component_id varchar(36) COLLATE utf8mb4_bin NOT NULL,
         interface_type varchar(30) NOT NULL,
+        connector_type varchar(30) DEFAULT NULL,
         speed varchar(30) DEFAULT NULL,
+        speed_gbps float DEFAULT NULL,
         media_type varchar(50) DEFAULT NULL,
         wavelength varchar(50) DEFAULT NULL,
+        wavelength_or_length varchar(50) DEFAULT NULL,
         compatible_port_type varchar(30) DEFAULT NULL,
         created_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
         updated_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
         PRIMARY KEY (id),
         UNIQUE KEY UQ_cnf_transceiver_profiles_component_id (component_id),
         CONSTRAINT FK_cnf_transceiver_profiles_component_id FOREIGN KEY (component_id) REFERENCES cnf_components(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS cnf_transceiver_compatibility_rules (
+        id varchar(36) COLLATE utf8mb4_bin NOT NULL,
+        network_connector_type varchar(30) DEFAULT NULL,
+        network_speed_gbps float DEFAULT NULL,
+        transceiver_connector_type varchar(30) DEFAULT NULL,
+        transceiver_speed_gbps float DEFAULT NULL,
+        is_allowed tinyint NOT NULL DEFAULT 1,
+        note varchar(255) DEFAULT NULL,
+        created_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+        updated_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+        PRIMARY KEY (id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 

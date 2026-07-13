@@ -10,6 +10,11 @@ export class ValidateConfiguratorItemDto {
   @ApiProperty({ default: 1 })
   @Min(0)
   qty: number;
+
+  @ApiPropertyOptional({ enum: ["manual", "auto_added", "suppressed"], default: "manual" })
+  @IsOptional()
+  @IsString()
+  source?: "manual" | "auto_added" | "suppressed";
 }
 
 export class ValidateConfiguratorOptionsDto {
@@ -17,6 +22,11 @@ export class ValidateConfiguratorOptionsDto {
   @IsOptional()
   @IsBoolean()
   strict?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  rear_to_pcie?: boolean;
 }
 
 export class ValidateConfiguratorSupportDto {
@@ -60,4 +70,10 @@ export class ValidateConfiguratorRequestDto {
   @ValidateNested()
   @Type(() => ValidateConfiguratorSupportDto)
   support?: ValidateConfiguratorSupportDto;
+}
+
+export class DryRunRemoveConfiguratorRequestDto extends ValidateConfiguratorRequestDto {
+  @ApiProperty()
+  @IsString()
+  remove_component_id: string;
 }

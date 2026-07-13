@@ -18,10 +18,22 @@ export class CnfNetworkProfileEntity extends BasisUUIDEntity {
   port_type: string;
 
   @Column({ nullable: true })
+  connector_type: string;
+
+  @Column({ nullable: true })
   port_speed: string;
+
+  @Column({ type: "float", nullable: true })
+  port_speed_gbps: number;
 
   @Column({ type: "int", default: 1 })
   ports_count: number;
+
+  @Column({ type: "int", nullable: true })
+  port_count: number;
+
+  @Column({ nullable: true })
+  supported_media: string;
 
   @Column({ type: "int", default: 8 })
   pcie_lanes: number;

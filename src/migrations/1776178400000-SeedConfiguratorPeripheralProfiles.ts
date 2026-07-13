@@ -12,8 +12,12 @@ type NetworkProfile = {
   component_type_key: string;
   network_kind: string;
   port_type: string | null;
+  connector_type: string | null;
   port_speed: string | null;
+  port_speed_gbps: number | null;
   ports_count: number;
+  port_count: number;
+  supported_media: string | null;
   pcie_lanes: number;
   rear_pcie_lanes: number;
   physical_slots: number;
@@ -31,9 +35,12 @@ type GpuProfile = {
 
 type TransceiverProfile = {
   interface_type: string;
+  connector_type: string | null;
   speed: string | null;
+  speed_gbps: number | null;
   media_type: string | null;
   wavelength: string | null;
+  wavelength_or_length: string | null;
   compatible_port_type: string;
 };
 
@@ -164,8 +171,12 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
       component_type_key: isOcp ? "ocp" : "nic",
       network_kind: isOcp ? "ocp" : upper.includes("FC") || upper.includes("FIBRECHANNEL") ? "fc" : "nic",
       port_type: portType,
+      connector_type: portType,
       port_speed: speed,
+      port_speed_gbps: this.parseSpeedGbps(speed),
       ports_count: portsCount,
+      port_count: portsCount,
+      supported_media: portType === "RJ-45" ? "copper" : "optical,dac",
       pcie_lanes: speed === "100Gbps" ? 16 : 8,
       rear_pcie_lanes: isOcp ? 16 : speed === "100Gbps" ? 16 : 8,
       physical_slots: isOcp ? 0 : 1,
@@ -227,9 +238,12 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
 
     return {
       interface_type: interfaceType,
+      connector_type: interfaceType,
       speed: this.parseSpeed(upper),
+      speed_gbps: this.parseSpeedGbps(this.parseSpeed(upper)),
       media_type: upper.includes("RJ-45") ? "copper" : "optical",
       wavelength: upper.includes(" LR") ? "LR" : upper.includes(" SR") ? "SR" : null,
+      wavelength_or_length: upper.includes(" LR") ? "LR" : upper.includes(" SR") ? "SR" : null,
       compatible_port_type: interfaceType,
     };
   }
@@ -261,6 +275,11 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
     }
 
     return null;
+  }
+
+  private parseSpeedGbps(speed: string | null) {
+    const match = `${speed || ""}`.match(/([0-9]+(?:\.[0-9]+)?)/);
+    return match ? Number(match[1]) : null;
   }
 
   private async seedCatalogProfile(
@@ -326,23 +345,31 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
           component_id,
           network_kind,
           port_type,
+          connector_type,
           port_speed,
+          port_speed_gbps,
           ports_count,
+          port_count,
+          supported_media,
           pcie_lanes,
           rear_pcie_lanes,
           physical_slots,
           ocp_slots,
           power_w
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         randomUUID(),
         componentId,
         profile.network_kind,
         profile.port_type,
+        profile.connector_type,
         profile.port_speed,
+        profile.port_speed_gbps,
         profile.ports_count,
+        profile.port_count,
+        profile.supported_media,
         profile.pcie_lanes,
         profile.rear_pcie_lanes,
         profile.physical_slots,
@@ -401,20 +428,26 @@ export class SeedConfiguratorPeripheralProfiles1776178400000
           id,
           component_id,
           interface_type,
+          connector_type,
           speed,
+          speed_gbps,
           media_type,
           wavelength,
+          wavelength_or_length,
           compatible_port_type
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         randomUUID(),
         componentId,
         profile.interface_type,
+        profile.connector_type,
         profile.speed,
+        profile.speed_gbps,
         profile.media_type,
         profile.wavelength,
+        profile.wavelength_or_length,
         profile.compatible_port_type,
       ],
     );
