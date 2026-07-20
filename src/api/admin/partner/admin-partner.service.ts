@@ -231,7 +231,7 @@ export default class AdminPartnerService {
     if (!companyEntity)
       throw new HttpException(
         `Компания не найдена: ${id}`,
-        HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND,
       );
 
     this.assertCompanyStatus(
@@ -293,7 +293,7 @@ export default class AdminPartnerService {
     if (!companyEntity)
       throw new HttpException(
         `Компания не найдена: ${id}`,
-        HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND,
       );
 
     this.assertCompanyStatus(
@@ -494,7 +494,7 @@ export default class AdminPartnerService {
     if (!companyEntity)
       throw new HttpException(
         `Компания не найдена: ${id}`,
-        HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND,
       );
 
     this.assertCompanyStatus(

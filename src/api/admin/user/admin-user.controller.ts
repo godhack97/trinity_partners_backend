@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Post, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { AdminUserService } from "./admin-user.service";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
@@ -20,7 +27,7 @@ export class AdminUserController {
   }
 
   @Post(":id/restore-employee")
-  restoreCompanyEmployee(@Param("id") id: string) {
-    return this.adminUserRequest.restoreCompanyEmployee(+id);
+  restoreCompanyEmployee(@Param("id", ParseIntPipe) id: number) {
+    return this.adminUserRequest.restoreCompanyEmployee(id);
   }
 }
