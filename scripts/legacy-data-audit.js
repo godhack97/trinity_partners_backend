@@ -176,6 +176,106 @@ async function run() {
       FROM tickets
     `);
 
+    const ticketAssignmentReadiness = await queryOne(connection, `
+      WITH eligible_partner_managers AS (
+        SELECT user.id
+        FROM users user
+        LEFT JOIN roles primary_role ON primary_role.id = user.role_id
+        LEFT JOIN user_roles user_role ON user_role.user_id = user.id
+        LEFT JOIN roles secondary_role ON secondary_role.id = user_role.role_id
+        WHERE user.deleted_at IS NULL
+          AND user.is_activated = 1
+          AND (
+            (primary_role.name = 'partner_manager' AND primary_role.deleted_at IS NULL)
+            OR (secondary_role.name = 'partner_manager' AND secondary_role.deleted_at IS NULL)
+          )
+        GROUP BY user.id
+      ),
+      eligible_technical_specialists AS (
+        SELECT user.id
+        FROM users user
+        LEFT JOIN roles primary_role ON primary_role.id = user.role_id
+        LEFT JOIN user_roles user_role ON user_role.user_id = user.id
+        LEFT JOIN roles secondary_role ON secondary_role.id = user_role.role_id
+        WHERE user.deleted_at IS NULL
+          AND user.is_activated = 1
+          AND (
+            (primary_role.name = 'technical_specialist' AND primary_role.deleted_at IS NULL)
+            OR (secondary_role.name = 'technical_specialist' AND secondary_role.deleted_at IS NULL)
+          )
+        GROUP BY user.id
+      )
+      SELECT
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NOT NULL
+          AND (
+            assignee.id IS NULL
+            OR assignee.deleted_at IS NOT NULL
+            OR assignee.is_activated <> 1
+          )
+        ) AS active_assigned_to_missing_or_inactive_user_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NOT NULL
+          AND (
+            (ticket.type = 'manager' AND assigned_partner_manager.id IS NULL)
+            OR (
+              ticket.type = 'tech_specialist'
+              AND assigned_technical_specialist.id IS NULL
+            )
+          )
+        ) AS active_assigned_role_mismatch_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NULL
+          AND ticket.type = 'manager'
+        ) AS active_unassigned_manager_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NULL
+          AND ticket.type = 'tech_specialist'
+        ) AS active_unassigned_technical_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NULL
+          AND creator.manager_id IS NULL
+        ) AS active_unassigned_without_creator_manager_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NULL
+          AND creator.manager_id IS NOT NULL
+          AND creator_partner_manager.id IS NULL
+        ) AS active_unassigned_with_ineligible_creator_manager_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NULL
+          AND creator_partner_manager.id IS NOT NULL
+        ) AS active_unassigned_with_eligible_creator_manager_rows,
+        SUM(
+          ticket.deleted_at IS NULL
+          AND ticket.assignee_id IS NULL
+          AND ticket.type = 'manager'
+          AND creator_partner_manager.id IS NOT NULL
+        ) AS manager_rows_with_deterministic_backfill_candidate,
+        (SELECT COUNT(*) FROM eligible_technical_specialists)
+          AS active_technical_specialist_candidates
+      FROM tickets ticket
+      LEFT JOIN users creator ON creator.id = ticket.creator_id
+      LEFT JOIN users assignee ON assignee.id = ticket.assignee_id
+      LEFT JOIN eligible_partner_managers creator_partner_manager
+        ON creator_partner_manager.id = creator.manager_id
+      LEFT JOIN eligible_partner_managers assigned_partner_manager
+        ON assigned_partner_manager.id = ticket.assignee_id
+      LEFT JOIN eligible_technical_specialists assigned_technical_specialist
+        ON assigned_technical_specialist.id = ticket.assignee_id
+    `);
+
+    ticketAssignmentReadiness.technical_rows_with_unique_backfill_candidate =
+      ticketAssignmentReadiness.active_technical_specialist_candidates === 1
+        ? ticketAssignmentReadiness.active_unassigned_technical_rows
+        : 0;
+
     const bitrix24 = {
       deals: await queryOne(connection, `
         SELECT
@@ -246,7 +346,11 @@ async function run() {
           ),
           deals,
           distributors,
-          tickets: { ...tickets, statuses: ticketStatuses },
+          tickets: {
+            ...tickets,
+            statuses: ticketStatuses,
+            assignment_readiness: ticketAssignmentReadiness,
+          },
           bitrix24,
         },
         null,

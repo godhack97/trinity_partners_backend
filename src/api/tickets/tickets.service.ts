@@ -38,12 +38,18 @@ export class TicketsService {
     });
   }
 
-  private isTicketHandler(user: UserEntity): boolean {
+  private hasRole(user: UserEntity, roleName: RoleTypes): boolean {
     const roleNames = new Set([
       user.role?.name,
       ...(user.roles || []).map((role) => role.name),
     ]);
-    return TICKET_HANDLER_ROLES.some((roleName) => roleNames.has(roleName));
+    return roleNames.has(roleName);
+  }
+
+  private isTicketHandler(user: UserEntity): boolean {
+    return TICKET_HANDLER_ROLES.some((roleName) =>
+      this.hasRole(user, roleName),
+    );
   }
 
   async findAll(auth_user: UserEntity) {
@@ -267,7 +273,15 @@ export class TicketsService {
     type: "manager" | "tech_specialist",
   ) {
     if (type === "manager") {
-      return auth_user.manager_id || null;
+      if (!auth_user.manager_id) return null;
+
+      const manager = await this.userRepository.findByIdWithPermissions(
+        auth_user.manager_id,
+      );
+      return manager?.is_activated &&
+        this.hasRole(manager, RoleTypes.PartnerManager)
+        ? manager.id
+        : null;
     }
 
     const techSpecialist = await this.userRepository
@@ -275,9 +289,13 @@ export class TicketsService {
       .leftJoin("user_roles", "ur", "u.id = ur.user_id")
       .leftJoin("roles", "r", "ur.role_id = r.id")
       .leftJoin("roles", "primary_role", "u.role_id = primary_role.id")
-      .where("r.name = :roleName OR primary_role.name = :roleName", {
-        roleName: RoleTypes.TechnicalSpecialist,
-      })
+      .where(
+        "(r.name = :roleName AND r.deleted_at IS NULL) " +
+          "OR (primary_role.name = :roleName AND primary_role.deleted_at IS NULL)",
+        { roleName: RoleTypes.TechnicalSpecialist },
+      )
+      .andWhere("u.deleted_at IS NULL")
+      .andWhere("u.is_activated = :isActivated", { isActivated: true })
       .orderBy("u.id", "ASC")
       .getOne();
 

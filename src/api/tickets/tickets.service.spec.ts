@@ -34,6 +34,14 @@ describe("TicketsService handler roles", () => {
   };
   const userRepository = {
     createQueryBuilder: jest.fn(),
+    findByIdWithPermissions: jest.fn(),
+  };
+  const assigneeQueryBuilder = {
+    leftJoin: jest.fn(),
+    where: jest.fn(),
+    andWhere: jest.fn(),
+    orderBy: jest.fn(),
+    getOne: jest.fn(),
   };
 
   const service = new TicketsService(
@@ -64,6 +72,19 @@ describe("TicketsService handler roles", () => {
     ticketRepository.update.mockResolvedValue({ affected: 1 });
     ticketMessageRepository.save.mockResolvedValue({ id: 1 });
     notificationService.send.mockResolvedValue(undefined);
+    for (const method of [
+      "leftJoin",
+      "where",
+      "andWhere",
+      "orderBy",
+    ] as const) {
+      assigneeQueryBuilder[method].mockReturnValue(assigneeQueryBuilder);
+    }
+    assigneeQueryBuilder.getOne.mockResolvedValue({ id: 55 });
+    userRepository.createQueryBuilder.mockReturnValue(assigneeQueryBuilder);
+    userRepository.findByIdWithPermissions.mockResolvedValue(
+      userWithRoles(99, RoleTypes.Employee, [RoleTypes.PartnerManager]),
+    );
   });
 
   it.each([RoleTypes.PartnerManager, RoleTypes.TechnicalSpecialist])(
@@ -152,5 +173,68 @@ describe("TicketsService handler roles", () => {
       status: HttpStatus.FORBIDDEN,
     });
     expect(ticketRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it("assigns technical tickets only to an active non-archived specialist", async () => {
+    const creator = userWithRoles(12, RoleTypes.Partner);
+
+    await expect(
+      (service as any).resolveAssigneeId(creator, "tech_specialist"),
+    ).resolves.toBe(55);
+
+    expect(assigneeQueryBuilder.where).toHaveBeenCalledWith(
+      expect.stringContaining("r.deleted_at IS NULL"),
+      { roleName: RoleTypes.TechnicalSpecialist },
+    );
+    expect(assigneeQueryBuilder.where).toHaveBeenCalledWith(
+      expect.stringContaining("primary_role.deleted_at IS NULL"),
+      { roleName: RoleTypes.TechnicalSpecialist },
+    );
+    expect(assigneeQueryBuilder.andWhere).toHaveBeenCalledWith(
+      "u.deleted_at IS NULL",
+    );
+    expect(assigneeQueryBuilder.andWhere).toHaveBeenCalledWith(
+      "u.is_activated = :isActivated",
+      { isActivated: true },
+    );
+    expect(assigneeQueryBuilder.orderBy).toHaveBeenCalledWith("u.id", "ASC");
+  });
+
+  it("assigns manager tickets only to an active partner manager", async () => {
+    const creator = userWithRoles(12, RoleTypes.Partner);
+    userRepository.findByIdWithPermissions.mockResolvedValue({
+      ...userWithRoles(99, RoleTypes.Employee, [RoleTypes.PartnerManager]),
+      is_activated: true,
+    });
+
+    await expect(
+      (service as any).resolveAssigneeId(creator, "manager"),
+    ).resolves.toBe(99);
+    expect(userRepository.findByIdWithPermissions).toHaveBeenCalledWith(99);
+  });
+
+  it.each([
+    {
+      label: "inactive manager",
+      manager: {
+        ...userWithRoles(99, RoleTypes.Employee, [RoleTypes.PartnerManager]),
+        is_activated: false,
+      },
+    },
+    {
+      label: "user without partner_manager role",
+      manager: {
+        ...userWithRoles(99, RoleTypes.Employee),
+        is_activated: true,
+      },
+    },
+    { label: "missing manager", manager: null },
+  ])("does not assign a $label", async ({ manager }) => {
+    const creator = userWithRoles(12, RoleTypes.Partner);
+    userRepository.findByIdWithPermissions.mockResolvedValue(manager);
+
+    await expect(
+      (service as any).resolveAssigneeId(creator, "manager"),
+    ).resolves.toBeNull();
   });
 });
