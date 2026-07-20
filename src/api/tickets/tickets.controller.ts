@@ -6,6 +6,7 @@ import {
   Patch,
   Body,
   Param,
+  ParseIntPipe,
   UseInterceptors,
 } from "@nestjs/common";
 import { UserEntity } from "@orm/entities";
@@ -38,8 +39,11 @@ export class TicketsController {
   @Get(":id")
   @UseInterceptors(new TransformResponse(TicketResponseDto))
   @ApiResponse({ type: TicketResponseDto })
-  findOne(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
-    return this.ticketsService.findOne(+id, auth_user);
+  findOne(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.ticketsService.findOne(id, auth_user);
   }
 
   @Post()
@@ -58,31 +62,40 @@ export class TicketsController {
   @UseInterceptors(new TransformResponse(TicketResponseDto))
   @ApiResponse({ type: TicketResponseDto })
   addMessage(
-    @Param("id") id: string,
+    @Param("id", ParseIntPipe) id: number,
     @AuthUser() auth_user: UserEntity,
     @Body() dto: AddTicketMessageDto,
   ) {
-    return this.ticketsService.addMessage(+id, auth_user, dto);
+    return this.ticketsService.addMessage(id, auth_user, dto);
   }
 
   @Patch(":id/read")
   @UseInterceptors(new TransformResponse(TicketResponseDto))
   @ApiResponse({ type: TicketResponseDto })
-  markAsRead(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
-    return this.ticketsService.markAsRead(+id, auth_user);
+  markAsRead(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.ticketsService.markAsRead(id, auth_user);
   }
 
   @Patch(":id/close")
   @UseInterceptors(new TransformResponse(TicketResponseDto))
   @ApiResponse({ type: TicketResponseDto })
-  close(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
-    return this.ticketsService.close(+id, auth_user);
+  close(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.ticketsService.close(id, auth_user);
   }
 
   @Patch(":id/reopen")
   @UseInterceptors(new TransformResponse(TicketResponseDto))
   @ApiResponse({ type: TicketResponseDto })
-  reopen(@Param("id") id: string, @AuthUser() auth_user: UserEntity) {
-    return this.ticketsService.reopen(+id, auth_user);
+  reopen(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.ticketsService.reopen(id, auth_user);
   }
 }

@@ -29,24 +29,24 @@ export class TicketRepository extends Repository<TicketEntity> {
     });
   }
 
-  async findByManagerId(managerId: number): Promise<TicketEntity[]> {
+  async findByHandlerId(handlerId: number): Promise<TicketEntity[]> {
     return await this.createQueryBuilder("t")
       .leftJoin("users", "u", "u.id = t.creator_id")
-      .where("t.assignee_id = :managerId", { managerId })
-      .orWhere("(t.assignee_id IS NULL AND u.manager_id = :managerId)", {
-        managerId,
+      .where("t.assignee_id = :handlerId", { handlerId })
+      .orWhere("(t.assignee_id IS NULL AND u.manager_id = :handlerId)", {
+        handlerId,
       })
       .leftJoinAndSelect("t.messages", "m")
       .orderBy("t.id", "DESC")
       .getMany();
   }
 
-  async countByManagerId(managerId: number): Promise<number> {
+  async countByHandlerId(handlerId: number): Promise<number> {
     return await this.createQueryBuilder("t")
       .leftJoin("users", "u", "u.id = t.creator_id")
-      .where("t.assignee_id = :managerId", { managerId })
-      .orWhere("(t.assignee_id IS NULL AND u.manager_id = :managerId)", {
-        managerId,
+      .where("t.assignee_id = :handlerId", { handlerId })
+      .orWhere("(t.assignee_id IS NULL AND u.manager_id = :handlerId)", {
+        handlerId,
       })
       .getCount();
   }

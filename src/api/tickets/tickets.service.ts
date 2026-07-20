@@ -10,7 +10,10 @@ import { AddTicketMessageDto } from "./dto/request/add-ticket-message.dto";
 import { NotificationService } from "@api/notification/notification.service";
 import { RoleTypes } from "@app/types/RoleTypes";
 
-const MANAGER_ROLE = "partner_manager";
+const TICKET_HANDLER_ROLES = [
+  RoleTypes.PartnerManager,
+  RoleTypes.TechnicalSpecialist,
+];
 
 @Injectable()
 export class TicketsService {
@@ -35,10 +38,18 @@ export class TicketsService {
     });
   }
 
+  private isTicketHandler(user: UserEntity): boolean {
+    const roleNames = new Set([
+      user.role?.name,
+      ...(user.roles || []).map((role) => role.name),
+    ]);
+    return TICKET_HANDLER_ROLES.some((roleName) => roleNames.has(roleName));
+  }
+
   async findAll(auth_user: UserEntity) {
     let tickets: TicketEntity[];
-    if (auth_user.role?.name === MANAGER_ROLE) {
-      tickets = await this.ticketRepository.findByManagerId(auth_user.id);
+    if (this.isTicketHandler(auth_user)) {
+      tickets = await this.ticketRepository.findByHandlerId(auth_user.id);
     } else {
       tickets = await this.ticketRepository.findByCreatorId(auth_user.id);
     }
@@ -55,8 +66,8 @@ export class TicketsService {
       throw new HttpException("Тикет не найден", HttpStatus.NOT_FOUND);
     }
 
-    if (auth_user.role?.name === MANAGER_ROLE) {
-      const tickets = await this.ticketRepository.findByManagerId(auth_user.id);
+    if (this.isTicketHandler(auth_user)) {
+      const tickets = await this.ticketRepository.findByHandlerId(auth_user.id);
       const hasAccess = tickets.some((t) => t.id === ticket.id);
       if (!hasAccess) {
         throw new HttpException(
@@ -135,17 +146,17 @@ export class TicketsService {
       is_read: false,
     });
 
-    const isManager = auth_user.role?.name === MANAGER_ROLE;
+    const isHandler = this.isTicketHandler(auth_user);
 
-    // Если отвечает менеджер и тикет ещё открыт → переводим в "в работе"
-    if (isManager && ticket.status === "open") {
+    // Если отвечает назначенный специалист и тикет ещё открыт → переводим в "в работе"
+    if (isHandler && ticket.status === "open") {
       await this.ticketRepository.update(ticket.id, { status: "in_progress" });
     }
 
     const updatedTicket = await this.ticketRepository.findById(ticket.id);
 
-    if (isManager) {
-      // Уведомление партнёру: менеджер ответил
+    if (isHandler) {
+      // Уведомление партнёру: назначенный специалист ответил
       await this.notificationService.send({
         user_id: ticket.creator_id,
         title: "Ответ на запрос",
@@ -181,9 +192,9 @@ export class TicketsService {
   }
 
   async close(ticketId: number, auth_user: UserEntity) {
-    if (auth_user.role?.name !== MANAGER_ROLE) {
+    if (!this.isTicketHandler(auth_user)) {
       throw new HttpException(
-        "Только менеджер может закрывать тикеты",
+        "Только назначенный специалист может закрывать тикеты",
         HttpStatus.FORBIDDEN,
       );
     }
@@ -212,9 +223,9 @@ export class TicketsService {
   }
 
   async reopen(ticketId: number, auth_user: UserEntity) {
-    if (auth_user.role?.name !== MANAGER_ROLE) {
+    if (!this.isTicketHandler(auth_user)) {
       throw new HttpException(
-        "Только менеджер может возвращать тикеты в работу",
+        "Только назначенный специалист может возвращать тикеты в работу",
         HttpStatus.FORBIDDEN,
       );
     }
@@ -243,8 +254,8 @@ export class TicketsService {
   }
 
   async getCount(auth_user: UserEntity): Promise<number> {
-    if (auth_user.role?.name === MANAGER_ROLE) {
-      return this.ticketRepository.countByManagerId(auth_user.id);
+    if (this.isTicketHandler(auth_user)) {
+      return this.ticketRepository.countByHandlerId(auth_user.id);
     }
     return this.ticketRepository.count({
       where: { creator_id: auth_user.id },
