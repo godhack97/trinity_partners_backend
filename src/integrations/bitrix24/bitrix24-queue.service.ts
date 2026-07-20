@@ -66,13 +66,17 @@ export class Bitrix24QueueService {
   /**
    * Синхронизация одного лида
    */
-  private async syncSingleLead(deal: any): Promise<void> {
+  private async syncSingleLead(deal: any): Promise<boolean> {
     try {
       this.logger.log(`Синхронизируем лид для сделки ID: ${deal.id}`);
 
       const user = await this.userRepository.findOneBy({ id: deal.creator_id });
       if (!user) {
         this.logger.error(`Пользователь не найден для сделки ${deal.id}`);
+
+        await this.dealRepository.update(deal.id, {
+          bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
+        });
 
         this.userActionsService.log(0, "bitrix24_contact_notfound", {
           entity: "deals",
@@ -84,7 +88,7 @@ export class Bitrix24QueueService {
           id: deal.id,
         });
 
-        return;
+        return false;
       }
 
       let contactId = user.bitrix24_contact_id;
@@ -163,6 +167,7 @@ export class Bitrix24QueueService {
         this.logger.log(
           `Лид для сделки ${deal.id} успешно создан в Bitrix24 с ID: ${bitrixLeadId}`,
         );
+        return true;
       } else {
         await this.dealRepository.update(deal.id, {
           bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
@@ -182,6 +187,7 @@ export class Bitrix24QueueService {
             error: `Не удалось создать лид для сделки ${deal.id}`,
           },
         );
+        return false;
       }
     } catch (error) {
       this.logger.error(
@@ -202,6 +208,7 @@ export class Bitrix24QueueService {
         error:
           error.message || `Ошибка синхронизации лида для сделки ${deal.id}`,
       });
+      return false;
     }
   }
 
@@ -228,8 +235,7 @@ export class Bitrix24QueueService {
         },
       );
 
-      await this.syncSingleLead(deal);
-      return true;
+      return await this.syncSingleLead(deal);
     } catch (error) {
       this.logger.error(
         `Ошибка принудительной синхронизации лида для сделки ${dealId}:`,
@@ -415,9 +421,12 @@ export class Bitrix24QueueService {
 
       for (const deal of failedDeals) {
         try {
-          await this.syncSingleLead(deal);
-          result.success++;
-          await this.delay(500);
+          const success = await this.syncSingleLead(deal);
+          if (success) {
+            result.success++;
+          } else {
+            result.failed++;
+          }
         } catch (error) {
           this.logger.error(
             `Ошибка при синхронизации лида для сделки ${deal.id}:`,
@@ -425,6 +434,7 @@ export class Bitrix24QueueService {
           );
           result.failed++;
         }
+        await this.delay(500);
       }
 
       this.logger.log(
