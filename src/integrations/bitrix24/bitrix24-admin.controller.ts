@@ -1,6 +1,10 @@
 import {
   Controller,
+  Body,
   Get,
+  HttpCode,
+  HttpStatus,
+  NotImplementedException,
   Post,
   Param,
   UseGuards,
@@ -17,6 +21,8 @@ import { Bitrix24QueueService } from "./bitrix24-queue.service";
 import { Bitrix24Service } from "./bitrix24.service";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { LogAction } from "../../logs/log-action.decorator";
+import { ConfirmBitrix24OperationDto } from "./dto/confirm-bitrix24-operation.dto";
 
 @ApiTags("bitrix24-admin")
 @ApiBearerAuth()
@@ -63,6 +69,8 @@ export class Bitrix24AdminController {
   }
 
   @Post("sync/force-all")
+  @HttpCode(HttpStatus.OK)
+  @LogAction("bitrix24_admin_force_resync_all", "deals")
   @ApiOperation({
     summary: "Принудительная синхронизация всех проваленных лидов",
   })
@@ -78,7 +86,7 @@ export class Bitrix24AdminController {
       },
     },
   })
-  async forceResyncAll() {
+  async forceResyncAll(@Body() _confirmation: ConfirmBitrix24OperationDto) {
     const result = await this.bitrix24QueueService.forceResyncAllFailed();
 
     return {
@@ -88,6 +96,8 @@ export class Bitrix24AdminController {
   }
 
   @Post("sync/lead/:id")
+  @HttpCode(HttpStatus.OK)
+  @LogAction("bitrix24_admin_force_sync_lead", "deals")
   @ApiOperation({ summary: "Принудительная синхронизация конкретного лида" })
   @ApiParam({
     name: "id",
@@ -111,6 +121,8 @@ export class Bitrix24AdminController {
   }
 
   @Post("lead/convert/:id")
+  @HttpCode(HttpStatus.OK)
+  @LogAction("bitrix24_admin_convert_lead", "deals")
   @ApiOperation({ summary: "Конвертация лида в сделку в Bitrix24" })
   @ApiParam({
     name: "id",
@@ -152,6 +164,8 @@ export class Bitrix24AdminController {
   }
 
   @Post("lead/update/:id")
+  @HttpCode(HttpStatus.OK)
+  @LogAction("bitrix24_admin_update_lead", "deals")
   @ApiOperation({ summary: "Обновление лида в Bitrix24" })
   @ApiParam({
     name: "id",
@@ -201,6 +215,8 @@ export class Bitrix24AdminController {
   }
 
   @Post("sync/cleanup")
+  @HttpCode(HttpStatus.OK)
+  @LogAction("bitrix24_admin_cleanup_sync", "deals")
   @ApiOperation({
     summary: "Очистка старых записей синхронизации лидов (старше 30 дней)",
   })
@@ -208,7 +224,9 @@ export class Bitrix24AdminController {
     status: 200,
     description: "Количество очищенных записей",
   })
-  async cleanupOldSyncData() {
+  async cleanupOldSyncData(
+    @Body() _confirmation: ConfirmBitrix24OperationDto,
+  ) {
     const cleanedCount = await this.bitrix24QueueService.cleanupOldSyncData();
 
     return {
@@ -235,6 +253,8 @@ export class Bitrix24AdminController {
   }
 
   @Post("sync/run-now")
+  @HttpCode(HttpStatus.OK)
+  @LogAction("bitrix24_admin_run_sync", "deals")
   @ApiOperation({
     summary: "Запуск синхронизации неотправленных лидов прямо сейчас",
   })
@@ -242,7 +262,7 @@ export class Bitrix24AdminController {
     status: 200,
     description: "Синхронизация лидов запущена",
   })
-  async runSyncNow() {
+  async runSyncNow(@Body() _confirmation: ConfirmBitrix24OperationDto) {
     // Запускаем синхронизацию в фоне
     this.bitrix24QueueService.syncPendingLeads().catch((error) => {
       console.error("Ошибка при ручном запуске синхронизации лидов:", error);
@@ -285,17 +305,10 @@ export class Bitrix24AdminController {
   @ApiOperation({
     summary: "Массовая конвертация синхронизированных лидов в сделки",
   })
-  @ApiResponse({
-    status: 200,
-    description: "Информация о массовой конвертации",
-  })
+  @ApiResponse({ status: 501, description: "Операция пока не реализована" })
   async bulkConvertLeads() {
-    return {
-      message: "Массовая конвертация не реализована в текущей версии.",
-      suggestion:
-        "Используйте POST /admin/bitrix24/lead/convert/:id для конвертации отдельных лидов",
-      alternative:
-        "Для массовой конвертации обратитесь к разработчику для добавления этой функции",
-    };
+    throw new NotImplementedException(
+      "Массовая конвертация лидов в Bitrix24 не реализована",
+    );
   }
 }

@@ -3,6 +3,17 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, FindManyOptions } from "typeorm";
 import { UserAction } from "./user-action.entity";
 
+const DEDUPLICATED_BITRIX24_FAILURE_ACTIONS = new Set([
+  "bitrix24_contact_notfound",
+  "bitrix24_contact_creation_failed",
+  "bitrix24_lead_sync_failed",
+  "bitrix24_lead_sync_error",
+  "bitrix24_lead_update_failed",
+  "bitrix24_lead_conversion_failed",
+  "bitrix24_lead_conversion_error",
+  "bitrix24_lead_not_found",
+]);
+
 @Injectable()
 export class UserActionsService {
   constructor(
@@ -11,8 +22,9 @@ export class UserActionsService {
   ) {}
 
   async log(user_id: number | null, action: string, details: object = {}) {
-    // у б24 бывает часто повторяющаяся ошибка, проверка нужна чтобы не засирать логи.
-    if (action.includes("bitrix24")) {
+    // Повторяющиеся фоновые ошибки не должны засорять историю. Ручные
+    // операторские действия и успешные события всегда сохраняются.
+    if (DEDUPLICATED_BITRIX24_FAILURE_ACTIONS.has(action)) {
       const detailsJson = JSON.stringify(details);
 
       const existingLog = await this.userActionRepo

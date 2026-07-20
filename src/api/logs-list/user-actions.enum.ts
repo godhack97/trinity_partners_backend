@@ -92,6 +92,12 @@ export enum UserActionType {
   BITRIX24_LEAD_CONVERSION_ERROR = "bitrix24_lead_conversion_error",
   BITRIX24_SYNC_DATA_CLEANED = "bitrix24_sync_data_cleaned",
   BITRIX24_LEAD_NOT_FOUND = "bitrix24_lead_not_found",
+  BITRIX24_ADMIN_FORCE_RESYNC_ALL = "bitrix24_admin_force_resync_all",
+  BITRIX24_ADMIN_FORCE_SYNC_LEAD = "bitrix24_admin_force_sync_lead",
+  BITRIX24_ADMIN_CONVERT_LEAD = "bitrix24_admin_convert_lead",
+  BITRIX24_ADMIN_UPDATE_LEAD = "bitrix24_admin_update_lead",
+  BITRIX24_ADMIN_CLEANUP_SYNC = "bitrix24_admin_cleanup_sync",
+  BITRIX24_ADMIN_RUN_SYNC = "bitrix24_admin_run_sync",
 }
 
 export const UserActionLabels: Record<UserActionType, string> = {
@@ -115,7 +121,7 @@ export const UserActionLabels: Record<UserActionType, string> = {
   [UserActionType.BITRIX24_LEAD_SYNC_ERROR]:
     "Ошибка синхронизации сделки в Bitrix24",
   [UserActionType.BITRIX24_FORCE_SYNC_STARTED]:
-    "Ошибка принудительной синхронизации лида для сделки",
+    "Запущена принудительная синхронизация лида для сделки",
   [UserActionType.BITRIX24_LEAD_UPDATED]: "Сделка успешно обновлена",
   [UserActionType.BITRIX24_LEAD_UPDATE_FAILED]:
     "Ошибка обновления лида для сделки",
@@ -127,6 +133,18 @@ export const UserActionLabels: Record<UserActionType, string> = {
   [UserActionType.BITRIX24_SYNC_DATA_CLEANED]:
     "Очищены старые записи по сделкам failed -> pending",
   [UserActionType.BITRIX24_LEAD_NOT_FOUND]: "Лид не найден в Bitrix24",
+  [UserActionType.BITRIX24_ADMIN_FORCE_RESYNC_ALL]:
+    "Администратор запустил повторную синхронизацию failed-сделок",
+  [UserActionType.BITRIX24_ADMIN_FORCE_SYNC_LEAD]:
+    "Администратор запустил синхронизацию сделки с Bitrix24",
+  [UserActionType.BITRIX24_ADMIN_CONVERT_LEAD]:
+    "Администратор запустил конвертацию лида Bitrix24",
+  [UserActionType.BITRIX24_ADMIN_UPDATE_LEAD]:
+    "Администратор запустил обновление лида Bitrix24",
+  [UserActionType.BITRIX24_ADMIN_CLEANUP_SYNC]:
+    "Администратор запустил очистку статусов синхронизации Bitrix24",
+  [UserActionType.BITRIX24_ADMIN_RUN_SYNC]:
+    "Администратор запустил очередь синхронизации Bitrix24",
 
   [UserActionType.CONFIGURATOR_COMPONENT_ADD]:
     "Добавлен компонент конфигуратора",
