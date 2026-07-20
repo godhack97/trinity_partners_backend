@@ -1,0 +1,67 @@
+name: Backend audit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: trinity_ci
+          MARIADB_ROOT_PASSWORD: trinity_ci
+          MARIADB_ROOT_HOST: "%"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: dev
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: 3306
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: trinity_ci
+      DATABASE_NAME: trinity_ci
+      FRONTEND_HOSTNAME: http://127.0.0.1:9135
+      BACKEND_HOSTNAME: http://127.0.0.1:9131
+      EMAIL_HOST: 127.0.0.1
+      EMAIL_PORT: 2525
+      EMAIL_USERNAME: ci
+      EMAIL_PASSWORD: ci
+      EMAIL_SECURE: "false"
+      BITRIX24_WEBHOOK_URL: http://127.0.0.1:9
+
+    steps:
+      - name: Checkout backend
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend audit suite
+        run: npm run verify:audit
