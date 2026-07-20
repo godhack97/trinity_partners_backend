@@ -2,7 +2,6 @@ import { HttpException } from "@nestjs/common";
 import { DealService } from "./deal.service";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { CompanyEmployeeStatus } from "@orm/entities";
-import { PartnershipType } from "@orm/entities/company.entity";
 
 const makeUser = (id: number, roles: RoleTypes[]) =>
   ({
@@ -46,13 +45,16 @@ const makeService = (overrides: Record<string, any> = {}) => {
   const companyEmployeeRepository = {
     findOne: jest.fn().mockResolvedValue({
       company_id: 10,
-      company: { id: 10, owner_id: 1, partnership_type: PartnershipType.Integrator },
+      company: { id: 10, owner_id: 1 },
     }),
     findCompanyEmployeesByCompanyId: jest.fn().mockResolvedValue([
       { status: CompanyEmployeeStatus.Accept, employee_id: 2 },
       { status: CompanyEmployeeStatus.Accept, employee_id: 3 },
     ]),
     ...overrides.companyEmployeeRepository,
+  };
+  const configuratorDraftRepository = {
+    ...overrides.configuratorDraftRepository,
   };
   const configService = {
     get: jest.fn().mockReturnValue("localhost"),
@@ -73,6 +75,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
       emailConfirmerService as any,
       dealDeletionRequestRepository as any,
       companyEmployeeRepository as any,
+      configuratorDraftRepository as any,
       configService as any,
       notificationService as any,
     ),

@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from "@nestjs/common";
 import { CompanyEmployeeRepository, UserRepository } from "@orm/repositories";
 import { CompanyEmployeeStatus } from "@orm/entities";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
@@ -15,38 +20,63 @@ export class AdminUserService {
     private readonly companyEmployeeRepository: CompanyEmployeeRepository,
   ) {}
 
+  async getCount(): Promise<number> {
+    return this.companyEmployeeRepository
+      .createQueryBuilder("ce")
+      .innerJoin("ce.company", "company")
+      .where("company.owner_id <> ce.employee_id")
+      .getCount();
+  }
+
   async find(filters: UserFilterRequestDto) {
     const current_page = filters.current_page || 1;
     const limit = filters.limit || defaultFilter.limit;
     const skip = (current_page - 1) * limit;
 
-    const qb = this.userRepository.createQueryBuilder("u");
-    qb.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id")
-      .leftJoin("user_roles", "ur", "u.id = ur.user_id")
-      .leftJoin("roles", "r2", "ur.role_id = r2.id")
-      .leftJoin("company_employees", "ce", "ce.employee_id = u.id")
-      .leftJoinAndMapOne("u.company", "companies", "c", "c.id = ce.company_id");
+    const qb = this.companyEmployeeRepository.createQueryBuilder("ce");
+    qb.innerJoinAndSelect("ce.employee", "employee")
+      .innerJoinAndSelect("ce.company", "company")
+      .leftJoinAndSelect("employee.user_info", "user_info")
+      .leftJoinAndSelect("employee.role", "primary_role")
+      .leftJoinAndSelect("employee.user_roles", "user_roles")
+      .leftJoinAndSelect("user_roles.role", "secondary_role")
+      .where("company.owner_id <> ce.employee_id")
+      .distinct(true);
 
     if (filters.role_name) {
-      qb.andWhere("(r.name = :name OR r2.name = :name)", { name: filters.role_name });
+      qb.andWhere(
+        "(primary_role.name = :role_name OR secondary_role.name = :role_name)",
+        { role_name: filters.role_name },
+      );
     }
 
-    if (filters.is_activated) {
-      qb.andWhere("u.is_activated = :is_activated", { is_activated: filters.is_activated });
-    }
-
-    if (filters.email) {
-      qb.andWhere("u.email like :email", { email: `${filters.email}%` });
-    }
-
-    if (filters.company_id) {
-      qb.andWhere("ce.company_id = :company_id", {
-        company_id: filters.company_id,
+    if (typeof filters.is_activated === "boolean") {
+      qb.andWhere("employee.is_activated = :is_activated", {
+        is_activated: filters.is_activated,
       });
     }
 
-    const data = await qb.skip(skip).take(limit).withDeleted().getMany();
-    const total = await qb.getCount();
+    if (filters.search) {
+      qb.andWhere(
+        "(LOWER(employee.email) LIKE LOWER(:search) OR LOWER(user_info.first_name) LIKE LOWER(:search) OR LOWER(user_info.last_name) LIKE LOWER(:search) OR LOWER(company.name) LIKE LOWER(:search))",
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    if (filters.company_id) {
+      qb.andWhere("ce.company_id = :company_id", { company_id: filters.company_id });
+    }
+
+    if (filters.status) {
+      qb.andWhere("ce.status = :status", { status: filters.status });
+    }
+
+    const [data, total] = await qb
+      .orderBy("ce.created_at", "DESC")
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
     return {
       current_page,
       limit,
@@ -71,12 +101,15 @@ export class AdminUserService {
       );
     }
 
-    if (companyEmployee.status === CompanyEmployeeStatus.Accept) {
-      return {
-        success: true,
-        message: "Сотрудник уже активен",
-        employee: companyEmployee,
-      };
+    if (
+      ![
+        CompanyEmployeeStatus.Blocked,
+        CompanyEmployeeStatus.Deleted,
+      ].includes(companyEmployee.status)
+    ) {
+      throw new BadRequestException(
+        `Нельзя восстановить сотрудника из статуса ${companyEmployee.status}`,
+      );
     }
 
     await this.companyEmployeeRepository.update(companyEmployee.id, {

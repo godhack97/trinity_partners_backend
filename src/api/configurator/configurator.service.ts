@@ -36,6 +36,10 @@ import {
   ValidateConfiguratorRequestDto,
 } from "./dto/request/validate-configurator.request.dto";
 import { DataSource, In } from "typeorm";
+import {
+  getComponentProfileErrors,
+  resolveComponentProfileMetadata,
+} from "./component-profile-kind";
 
 @Injectable()
 export class ConfiguratorService {
@@ -2500,30 +2504,8 @@ export class ConfiguratorService {
   }
 
   private mapLegacyTypeKey(typeId: string) {
-    const map = {
-      "cpu-type-id": "cpu",
-      "ram-type-id": "ram",
-      "memory-type-id": "drive",
-      "gpu-type-id": "gpu",
-      "raid-controller-type-id": "raid",
-      "hba-type-id": "hba",
-      "ehba-type-id": "ehba",
-      "network-card-type-id": "nic",
-      "ocp-type-id": "ocp",
-      "transiver-type-id": "transceiver",
-      "dac-cbl-type-id": "dac_cable",
-      "opt-cbl-type": "optical_cable",
-      "ethernet-cbl-type-id": "ethernet_cable",
-      "pwr-cbl-type-id": "power_cable",
-      "warranty-type-id": "service",
-      "os-type-id": "software",
-      "av-type-id": "software",
-      "onec-type-id": "software",
-      "other-controllers-type-id": "extra_option",
-      "other-components-type-id": "extra_option",
-    };
-
-    return map[typeId] || typeId;
+    return resolveComponentProfileMetadata({ type_id: typeId })
+      .component_type_key;
   }
 
   private isDriveType(typeKey: string) {
@@ -2639,7 +2621,12 @@ export class ConfiguratorService {
       .orderBy("srv.sort", "ASC");
 
     if (!includeInactive) {
-      queryBuilder.andWhere("(cpp.id IS NULL OR cpp.is_active = 1)");
+      queryBuilder
+        .andWhere("cpp.id IS NOT NULL")
+        .andWhere("cpp.is_active = 1")
+        .andWhere("TRIM(cpp.platform_code) <> ''")
+        .andWhere("TRIM(cpp.family) <> ''")
+        .andWhere("TRIM(cpp.ram_type) <> ''");
     }
 
     const data = await queryBuilder.getMany();
@@ -2802,6 +2789,24 @@ export class ConfiguratorService {
         "cnf_component_resource_profiles",
         "crsp",
         "crsp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.catalog_profile",
+        "cnf_component_catalog_profiles",
+        "ccatp",
+        "ccatp.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.price_profile",
+        "cnf_component_price_profiles",
+        "cpricep",
+        "cpricep.component_id = cmp.id",
+      )
+      .leftJoinAndMapOne(
+        "cmp.service_profile",
+        "cnf_service_profiles",
+        "csvp",
+        "csvp.component_id = cmp.id",
       );
 
     if (entry?.componentType) {
@@ -2829,10 +2834,66 @@ export class ConfiguratorService {
           });
         }
 
+        const rawProfiles = {
+          catalog: mappedComponent.catalog_profile,
+          resource: mappedComponent.resource_profile,
+          price: mappedComponent.price_profile,
+          cpu: mappedComponent.cpu_profile,
+          ram: mappedComponent.ram_profile,
+          drive: mappedComponent.drive_profile,
+          controller: mappedComponent.controller_profile,
+          network: mappedComponent.network_profile,
+          gpu: mappedComponent.gpu_profile,
+          transceiver: mappedComponent.transceiver_profile,
+          psu: mappedComponent.psu_profile,
+          service: mappedComponent.service_profile,
+        };
+        const profileMetadata = resolveComponentProfileMetadata(
+          component,
+          rawProfiles,
+        );
+
         result.push({
           ...component,
           typeId: component.type_id,
+          ...profileMetadata,
+          profile_is_active:
+            mappedComponent.catalog_profile?.is_active ?? null,
+          profile_errors: getComponentProfileErrors(
+            profileMetadata,
+            rawProfiles,
+          ),
           profile: {
+            catalog: mappedComponent.catalog_profile
+              ? {
+                  component_type_key:
+                    mappedComponent.catalog_profile.component_type_key,
+                  part_number: mappedComponent.catalog_profile.part_number,
+                  vendor: mappedComponent.catalog_profile.vendor,
+                  client_display_mode:
+                    mappedComponent.catalog_profile.client_display_mode,
+                  generation_key:
+                    mappedComponent.catalog_profile.generation_key,
+                  server_generation_id:
+                    mappedComponent.catalog_profile.server_generation_id,
+                  processor_generation_id:
+                    mappedComponent.catalog_profile.processor_generation_id,
+                  is_active: mappedComponent.catalog_profile.is_active,
+                  disabled_reason:
+                    mappedComponent.catalog_profile.disabled_reason,
+                  s4b_status: mappedComponent.catalog_profile.s4b_status,
+                }
+              : null,
+            price: mappedComponent.price_profile
+              ? {
+                  base_price: mappedComponent.price_profile.base_price,
+                  currency: mappedComponent.price_profile.currency,
+                  coefficient: mappedComponent.price_profile.coefficient,
+                  price_mode: mappedComponent.price_profile.price_mode,
+                  price_required:
+                    mappedComponent.price_profile.price_required,
+                }
+              : null,
             cpu: mappedComponent.cpu_profile
               ? {
                   socket_profile: mappedComponent.cpu_profile.socket_profile,
@@ -2946,6 +3007,16 @@ export class ConfiguratorService {
                     mappedComponent.transceiver_profile.compatible_port_type,
                 }
               : null,
+            service: mappedComponent.service_profile
+              ? {
+                  service_level:
+                    mappedComponent.service_profile.service_level,
+                  years: mappedComponent.service_profile.years,
+                  formula: mappedComponent.service_profile.formula,
+                  percent: mappedComponent.service_profile.percent,
+                  fixed_price: mappedComponent.service_profile.fixed_price,
+                }
+              : null,
             resource: mappedComponent.resource_profile
               ? {
                   resource_kind: mappedComponent.resource_profile.resource_kind,
@@ -2972,6 +3043,9 @@ export class ConfiguratorService {
           psu_profile: undefined,
           transceiver_profile: undefined,
           resource_profile: undefined,
+          catalog_profile: undefined,
+          price_profile: undefined,
+          service_profile: undefined,
         });
       }
 
@@ -3051,13 +3125,25 @@ export class ConfiguratorService {
   }
 
   async getComponentTypes() {
-    return await this.cnfComponentTypeRepository.find();
+    const componentTypes = await this.cnfComponentTypeRepository.find();
+
+    return componentTypes.map((componentType) => ({
+      ...componentType,
+      ...resolveComponentProfileMetadata({ type_id: componentType.id }),
+    }));
   }
 
   async getComponentType(id: string) {
-    return await this.cnfComponentTypeRepository.findOne({
+    const componentType = await this.cnfComponentTypeRepository.findOne({
       where: { id },
     });
+
+    return componentType
+      ? {
+          ...componentType,
+          ...resolveComponentProfileMetadata({ type_id: componentType.id }),
+        }
+      : null;
   }
 
   async getComponent(id: string) {

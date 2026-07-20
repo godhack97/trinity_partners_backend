@@ -14,6 +14,7 @@ import {
   Req,
   Res,
   StreamableFile,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -41,6 +42,19 @@ import {
   UpdateDocumentAccessLevelDto,
 } from './documents.dto';
 import { LogAction } from 'src/logs/log-action.decorator';
+import { Roles } from '@decorators/Roles';
+import { RoleTypes } from '@app/types/RoleTypes';
+
+const DOCUMENT_EDITOR_ROLES = [
+  RoleTypes.SuperAdmin,
+  RoleTypes.EmployeeAdmin,
+  RoleTypes.ContentManager,
+];
+
+const ACCESS_LEVEL_EDITOR_ROLES = [
+  RoleTypes.SuperAdmin,
+  RoleTypes.EmployeeAdmin,
+];
 
 @ApiTags('documents')
 @ApiBearerAuth()
@@ -58,6 +72,7 @@ export class DocumentsController {
   }
 
   @Post('groups')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Создать группу документов' })
   @LogAction('document_group_create', 'document_groups')
   createGroup(@Body() dto: CreateDocumentGroupDto) {
@@ -65,6 +80,7 @@ export class DocumentsController {
   }
 
   @Put('groups/:id')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Обновить группу документов' })
   @LogAction('document_group_update', 'document_groups')
   updateGroup(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDocumentGroupDto) {
@@ -72,6 +88,7 @@ export class DocumentsController {
   }
 
   @Delete('groups/:id')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Удалить группу документов' })
   @LogAction('document_group_delete', 'document_groups')
   async removeGroup(@Param('id', ParseIntPipe) id: number) {
@@ -88,6 +105,7 @@ export class DocumentsController {
   }
 
   @Post('tags')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Создать тег' })
   @LogAction('document_tag_create', 'document_tags')
   createTag(@Body() dto: CreateDocumentTagDto) {
@@ -95,6 +113,7 @@ export class DocumentsController {
   }
 
   @Put('tags/:id')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Обновить тег' })
   @LogAction('document_tag_update', 'document_tags')
   updateTag(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDocumentTagDto) {
@@ -102,6 +121,7 @@ export class DocumentsController {
   }
 
   @Delete('tags/:id')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Удалить тег' })
   @LogAction('document_tag_delete', 'document_tags')
   async removeTag(@Param('id', ParseIntPipe) id: number) {
@@ -118,6 +138,7 @@ export class DocumentsController {
   }
 
   @Post('access-levels')
+  @Roles(ACCESS_LEVEL_EDITOR_ROLES)
   @ApiOperation({ summary: 'Создать уровень доступа' })
   @LogAction('document_access_level_create', 'document_access_levels')
   createAccessLevel(@Body() dto: CreateDocumentAccessLevelDto) {
@@ -125,6 +146,7 @@ export class DocumentsController {
   }
 
   @Put('access-levels/:id')
+  @Roles(ACCESS_LEVEL_EDITOR_ROLES)
   @ApiOperation({ summary: 'Обновить уровень доступа' })
   @LogAction('document_access_level_update', 'document_access_levels')
   updateAccessLevel(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDocumentAccessLevelDto) {
@@ -132,6 +154,7 @@ export class DocumentsController {
   }
 
   @Delete('access-levels/:id')
+  @Roles(ACCESS_LEVEL_EDITOR_ROLES)
   @ApiOperation({ summary: 'Удалить уровень доступа' })
   @LogAction('document_access_level_delete', 'document_access_levels')
   async removeAccessLevel(@Param('id', ParseIntPipe) id: number) {
@@ -167,15 +190,17 @@ export class DocumentsController {
   }
 
   @Post()
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Загрузить документ' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
+      required: ['name', 'file'],
       properties: {
         name: { type: 'string' },
-        group_id: { type: 'number' },
-        access_level_id: { type: 'number' },
+        group_id: { type: 'number', nullable: true, description: 'Пусто/null = без группы' },
+        access_level_id: { type: 'number', nullable: true, description: 'Пусто/null = без ограничения' },
         tag_ids: { type: 'string', description: 'ID тегов через запятую' },
         file: { type: 'string', format: 'binary' },
       },
@@ -183,11 +208,19 @@ export class DocumentsController {
   })
   @UseInterceptors(FileInterceptor('file'))
   @LogAction('document_create', 'documents')
-  create(@Body() dto: CreateDocumentDto, @UploadedFile() file: Express.Multer.File) {
+  create(
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })) dto: CreateDocumentDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.documentsService.create(dto, file);
   }
 
   @Put(':id')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Обновить документ' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -195,9 +228,9 @@ export class DocumentsController {
       type: 'object',
       properties: {
         name: { type: 'string' },
-        group_id: { type: 'number' },
-        access_level_id: { type: 'number' },
-        tag_ids: { type: 'string' },
+        group_id: { type: 'number', nullable: true, description: 'Пустая строка/null очищает relation' },
+        access_level_id: { type: 'number', nullable: true, description: 'Пустая строка/null очищает relation' },
+        tag_ids: { type: 'string', description: 'Пустая строка очищает теги' },
         file: { type: 'string', format: 'binary' },
       },
     },
@@ -206,13 +239,18 @@ export class DocumentsController {
   @LogAction('document_update', 'documents')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateDocumentDto,
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })) dto: UpdateDocumentDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.documentsService.update(id, dto, file);
   }
 
   @Delete(':id')
+  @Roles(DOCUMENT_EDITOR_ROLES)
   @ApiOperation({ summary: 'Удалить документ' })
   @LogAction('document_delete', 'documents')
   async remove(@Param('id', ParseIntPipe) id: number) {

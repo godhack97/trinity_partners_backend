@@ -16,6 +16,7 @@ import {
   DealRepository,
 } from "@orm/repositories";
 import { PartnerFilterRequestDto } from "./dto/partner-filters-request.dto";
+import { UpdatePartnerBusinessFieldsRequestDto } from "./dto/update-partner-business-fields.request.dto";
 
 @Injectable()
 export default class AdminPartnerService {
@@ -31,7 +32,7 @@ export default class AdminPartnerService {
   async getCount(): Promise<number> {
     const qb = this.companyRepository.createQueryBuilder("cmp");
 
-    qb.leftJoinAndMapOne("cmp.owner", "users", "usr", "usr.id = cmp.owner");
+    qb.leftJoinAndMapOne("cmp.owner", "users", "usr", "usr.id = cmp.owner_id");
 
     qb.andWhere("usr.email_confirmed = 1");
 
@@ -41,7 +42,7 @@ export default class AdminPartnerService {
   async getCountByStatus(status: CompanyStatus): Promise<number> {
     const qb = this.companyRepository.createQueryBuilder("cmp");
 
-    qb.leftJoinAndMapOne("cmp.owner", "users", "usr", "usr.id = cmp.owner");
+    qb.leftJoinAndMapOne("cmp.owner", "users", "usr", "usr.id = cmp.owner_id");
 
     qb.andWhere("usr.email_confirmed = 1");
     qb.andWhere("cmp.status = :s", { s: status });
@@ -66,6 +67,13 @@ export default class AdminPartnerService {
       "users",
       "mgr",
       "mgr.id = usr.manager_id",
+    );
+
+    qb.leftJoinAndMapOne(
+      "cmp.validated_by_manager",
+      "users",
+      "validator",
+      "validator.id = cmp.validated_by_manager_id",
     );
   
     qb.andWhere("usr.email_confirmed = 1");
@@ -117,6 +125,38 @@ export default class AdminPartnerService {
       dealsCount: dealsMap.get(company.owner.id) || 0,
       employeesCount: employeesMap.get(company.id) || 0,
     }));
+  }
+
+  async updateBusinessFields(
+    id: number,
+    data: UpdatePartnerBusinessFieldsRequestDto,
+  ) {
+    const company = await this.companyRepository.findOneBy({ id });
+    if (!company) {
+      throw new HttpException(`Компания не найдена: ${id}`, HttpStatus.NOT_FOUND);
+    }
+
+    const patch = {
+      ...data,
+      ...(data.certificate_expiry === undefined
+        ? {}
+        : {
+            certificate_expiry: data.certificate_expiry
+              ? new Date(`${data.certificate_expiry}T00:00:00.000Z`)
+              : null,
+          }),
+      ...(data.email_domain === undefined
+        ? {}
+        : { email_domain: data.email_domain?.trim().toLowerCase() || null }),
+      ...(data.name === undefined ? {} : { name: data.name.trim() }),
+    };
+
+    const result = await this.companyRepository.update(id, patch);
+    if (result.affected === 0) {
+      throw new InternalServerErrorException("Не удалось обновить компанию");
+    }
+
+    return { ...company, ...patch };
   }
 
   async getEmployeeRequests(auth_user: UserEntity) {
@@ -172,6 +212,19 @@ export default class AdminPartnerService {
     return user.user_roles?.some((userRole) => userRole.role?.name === roleName) || false;
   }
 
+  private assertCompanyStatus(
+    company: { status: CompanyStatus },
+    expectedStatus: CompanyStatus,
+    operation: string,
+  ) {
+    if (company.status !== expectedStatus) {
+      throw new HttpException(
+        `Нельзя ${operation} компанию в статусе «${company.status}»`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   async accept(id: number, validator: UserEntity) {
     const companyEntity = await this.companyRepository.findOneBy({ id });
 
@@ -180,6 +233,12 @@ export default class AdminPartnerService {
         `Компания не найдена: ${id}`,
         HttpStatus.FORBIDDEN,
       );
+
+    this.assertCompanyStatus(
+      companyEntity,
+      CompanyStatus.Pending,
+      "принять",
+    );
 
     await this.companyRepository.update(id, {
       status: CompanyStatus.Accept,
@@ -236,6 +295,12 @@ export default class AdminPartnerService {
         `Компания не найдена: ${id}`,
         HttpStatus.FORBIDDEN,
       );
+
+    this.assertCompanyStatus(
+      companyEntity,
+      CompanyStatus.Pending,
+      "отклонить",
+    );
 
     const updateResult = await this.companyRepository.update(id, {
       status: CompanyStatus.Reject,
@@ -432,6 +497,12 @@ export default class AdminPartnerService {
         HttpStatus.FORBIDDEN,
       );
 
+    this.assertCompanyStatus(
+      companyEntity,
+      CompanyStatus.Accept,
+      "приостановить",
+    );
+
     const updateResult = await this.companyRepository.update(id, {
       status: CompanyStatus.Suspended,
     });
@@ -462,6 +533,86 @@ export default class AdminPartnerService {
     );
 
     await this.notifyTrinityAdminsAboutCompanySuspended(companyEntity);
+  }
+
+  async restore(id: number, validator: UserEntity) {
+    return this.reactivate(
+      id,
+      validator,
+      CompanyStatus.Reject,
+      "Партнёрство восстановлено",
+      "Компания восстановлена после отклонения. Доступ к порталу снова открыт.",
+    );
+  }
+
+  async resume(id: number, validator: UserEntity) {
+    return this.reactivate(
+      id,
+      validator,
+      CompanyStatus.Suspended,
+      "Доступ компании возобновлён",
+      "Приостановка снята. Доступ компании к порталу снова открыт.",
+    );
+  }
+
+  private async reactivate(
+    id: number,
+    validator: UserEntity,
+    expectedStatus: CompanyStatus,
+    title: string,
+    text: string,
+  ) {
+    const companyEntity = await this.companyRepository.findOneBy({ id });
+
+    if (!companyEntity) {
+      throw new HttpException(`Компания не найдена: ${id}`, HttpStatus.NOT_FOUND);
+    }
+
+    this.assertCompanyStatus(
+      companyEntity,
+      expectedStatus,
+      "восстановить",
+    );
+
+    const updateResult = await this.companyRepository.update(id, {
+      status: CompanyStatus.Accept,
+      validated_by_manager_id: validator.id,
+      validated_at: new Date(),
+    });
+
+    if (updateResult.affected === 0) {
+      throw new InternalServerErrorException("Не удалось обновить");
+    }
+
+    await this.userRepository.update(companyEntity.owner_id, {
+      is_activated: true,
+    });
+
+    const companyEmployee = await this.companyEmployeeRepository.findOneBy({
+      employee_id: companyEntity.owner_id,
+    });
+
+    if (companyEmployee) {
+      await this.companyEmployeeRepository.update(companyEmployee.id, {
+        status: CompanyEmployeeStatus.Accept,
+      });
+    }
+
+    const user = await this.userRepository.findById(companyEntity.owner_id);
+    await this.emailConfirmerService.emailSend({
+      email: user.email,
+      subject: title,
+      template: "request-company-approve",
+      context: {
+        link: "https://partner.trinity.ru/",
+      },
+    });
+
+    await this.notifyCompanyAccessChanged(
+      companyEntity.owner_id,
+      title,
+      `${text} Компания «${companyEntity.name}».`,
+    );
   }
 
   private async notifyCompanyAccessChanged(

@@ -1,28 +1,4 @@
-import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsEnum, IsBoolean, IsNumber } from "class-validator";
-import { ImportantAlertSeverity } from "@orm/entities";
+import { PartialType } from "@nestjs/swagger";
+import { CreateImportantAlertDto } from "./create-important-alert.dto";
 
-export class UpdateImportantAlertDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  title?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  message?: string;
-
-  @ApiPropertyOptional({ enum: ImportantAlertSeverity })
-  @IsOptional()
-  @IsEnum(ImportantAlertSeverity)
-  severity?: ImportantAlertSeverity;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  is_active?: boolean;
-
-  @ApiPropertyOptional({ description: "ID компании для адресного оповещения" })
-  @IsOptional()
-  @IsNumber()
-  target_company_id?: number | null;
-}
+export class UpdateImportantAlertDto extends PartialType(CreateImportantAlertDto) {}

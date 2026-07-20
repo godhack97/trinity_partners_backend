@@ -1,9 +1,16 @@
 import { AdminConfiguratorServerService } from "./admin-configurator-server.service";
 import { ApiBearerAuth, ApiTags, ApiOperation } from "@nestjs/swagger";
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  ValidationPipe,
+} from "@nestjs/common";
 import { Roles } from "../../../../decorators/Roles";
 import { RoleTypes } from "../../../../types/RoleTypes";
-import { AddServerRequestDto } from "./dto/request/add-server.request.dto";
+import { SaveServerWithProfileRequestDto } from "./dto/request/add-server.request.dto";
 import { UpsertPlatformProfileRequestDto } from "./dto/request/upsert-platform-profile.request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
 
@@ -19,14 +26,29 @@ export class AdminConfiguratorServerController {
   @Post("add")
   @LogAction("configurator_server_add", "cnf_servers")
   @ApiOperation({ summary: 'Создать сервер конфигуратора' })
-  addServer(@Body() data: AddServerRequestDto) {
+  addServer(
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }))
+    data: SaveServerWithProfileRequestDto,
+  ) {
     return this.adminConfiguratorServerService.addServer(data);
   }
 
   @Post(":id/update")
   @LogAction("configurator_server_update", "cnf_servers")
   @ApiOperation({ summary: 'Обновить сервер конфигуратора' })
-  updateServer(@Param("id") id: string, @Body() data: AddServerRequestDto) {
+  updateServer(
+    @Param("id") id: string,
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }))
+    data: SaveServerWithProfileRequestDto,
+  ) {
     return this.adminConfiguratorServerService.updateServer(id, data);
   }
 
@@ -44,7 +66,11 @@ export class AdminConfiguratorServerController {
   }
 
   @Post(":id/profile")
-  @LogAction("configurator_platform_profile_update", "cnf_platform_profiles")
+  @LogAction(
+    "configurator_platform_profile_update",
+    "cnf_platform_profiles",
+    "server_id",
+  )
   @ApiOperation({ summary: "Создать или обновить профиль ограничений платформы" })
   upsertPlatformProfile(
     @Param("id") id: string,

@@ -1,13 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
+import { CONFIGURATOR_COMPONENT_SCHEMA_VERSION } from './configurator-component-schema';
 
 @Injectable()
 export class XlsxService {
-  async createXlsxFile(components: any[]) {
+  async createXlsxFile(components: any[], schema: any[] = []) {
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.json_to_sheet(components);
     XLSX.utils.book_append_sheet(workbook, sheet, 'Components');
+    const schemaSheet = XLSX.utils.aoa_to_sheet([
+      ['schema_version', CONFIGURATOR_COMPONENT_SCHEMA_VERSION],
+      [],
+      ['Колонка', 'Тип', 'Обязательно', 'Описание'],
+      ...schema.map((item) => [
+        item.column,
+        item.type,
+        item.required,
+        item.description,
+      ]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, schemaSheet, 'Schema');
     const xlsxFile = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     return xlsxFile;
   }
@@ -26,9 +39,12 @@ export class XlsxService {
     }
 
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    const sheet = workbook.Sheets.Components || workbook.Sheets[workbook.SheetNames[0]];
     const components = XLSX.utils.sheet_to_json(sheet);
-    return components;
+    const schemaSheet = workbook.Sheets.Schema;
+    const schemaVersion = schemaSheet?.B1?.v
+      ? Number(schemaSheet.B1.v)
+      : 1;
+    return { components, schemaVersion };
   }
 }

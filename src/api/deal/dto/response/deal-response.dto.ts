@@ -2,9 +2,14 @@ import { CustomerResponseDto } from "@api/customer/dto/response/customer.respons
 import { DistributorResponseDto } from "@api/distributor/dto/response/distributor.response.dto";
 import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
 import { WithIdDto } from "@app/dto/with-id.dto";
-import { ApiProperty } from "@nestjs/swagger";
-import { DealStatus, DealType } from "@orm/entities";
-import { Expose, Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  Bitrix24SyncStatus,
+  DealDuplicateReviewStatus,
+  DealStatus,
+  DealType,
+} from "@orm/entities";
+import { Expose, Transform, Type } from "class-transformer";
 
 export class DealResponseDto extends WithIdDto {
   @ApiProperty()
@@ -26,6 +31,18 @@ export class DealResponseDto extends WithIdDto {
   @ApiProperty({ required: false })
   @Expose()
   bitrix24_integrator_contact_id?: number;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  bitrix24_deal_id?: number | null;
+
+  @ApiProperty({ enum: Bitrix24SyncStatus })
+  @Expose()
+  bitrix24_sync_status: Bitrix24SyncStatus;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  @Expose()
+  bitrix24_synced_at?: Date | null;
 
   @ApiProperty()
   @Expose()
@@ -51,16 +68,18 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   competition_link: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ nullable: true })
   @Expose()
-  configuration_link: string;
+  configuration_link?: string | null;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: "array", items: { type: "object" } })
   @Expose()
+  @Transform(({ obj }) => obj.configurations, { toClassOnly: true })
   configurations?: unknown[];
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: "array", items: { type: "object" } })
   @Expose()
+  @Transform(({ obj }) => obj.attachments, { toClassOnly: true })
   attachments?: unknown[];
 
   @ApiProperty()
@@ -71,29 +90,38 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   comment: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: "array", items: { type: "object" } })
   @Expose()
+  @Transform(({ obj }) => obj.comments, { toClassOnly: true })
   comments?: unknown[];
 
   @ApiProperty()
   @Expose()
   deal_num: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @Expose()
-  special_discount: number | null;
+  special_discount: string | null;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: Number, nullable: true })
   @Expose()
   special_price: number | null;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
   @Expose()
   discount_date: Date | string | null;
 
   @ApiProperty()
   @Expose()
   status: DealStatus;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  duplicate_of_deal_id?: number | null;
+
+  @ApiPropertyOptional({ enum: DealDuplicateReviewStatus, nullable: true })
+  @Expose()
+  duplicate_review_status?: DealDuplicateReviewStatus | null;
 
   @ApiProperty()
   @Expose()
@@ -112,12 +140,18 @@ export class DealResponseDto extends WithIdDto {
 
   @ApiProperty({ required: false })
   @Expose()
+  @Transform(({ obj }) => obj.integrator_company, { toClassOnly: true })
   integrator_company?: unknown;
 
   @ApiProperty()
   @Expose()
-  @Type(() => DistributorResponseDto)
+  @Type(() => Date)
   created_at: Date;
+
+  @ApiPropertyOptional()
+  @Expose()
+  @Type(() => Date)
+  updated_at?: Date;
 
   @ApiProperty({
     description: "Статус заявки на удаление сделки",

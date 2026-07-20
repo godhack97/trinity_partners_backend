@@ -1,13 +1,12 @@
 import {
   IsNotEmptyRu,
   IsDateRu,
-  IsNumberRu,
   IsStringRu,
 } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
 import { Type } from "class-transformer";
-import { IsEnum, IsOptional } from "class-validator";
+import { IsEnum, IsNumber, IsOptional, Min } from "class-validator";
 
 export class UpdateDealDto {
   @ApiProperty({ enum: DealStatus })
@@ -15,19 +14,21 @@ export class UpdateDealDto {
   @IsEnum(DealStatus)
   status: DealStatus;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsDateRu()
   @Type(() => Date)
-  discount_date?: Date;
+  discount_date?: Date | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsStringRu()
-  special_discount?: string;
+  special_discount?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: Number, nullable: true, minimum: 0 })
   @IsOptional()
-  @IsNumberRu()
-  special_price?: number;
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  special_price?: number | null;
 }

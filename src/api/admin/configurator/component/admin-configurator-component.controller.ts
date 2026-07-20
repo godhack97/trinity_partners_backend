@@ -1,11 +1,13 @@
-import { Body, Controller, Delete, Req, Get, Param, Post, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags, ApiOperation } from "@nestjs/swagger";
+import { Body, Controller, Delete, Req, Get, Param, Post, Res, UploadedFile, UseInterceptors, ValidationPipe } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody, ApiConsumes } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AdminConfiguratorComponentService } from "./admin-configurator-component.service";
-import { CreateConfigurationComponentRequestDto } from "./dto/request/create-configurator-component.request.dto";
+import { SaveConfigurationComponentRequestDto } from "./dto/request/create-configurator-component.request.dto";
+import { UpdateConfigurationComponentRequestDto } from "./dto/request/update-configurator-component.request.dto";
 import { UpsertComponentProfilesRequestDto } from "./dto/request/upsert-component-profiles.request.dto";
+import { CreateComponentBackupRequestDto } from "./dto/request/create-component-backup.request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
 import { XlsxService } from './xlsx.service';
 import { multerStorage } from "@config/multer_storage";
@@ -25,34 +27,73 @@ export class AdminConfiguratorComponentController {
   @LogAction("configurator_component_export", "cnf_components")
   async getComponents(@Res() res: any) {
     const components = await this.adminConfiguratorComponentService.exportExcel();
-    const xlsxFile = await this.xlsxService.createXlsxFile(components);
+    const schema = this.adminConfiguratorComponentService.getExcelSchema();
+    const xlsxFile = await this.xlsxService.createXlsxFile(components, schema);
     res.set("Content-Disposition", `attachment; filename="components.xlsx"`);
     res.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(xlsxFile);
   }
 
+  @Post("/import/dry-run")
+  @ApiOperation({ summary: 'Проверить XLSX компонентов без записи данных' })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(FileInterceptor("file", { storage: multerStorage.files }))
+  async dryRunImportComponents(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    const { components, schemaVersion } = await this.xlsxService.parseXlsxFile(file);
+    return this.adminConfiguratorComponentService.importExcel(
+      components,
+      req.user?.id,
+      { dryRun: true, schemaVersion },
+    );
+  }
+
   @Post("/import")
   @ApiOperation({ summary: 'Импорт компонент конфигуратора' })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
+  })
   @LogAction("configurator_component_import", "cnf_components")
   @UseInterceptors(FileInterceptor("file", { storage: multerStorage.files }))
   async importComponents(@UploadedFile() file: Express.Multer.File, @Res() res: any, @Req() req: any) {
-    const userId = req.user?.id; // Передаем userId для автобекапа
-    const components = await this.xlsxService.parseXlsxFile(file);
-    await this.adminConfiguratorComponentService.importExcel(components, userId);
-    res.status(201).send('Компоненты импортированы успешно!');
+    const { components, schemaVersion } = await this.xlsxService.parseXlsxFile(file);
+    const report = await this.adminConfiguratorComponentService.importExcel(
+      components,
+      req.user?.id,
+      { schemaVersion },
+    );
+    res.status(201).send(report);
   }
 
   @Get("/backups")
-  @ApiOperation({ summary: 'Создать бекап компонент конфигуратора' })
+  @ApiOperation({ summary: 'Получить список бекапов компонент конфигуратора' })
   async getComponentBackups() {
     return await this.adminConfiguratorComponentService.getBackups();
   }
 
   @Post("/backup")
-  @ApiOperation({ summary: 'Получить список бекапов компонент конфигуратора' })
+  @ApiOperation({ summary: 'Создать бекап компонент конфигуратора' })
   @LogAction("configurator_component_backup", "cnf_component_backups")
   async createComponentBackup(
-    @Body() body: { name: string },
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })) body: CreateComponentBackupRequestDto,
     @Req() req: any
   ) {
     const userId = req.user?.id;
@@ -84,7 +125,12 @@ export class AdminConfiguratorComponentController {
   @LogAction("configurator_component_profiles_update", "cnf_components")
   upsertComponentProfiles(
     @Param("id") id: string,
-    @Body() data: UpsertComponentProfilesRequestDto,
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }))
+    data: UpsertComponentProfilesRequestDto,
   ) {
     return this.adminConfiguratorComponentService.upsertComponentProfiles(
       id,
@@ -95,14 +141,29 @@ export class AdminConfiguratorComponentController {
   @Post()
   @ApiOperation({ summary: 'Создать компонент конфигуратора' })
   @LogAction("configurator_component_add", "cnf_components")
-  createComponent(@Body() data: CreateConfigurationComponentRequestDto) {
+  createComponent(
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }))
+    data: SaveConfigurationComponentRequestDto,
+  ) {
     return this.adminConfiguratorComponentService.createComponent(data);
   }
 
   @Post(":id/update")
   @ApiOperation({ summary: 'Обновить компонент конфигуратора' })
   @LogAction("configurator_component_update", "cnf_components")
-  update(@Param("id") id: string, @Body() data: any) {
+  update(
+    @Param("id") id: string,
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }))
+    data: UpdateConfigurationComponentRequestDto,
+  ) {
     return this.adminConfiguratorComponentService.updateComponent(id, data);
   }
 

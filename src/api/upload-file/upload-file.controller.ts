@@ -1,7 +1,8 @@
 import {
-  BadRequestException,
   Controller,
+  ParseFilePipe,
   Post,
+  UnsupportedMediaTypeException,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
@@ -21,7 +22,10 @@ export class UploadFileController {
       limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         if (!allowedMimeTypes.includes(file.mimetype)) {
-          return cb(new BadRequestException("Неверный тип файла"), false);
+          return cb(
+            new UnsupportedMediaTypeException("Неверный тип файла"),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -32,6 +36,7 @@ export class UploadFileController {
   @ApiBody({
     schema: {
       type: "object",
+      required: ["file"],
       properties: {
         file: {
           type: "string",
@@ -40,7 +45,10 @@ export class UploadFileController {
       },
     },
   })
-  uploadPdfFile(@UploadedFile() file: Express.Multer.File) {
+  uploadPdfFile(
+    @UploadedFile(new ParseFilePipe({ fileIsRequired: true }))
+    file: Express.Multer.File,
+  ) {
     const baseUrl = process.env.BACKEND_HOSTNAME;
     const filePath = path.posix.join("public", "files", file.filename);
 

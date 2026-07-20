@@ -1,9 +1,17 @@
 // GET /logs/paged?skip=0&take=20&action=update_profile
-import { Controller, Get, Query } from "@nestjs/common";
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  ValidationPipe,
+} from "@nestjs/common";
 import { UserActionsService } from "./user-actions.service";
-import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOkResponse, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { Roles } from "@decorators/Roles";
+import { LogsPagedRequestDto } from "./dto/logs-paged.request.dto";
+import { LogsPagedResponseDto } from "./dto/logs-paged.response.dto";
 
 @Controller("logs-list")
 @ApiTags('logs-list')
@@ -32,14 +40,14 @@ export class UserActionsController {
     @Query("id") id,
   ) {
     if (!entity) {
-      throw new Error("entity is required");
+      throw new BadRequestException("entity is required");
     }
   
     const entities = Array.isArray(entity) ? entity : [entity];
     const ids = Array.isArray(id) ? id : [id];
   
     if (entities.length !== ids.length) {
-      throw new Error("entity и id должны быть одинаковой длины");
+      throw new BadRequestException("entity и id должны быть одинаковой длины");
     }
   
     const results = await Promise.all(
@@ -64,23 +72,8 @@ export class UserActionsController {
 
   // Пагинация
   @Get("paged")
-  async getPaged(
-    @Query("skip") skip: string = "0",
-    @Query("take") take: string = "20",
-    @Query("action") action?: string,
-  ) {
-    if (action) {
-      return this.userActionsService.findPagedByAction(
-        action,
-        Number(skip),
-        Number(take),
-      );
-    }
-
-    const { logs, total } = await this.userActionsService.findPaged(
-      Number(skip),
-      Number(take),
-    );
-    return { total, logs };
+  @ApiOkResponse({ type: LogsPagedResponseDto })
+  async getPaged(@Query(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })) filters: LogsPagedRequestDto) {
+    return this.userActionsService.findPaged(filters);
   }
 }

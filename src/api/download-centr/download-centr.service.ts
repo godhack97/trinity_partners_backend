@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { DownloadCentr } from './download-centr.entity';
@@ -58,6 +58,7 @@ export class DownloadCentrService {
     createDto: CreateDownloadCentrDto,
     file: Express.Multer.File,
   ): Promise<DownloadCentr> {
+    if (!file) throw new BadRequestException('Файл не прикреплён');
     const uploadDir = path.join(process.cwd(), 'upload', 'centr');
 
     if (!fs.existsSync(uploadDir)) {

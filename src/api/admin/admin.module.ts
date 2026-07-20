@@ -20,7 +20,6 @@ import { LogsListModule } from "@api/logs-list/logs.module";
 import { NotificationService } from "@api/notification/notification.service";
 import { AdminUserAdminService } from "@api/admin/user/admin/admin-user-admin.service";
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
-import { UsersService } from "@api/users/users.service";
 import { ConfiguratorService } from "@api/configurator/configurator.service";
 import { DistributorService } from "@api/distributor/distributor.service";
 import { DealService } from "@api/deal/deal.service";
@@ -48,7 +47,6 @@ import { UserRoleEntity } from "@orm/entities/user-roles.entity";
     DistributorService,
     DealService,
     AdminUserAdminService,
-    UsersService,
     EmailConfirmerService,
     AdminService,
     ConfiguratorService,

@@ -8,6 +8,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
   };
   const userRepository = {
     findByEmail: jest.fn().mockResolvedValue(null),
+    findById: jest.fn().mockResolvedValue(null),
     save: jest.fn().mockResolvedValue({ id: 101, email: "user@test.local" }),
     createQueryBuilder: jest.fn(() => ({
       distinct: jest.fn().mockReturnThis(),
@@ -45,6 +46,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
   const companyRepository = {
     findOneBy: jest.fn().mockResolvedValue(null),
     save: jest.fn().mockResolvedValue({ id: 11, owner_id: 101 }),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
     ...overrides.companyRepository,
   };
   const companyEmployeeRepository = {
@@ -112,6 +114,8 @@ describe("UserService business roles", () => {
     job_title: "Менеджер по продажам",
     phone: "+79990000000",
     company_inn: "7700000000",
+    agreement_accepted: true,
+    privacy_policy_accepted: true,
   };
 
   const companyDto = {
@@ -123,6 +127,8 @@ describe("UserService business roles", () => {
     job_title: "CEO",
     phone: "+79990000001",
     inn: "7700000001",
+    agreement_accepted: true,
+    privacy_policy_accepted: true,
   };
 
   it("назначает первому пользователю новой компании роли partner и company_admin", async () => {

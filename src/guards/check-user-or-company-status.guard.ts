@@ -35,7 +35,14 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
       ...(user.roles || []).map((role) => role.name),
     ];
 
-    if (roleNames.includes(RoleTypes.SuperAdmin)) {
+    if (
+      [
+        RoleTypes.SuperAdmin,
+        RoleTypes.EmployeeAdmin,
+        RoleTypes.ContentManager,
+        RoleTypes.PartnerManager,
+      ].some((role) => roleNames.includes(role))
+    ) {
       return true;
     }
 
@@ -61,14 +68,20 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
     }
 
     if (
-      [RoleTypes.Employee, RoleTypes.EmployeeAdmin].includes(
-        user.role.name as RoleTypes,
-      ) ||
+      user.role?.name === RoleTypes.Employee ||
       roleNames.includes(RoleTypes.SalesManager) ||
       roleNames.includes(RoleTypes.TechnicalSpecialist) ||
       roleNames.includes(RoleTypes.Staff)
     ) {
-      if (user.company_employee?.company?.status === CompanyStatus.Suspended) {
+      const companyEmployee = user.company_employee;
+
+      if (!companyEmployee) {
+        throw new ForbiddenException(
+          "Пользователь не привязан к компании!",
+        );
+      }
+
+      if (companyEmployee.company?.status === CompanyStatus.Suspended) {
         throw new ForbiddenException(
           "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         );
@@ -78,14 +91,14 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
         [
           CompanyEmployeeStatus.Blocked,
           CompanyEmployeeStatus.Deleted,
-        ].includes(user.company_employee.status)
+        ].includes(companyEmployee.status)
       ) {
         throw new ForbiddenException(
           "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
         );
       }
 
-      if (user.company_employee.status !== CompanyEmployeeStatus.Accept) {
+      if (companyEmployee.status !== CompanyEmployeeStatus.Accept) {
         throw new ForbiddenException("Ваш статус не подтвержен!");
       }
       return true;

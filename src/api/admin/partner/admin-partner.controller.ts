@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  ValidationPipe,
+} from "@nestjs/common";
 import AdminPartnerService from "./admin-partner.service";
 import { Roles } from "../../../decorators/Roles";
 import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from "@nestjs/swagger";
@@ -7,6 +17,7 @@ import { PartnerFilterRequestDto } from "./dto/partner-filters-request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
 import { CompanyStatus, UserEntity } from "@orm/entities";
 import { AuthUser } from "@decorators/auth-user";
+import { UpdatePartnerBusinessFieldsRequestDto } from "./dto/update-partner-business-fields.request.dto";
 
 @ApiTags("partner")
 @ApiBearerAuth()
@@ -43,6 +54,13 @@ export class AdminPartnerController {
     return this.adminPartnerService.getCountByStatus(CompanyStatus.Reject);
   }
 
+  @Get("/count/suspended")
+  @ApiOperation({ summary: 'Получить количество приостановленных партнёров' })
+  @ApiResponse({ type: Number })
+  async getSuspendedCount() {
+    return this.adminPartnerService.getCountByStatus(CompanyStatus.Suspended);
+  }
+
   @Get("employee/requests")
   @ApiOperation({ summary: "Получить заявки сотрудников на проверку менеджером Тринити" })
   getEmployeeRequests(@AuthUser() auth_user: UserEntity) {
@@ -53,6 +71,22 @@ export class AdminPartnerController {
   @ApiOperation({ summary: 'Получить список партнёров' })
   getAll(@Query() filters: PartnerFilterRequestDto) {
     return this.adminPartnerService.getAll(filters);
+  }
+
+  @Patch(":id")
+  @Roles([RoleTypes.SuperAdmin])
+  @LogAction("partner_update", "companies")
+  @ApiOperation({ summary: "Обновить разрешённые бизнес-поля компании" })
+  updateBusinessFields(
+    @Param("id", ParseIntPipe) id: number,
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }))
+    data: UpdatePartnerBusinessFieldsRequestDto,
+  ) {
+    return this.adminPartnerService.updateBusinessFields(id, data);
   }
 
   @Post(":id/accept")
@@ -88,5 +122,19 @@ export class AdminPartnerController {
   @ApiOperation({ summary: 'Приостановить доступ партнёра' })
   suspendPartner(@Param("id") id: number) {
     return this.adminPartnerService.suspend(id);
+  }
+
+  @Post(":id/restore")
+  @LogAction("partner_restore", "companies")
+  @ApiOperation({ summary: 'Восстановить ранее отклонённого партнёра' })
+  restorePartner(@Param("id") id: number, @AuthUser() auth_user: UserEntity) {
+    return this.adminPartnerService.restore(id, auth_user);
+  }
+
+  @Post(":id/resume")
+  @LogAction("partner_resume", "companies")
+  @ApiOperation({ summary: 'Возобновить доступ приостановленного партнёра' })
+  resumePartner(@Param("id") id: number, @AuthUser() auth_user: UserEntity) {
+    return this.adminPartnerService.resume(id, auth_user);
   }
 }

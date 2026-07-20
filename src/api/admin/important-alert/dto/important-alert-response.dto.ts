@@ -26,9 +26,9 @@ export class ImportantAlertResponseDto {
   @Expose()
   author_id: number;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: true })
   @Expose()
-  target_company_id?: number;
+  target_company_id: number | null;
 
   @ApiProperty()
   @Expose()
@@ -37,4 +37,18 @@ export class ImportantAlertResponseDto {
   @ApiProperty()
   @Expose()
   updated_at: string;
+}
+
+export class ImportantAlertTargetCompanyDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  inn: string;
+
+  @ApiProperty()
+  status: string;
 }

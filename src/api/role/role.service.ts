@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, Not, Repository } from "typeorm";
 import { RoleEntity } from "../../orm/entities/role.entity";
 import { CreateRoleRequestDto } from "./dto/request/create-role.request.dto";
 import { UpdateRoleRequestDto } from "./dto/request/update-role.request.dto";
+import { isSystemRoleName } from "./system-role-names";
 
 @Injectable()
 export class RoleService {
@@ -14,13 +15,22 @@ export class RoleService {
 
   async create(createRoleDto: CreateRoleRequestDto): Promise<RoleEntity> {
     try {
-      // Проверяем, не существует ли уже роль с таким именем
+      if (isSystemRoleName(createRoleDto.name)) {
+        throw new ConflictException(
+          `Имя "${createRoleDto.name}" зарезервировано системной ролью`,
+        );
+      }
+
       const existingRole = await this.roleRepository.findOne({
-        where: { name: createRoleDto.name, deleted_at: null }
+        where: { name: createRoleDto.name },
+        withDeleted: true,
       });
 
       if (existingRole) {
-        throw new ConflictException(`Роль с именем "${createRoleDto.name}" уже существует`);
+        const action = existingRole.deleted_at ? "восстановите архивную роль" : "выберите другое имя";
+        throw new ConflictException(
+          `Роль с именем "${createRoleDto.name}" уже существует: ${action}`,
+        );
       }
 
       // Создаем новую роль
@@ -75,10 +85,17 @@ export class RoleService {
   async update(id: number, updateRoleDto: UpdateRoleRequestDto): Promise<RoleEntity> {
     const role = await this.findOne(id);
 
-    // Если обновляется имя роли, проверяем уникальность
     if (updateRoleDto.name && updateRoleDto.name !== role.name) {
+      if (isSystemRoleName(role.name)) {
+        throw new BadRequestException("Нельзя переименовать системную роль");
+      }
+      if (isSystemRoleName(updateRoleDto.name)) {
+        throw new BadRequestException("Нельзя использовать имя системной роли");
+      }
+
       const existingRole = await this.roleRepository.findOne({
-        where: { name: updateRoleDto.name, deleted_at: null }
+        where: { name: updateRoleDto.name },
+        withDeleted: true,
       });
 
       if (existingRole) {
@@ -95,24 +112,20 @@ export class RoleService {
   async remove(id: number): Promise<void> {
     const role = await this.findOne(id);
 
-    // Проверяем, что это не системная роль
-    if (role.name === 'super_admin') {
-      throw new BadRequestException('Нельзя удалить системную роль super_admin');
+    if (isSystemRoleName(role.name)) {
+      throw new BadRequestException(`Нельзя удалить системную роль ${role.name}`);
     }
 
-    // Проверяем, есть ли пользователи с этой ролью
     const usersWithRole = await this.roleRepository.findOne({
       where: { id },
-      relations: ['users']
+      relations: ['users', 'user_roles'],
     });
 
-    if (usersWithRole?.users && usersWithRole.users.length > 0) {
+    if (this.getAssignedUserIds(usersWithRole).size > 0) {
       throw new BadRequestException('Нельзя удалить роль, назначенную пользователям');
     }
 
-    // Мягкое удаление
-    // role.deleted_at = new Date();
-    await this.roleRepository.remove(role);
+    await this.roleRepository.softRemove(role);
   }
 
   async restore(id: number): Promise<RoleEntity> {
@@ -129,31 +142,32 @@ export class RoleService {
       throw new BadRequestException('Роль не была удалена');
     }
 
-    role.deleted_at = null;
-    return await this.roleRepository.save(role);
+    await this.roleRepository.restore(id);
+    return this.findOne(id);
   }
 
   async findDeleted(): Promise<RoleEntity[]> {
     return this.roleRepository.find({
-      where: { deleted_at: null },
+      where: { deleted_at: Not(IsNull()) },
       withDeleted: true,
-      order: { deleted_at: 'DESC' }
-    }).then(roles => roles.filter(role => role.deleted_at !== null));
+      relations: ['permissions', 'users', 'user_roles'],
+      order: { deleted_at: 'DESC' },
+    });
   }
 
   async getUsersCount(roleId: number): Promise<number> {
     const role = await this.roleRepository.findOne({
       where: { id: roleId, deleted_at: null },
-      relations: ['users']
+      relations: ['users', 'user_roles'],
     });
 
-    return role?.users?.length || 0;
+    return this.getAssignedUserIds(role).size;
   }
 
   async getRolesWithStats(): Promise<any[]> {
     const roles = await this.roleRepository.find({
       where: { deleted_at: null },
-      relations: ['users', 'permissions'],
+      relations: ['users', 'user_roles', 'permissions'],
       order: { created_at: 'DESC' }
     });
 
@@ -163,9 +177,10 @@ export class RoleService {
       description: role.description,
       created_at: role.created_at,
       updated_at: role.updated_at,
-      users_count: role.users?.length || 0,
+      users_count: this.getAssignedUserIds(role).size,
       permissions_count: role.permissions?.length || 0,
-      is_system: ['super_admin', 'admin'].includes(role.name)
+      permissions: role.permissions || [],
+      is_system: isSystemRoleName(role.name),
     }));
   }
 
@@ -173,7 +188,7 @@ export class RoleService {
     const role = await this.findOne(roleId);
 
     // Системные роли нельзя удалять
-    if (['super_admin', 'admin'].includes(role.name)) {
+    if (isSystemRoleName(role.name)) {
       return { 
         canDelete: false, 
         reason: 'Системную роль нельзя удалить' 
@@ -202,5 +217,12 @@ export class RoleService {
     }
 
     return role;
+  }
+
+  private getAssignedUserIds(role?: RoleEntity): Set<number> {
+    return new Set([
+      ...(role?.users || []).map(user => user.id),
+      ...(role?.user_roles || []).map(userRole => userRole.user_id),
+    ]);
   }
 }

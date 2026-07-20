@@ -8,14 +8,17 @@ import {
   Patch,
   UseInterceptors,
   ParseIntPipe,
+  ValidationPipe,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { TransformResponse } from "src/interceptors/transform-response.interceptor";
 import { UserResponseDto } from "./dto/response/user.response.dto";
 import { UpdatePartnerDto } from "./dto/request/update-partner.request.dto";
+import { UpdateUserRequestDto } from "./dto/request/update-user.request.dto";
 import { UserService } from "./user.service";
 import { LogAction } from "src/logs/log-action.decorator";
-import { RequirePermissions } from "src/decorators/permissions.decorator";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 @ApiTags("user")
 @ApiBearerAuth()
@@ -24,6 +27,7 @@ export class UserController {
   constructor(private readonly userService: UserService) { }
 
   @Get()
+  @Roles([RoleTypes.SuperAdmin])
   @UseInterceptors(new TransformResponse(UserResponseDto, true))
   @ApiResponse({ type: [UserResponseDto] })
   findAll() {
@@ -31,7 +35,7 @@ export class UserController {
   }
 
   @Patch('/partner/:id')
-  @RequirePermissions('api.users.write')
+  @Roles([RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
   @UseInterceptors(new TransformResponse(UserResponseDto))
   @ApiOperation({ summary: 'Обновить менеджера партнера' })
   @LogAction('partner_edit_manager', 'users')
@@ -44,19 +48,24 @@ export class UserController {
   }
 
   @Patch(':id')
-  @RequirePermissions('api.users.write')
+  @Roles([RoleTypes.SuperAdmin])
   @UseInterceptors(new TransformResponse(UserResponseDto))
   @ApiOperation({ summary: 'Обновить данные пользователя' })
   @LogAction("update_user", "users")
   @ApiResponse({ status: 200, description: 'Пользователь обновлен', type: UserResponseDto })
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateData: Record<string, any>
+    @Body(new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })) updateData: UpdateUserRequestDto,
   ) {
     return this.userService.update(id, updateData);
   }
 
   @Get(":id")
+  @Roles([RoleTypes.SuperAdmin])
   @UseInterceptors(new TransformResponse(UserResponseDto))
   @ApiResponse({ type: UserResponseDto })
   findOne(@Param("id") id: string) {
@@ -64,7 +73,7 @@ export class UserController {
   }
 
   @Post('update-role/:id')
-  @RequirePermissions('api.roles.write')
+  @Roles([RoleTypes.SuperAdmin])
   @ApiOperation({ summary: 'Обновить роль пользователю' })
   @ApiResponse({ status: 200, description: 'Роль обновлена' })
   updateRole(
@@ -77,7 +86,7 @@ export class UserController {
   }
 
   @Post('update-roles/:id')
-  @RequirePermissions('api.roles.write')
+  @Roles([RoleTypes.SuperAdmin])
   @LogAction("user_role_update", "user_roles", ["user_id", "role_id"])
   @ApiOperation({ summary: 'Обновить роли пользователю (множественные)' })
   @ApiResponse({ status: 200, description: 'Роли обновлены' })
@@ -91,6 +100,7 @@ export class UserController {
   }
 
   @Delete(":id")
+  @Roles([RoleTypes.SuperAdmin])
   @LogAction("user_archive", "users")
   remove(@Param("id") id: string) {
     return this.userService.remove(+id);

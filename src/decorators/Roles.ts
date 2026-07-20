@@ -1,6 +1,9 @@
-import { Reflector } from "@nestjs/core";
-import { SetMetadata } from "@nestjs/common";
+import { createAccessContractDecorator } from "./access-contract.decorator";
 
 export const ACCEPTED_ROLES = "accepted_roles";
 export const Roles = (roles: string[] = []) =>
-  SetMetadata(ACCEPTED_ROLES, roles);
+  createAccessContractDecorator(
+    ACCEPTED_ROLES,
+    "x-required-roles",
+    roles,
+  );

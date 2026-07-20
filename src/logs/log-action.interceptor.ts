@@ -190,11 +190,16 @@ export class LogActionInterceptor implements NestInterceptor {
               body: removePasswords(req.body),
               query: req.query,
             };
+
+            if (!details.params?.id && result?.id) {
+              details.body = { ...details.body, id: result.id };
+            }
   
             if (entitySnapshot) {
-              console.log('OLD SNAPSHOT:', entitySnapshot);
-              console.log('NEW BODY:', req.body);
               const snapshot = Array.isArray(entitySnapshot) ? entitySnapshot : [entitySnapshot];
+              if (!details.body?.id && snapshot[0]?.id) {
+                details.body = { ...details.body, id: snapshot[0].id };
+              }
               details.deleted = snapshot.map(item => {
                 const result: any = {};
                 if ("id" in item) result.id = item.id;

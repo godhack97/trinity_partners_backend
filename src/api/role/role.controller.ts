@@ -48,6 +48,14 @@ export class RoleController {
     return this.roleService.getRolesWithStats();
   }
 
+  @Get('archived')
+  @RequirePermissions('api.roles.read')
+  @ApiOperation({ summary: 'Получить архивные роли' })
+  @ApiResponse({ status: 200, description: 'Список архивных ролей' })
+  findDeleted() {
+    return this.roleService.findDeleted();
+  }
+
   @Get(':id')
   @RequirePermissions('api.roles.read')
   @ApiOperation({ summary: 'Получить роль по ID' })

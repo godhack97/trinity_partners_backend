@@ -4,12 +4,15 @@ import {
   Post,
   Param,
   Body,
+  ForbiddenException,
   NotFoundException,
   ParseIntPipe,
 } from "@nestjs/common";
 import { UserTableSettingsService } from "./user-table-settings.service";
 import { UserTableSettingsEntity } from "../../orm/entities/user-table-settings.entity";
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthUser } from '@decorators/auth-user';
+import { UserEntity } from '@orm/entities';
 
 @ApiBearerAuth()
 @ApiTags('user-table-settings')
@@ -24,7 +27,10 @@ export class UserTableSettingsController {
   async getUserTableSettings(
     @Param("userId", ParseIntPipe) userId: number,
     @Param("tableId") tableId: string,
+    @AuthUser() authUser: UserEntity,
   ): Promise<UserTableSettingsEntity> {
+    this.assertOwnSettings(userId, authUser);
+
     const settings = await this.userTableSettingsService.findByUserAndTable(
       userId,
       tableId,
@@ -43,7 +49,10 @@ export class UserTableSettingsController {
     @Param("userId", ParseIntPipe) userId: number,
     @Param("tableId") tableId: string,
     @Body() body: { data: string[] },
+    @AuthUser() authUser: UserEntity,
   ): Promise<UserTableSettingsEntity> {
+    this.assertOwnSettings(userId, authUser);
+
     let settings = await this.userTableSettingsService.findByUserAndTable(
       userId,
       tableId,
@@ -58,5 +67,13 @@ export class UserTableSettingsController {
     settings.data = body.data;
 
     return this.userTableSettingsService.save(settings);
+  }
+
+  private assertOwnSettings(userId: number, authUser: UserEntity): void {
+    if (!authUser || authUser.id !== userId) {
+      throw new ForbiddenException(
+        "Нельзя читать или изменять настройки таблиц другого пользователя",
+      );
+    }
   }
 }

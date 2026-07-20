@@ -21,6 +21,13 @@ export enum PartnershipType {
   Distributor = "distributor",
 }
 
+export enum PartnerLevel {
+  Bronze = "bronze",
+  Silver = "silver",
+  Gold = "gold",
+  Platinum = "platinum",
+}
+
 @Entity({
   name: "companies",
 })
@@ -103,11 +110,11 @@ export class CompanyEntity extends BasisEntity {
 
   @Column({
     type: "enum",
-    enum: ["bronze", "silver", "gold", "platinum"],
+    enum: PartnerLevel,
     nullable: true,
     comment: "Уровень партнёра",
   })
-  partner_level: "bronze" | "silver" | "gold" | "platinum" | null;
+  partner_level: PartnerLevel | null;
 
   @Column({ type: "date", nullable: true, comment: "Срок действия сертификата" })
   certificate_expiry: Date | null;

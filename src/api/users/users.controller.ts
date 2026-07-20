@@ -12,10 +12,13 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags, ApiOperation } from "@nestjs/swagger";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 @Controller("users")
 @ApiTags("users")
 @ApiBearerAuth()
+@Roles([RoleTypes.SuperAdmin])
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

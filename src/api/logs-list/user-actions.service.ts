@@ -1,25 +1,52 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, FindManyOptions, Entity } from "typeorm";
 import { UserAction } from "src/logs/user-action.entity";
 import { UserActionLabels } from "./user-actions.enum";
 import * as entities from "src/orm/entities";
 import  { DownloadCentr } from "src/api/download-centr/download-centr.entity"
+import { LogsPagedRequestDto } from "./dto/logs-paged.request.dto";
 
 type FieldType = string | ((entity: any) => string);
+
+export const REQUIRED_HISTORY_ENTITIES = [
+  "companies",
+  "company_employees",
+  "users",
+  "user_roles",
+  "deals",
+  "distributors",
+  "news",
+  "important_alerts",
+  "documents",
+  "document_groups",
+  "document_tags",
+  "document_access_levels",
+  "download_centr",
+  "cnf_components",
+  "cnf_component_types",
+  "cnf_multislots",
+  "cnf_processor_generation",
+  "cnf_servers",
+  "cnf_platform_profiles",
+  "cnf_server_generation",
+  "cnf_serverbox_height",
+  "cnf_slots",
+  "recommended_configs",
+] as const;
 
 @Injectable()
 export class UserActionsService {
   private entityRepoMap: Record<
     string,
-    { repo: Repository<any>; field: FieldType }
+    { repo: Repository<any>; field: FieldType; idField?: string }
   >;
 
   constructor(
     @InjectRepository(UserAction)
     private readonly userActionRepo: Repository<UserAction>,
 
-    @InjectRepository(UserAction)
+    @InjectRepository(DownloadCentr)
     private readonly DownloadCentrRepo: Repository<DownloadCentr>,
 
     @InjectRepository(entities.CompanyEmployeeEntity)
@@ -42,6 +69,27 @@ export class UserActionsService {
 
     @InjectRepository(entities.NewsEntity)
     private readonly NewsRepo: Repository<entities.NewsEntity>,
+
+    @InjectRepository(entities.ImportantAlertEntity)
+    private readonly ImportantAlertRepo: Repository<entities.ImportantAlertEntity>,
+
+    @InjectRepository(entities.DocumentEntity)
+    private readonly DocumentRepo: Repository<entities.DocumentEntity>,
+
+    @InjectRepository(entities.DocumentGroupEntity)
+    private readonly DocumentGroupRepo: Repository<entities.DocumentGroupEntity>,
+
+    @InjectRepository(entities.DocumentTagEntity)
+    private readonly DocumentTagRepo: Repository<entities.DocumentTagEntity>,
+
+    @InjectRepository(entities.DocumentAccessLevelEntity)
+    private readonly DocumentAccessLevelRepo: Repository<entities.DocumentAccessLevelEntity>,
+
+    @InjectRepository(entities.RecommendedConfigEntity)
+    private readonly RecommendedConfigRepo: Repository<entities.RecommendedConfigEntity>,
+
+    @InjectRepository(entities.CnfPlatformProfileEntity)
+    private readonly CnfPlatformProfileRepo: Repository<entities.CnfPlatformProfileEntity>,
 
     @InjectRepository(entities.NotificationEntity)
     private readonly NotificationRepo: Repository<entities.NotificationEntity>,
@@ -144,7 +192,24 @@ export class UserActionsService {
         field: "deletion_reason"
       },
       distributors: { repo: this.DistributorRepo, field: "name" },
-      news: { repo: this.NewsRepo, field: "name" },
+      news: { repo: this.NewsRepo, field: "name", idField: "url" },
+      important_alerts: { repo: this.ImportantAlertRepo, field: "title" },
+      documents: { repo: this.DocumentRepo, field: "name" },
+      document_groups: { repo: this.DocumentGroupRepo, field: "name" },
+      document_tags: { repo: this.DocumentTagRepo, field: "name" },
+      document_access_levels: {
+        repo: this.DocumentAccessLevelRepo,
+        field: "name",
+      },
+      recommended_configs: {
+        repo: this.RecommendedConfigRepo,
+        field: "category_label",
+      },
+      cnf_platform_profiles: {
+        repo: this.CnfPlatformProfileRepo,
+        field: "platform_code",
+        idField: "server_id",
+      },
       notifications: { repo: this.NotificationRepo, field: "title" },
       roles: { repo: this.RoleRepo, field: "name" },
       permissions: { repo: this.PermissionRepo, field: "name" },
@@ -154,7 +219,8 @@ export class UserActionsService {
       },
       user_roles: {
         repo: this.UserRoleRepo,
-        field: (entity) => `User ID: ${entity.user_id}`
+        field: (entity) => `User ID: ${entity.user_id}`,
+        idField: "user_id",
       },
       user_settings: {
         repo: this.UserSettingRepo,
@@ -218,6 +284,13 @@ export class UserActionsService {
       },
       cnf_slots: { repo: this.CnfSlotRepo, field: "name" },
     };
+
+    const missingEntities = REQUIRED_HISTORY_ENTITIES.filter(
+      (entity) => !this.supportsEntity(entity),
+    );
+    if (missingEntities.length) {
+      throw new Error(`History registry is incomplete: ${missingEntities.join(", ")}`);
+    }
   }
 
   async getCount(): Promise<number> {
@@ -231,21 +304,27 @@ export class UserActionsService {
       const details =
         typeof log.details === "string" ? JSON.parse(log.details) : log.details;
 
-      const entityId = details?.params?.backupId || details?.params?.id;
+      const entityId = details?.params?.backupId
+        || details?.params?.id
+        || details?.params?.slug
+        || details?.body?.id;
 
       if (
         details?.entity &&
         entityId &&
         this.entityRepoMap[details.entity]
       ) {
-        const { repo, field } = this.entityRepoMap[details.entity];
-        const entity = await repo.findOne({ where: { id: entityId } });
+        const { repo, field, idField = "id" } = this.entityRepoMap[details.entity];
+        const entity = await repo.findOne({ where: { [idField]: entityId } });
 
         if (entity) {
           entityName =
             typeof field === "function" ? field(entity) : entity[field];
-        } else if (details.deleted.name) {
-          entityName = details.deleted.name;
+        } else if (details?.deleted) {
+          const deleted = Array.isArray(details.deleted)
+            ? details.deleted[0]
+            : details.deleted;
+          entityName = deleted?.name || deleted?.email || `ID: ${entityId}`;
         } else {
           entityName = `ID: ${entityId}`;
         }
@@ -291,19 +370,34 @@ export class UserActionsService {
   }
 
   async findPaged(
-    skip = 0,
-    take = 20,
-  ): Promise<{ logs: any[]; total: number }> {
-    const [logs, total] = await this.userActionRepo.findAndCount({
-      order: { created_at: "DESC" },
-      relations: ["user"],
-      skip,
-      take,
-    });
+    filters: LogsPagedRequestDto,
+  ): Promise<{ logs: any[]; total: number; skip: number; take: number }> {
+    const { skip = 0, take = 20, action, search, order = "DESC" } = filters;
+    const query = this.userActionRepo
+      .createQueryBuilder("action")
+      .leftJoinAndSelect("action.user", "user")
+      .orderBy("action.created_at", order)
+      .skip(skip)
+      .take(take);
+
+    if (action) {
+      query.andWhere("action.action = :action", { action });
+    }
+
+    if (search) {
+      query.andWhere(
+        "(action.action LIKE :search OR user.email LIKE :search OR JSON_UNQUOTE(JSON_EXTRACT(action.details, '$.entity')) LIKE :search)",
+        { search: `%${search}%` },
+      );
+    }
+
+    const [logs, total] = await query.getManyAndCount();
 
     return {
       logs: await Promise.all(logs.map((log) => this.enrichLogWithEntity(log))),
       total,
+      skip,
+      take,
     };
   }
 
@@ -327,14 +421,18 @@ export class UserActionsService {
   }
 
   async findByEntity(entity, entityId) {
+    if (!this.supportsEntity(entity)) {
+      throw new BadRequestException(`Неизвестная сущность истории: ${entity}`);
+    }
+
     const queryBuilder = this.userActionRepo
       .createQueryBuilder("action")
       .leftJoinAndSelect("action.user", "user")
-      .where("JSON_EXTRACT(action.details, '$.entity') = :entity", { entity });
+      .where("JSON_UNQUOTE(JSON_EXTRACT(action.details, '$.entity')) = :entity", { entity });
 
     if (entityId) {
       queryBuilder.andWhere(
-        "(JSON_EXTRACT(action.details, '$.params.id') = :entityId OR JSON_EXTRACT(action.details, '$.body.id') = :entityId)",
+        "(JSON_UNQUOTE(JSON_EXTRACT(action.details, '$.params.id')) = :entityId OR JSON_UNQUOTE(JSON_EXTRACT(action.details, '$.body.id')) = :entityId)",
         { entityId }
       );
     } else {
@@ -348,6 +446,10 @@ export class UserActionsService {
       .getMany();
 
     return Promise.all(logs.map((log) => this.structureEntityLog(log)));
+  }
+
+  supportsEntity(entity: string): boolean {
+    return Object.prototype.hasOwnProperty.call(this.entityRepoMap, entity);
   }
 
   private async structureEntityLog(log) {
@@ -441,25 +543,5 @@ export class UserActionsService {
     if (diffMins < 1) return 'только что';
     if (diffMins < 60) return `${diffMins} мин назад`;
     return `${diffHours} ч назад`;
-  }
-
-
-  async findPagedByAction(
-    action: string,
-    skip = 0,
-    take = 20,
-  ): Promise<{ logs: any[]; total: number }> {
-    const [logs, total] = await this.userActionRepo.findAndCount({
-      where: { action },
-      order: { created_at: "DESC" },
-      relations: ["user"],
-      skip,
-      take,
-    });
-
-    return {
-      logs: await Promise.all(logs.map((log) => this.enrichLogWithEntity(log))),
-      total,
-    };
   }
 }

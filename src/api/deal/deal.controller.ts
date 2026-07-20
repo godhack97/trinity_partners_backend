@@ -35,6 +35,8 @@ import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.
 import { UpdateDealDto } from "./dto/request/update-deal.dto";
 import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
 import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 @ApiTags("deal")
 @ApiBearerAuth()
@@ -339,6 +341,7 @@ export class DealController {
 
   // Удаление сделки - требует права на удаление
   @Delete(":id")
+  @Roles([RoleTypes.SuperAdmin])
   @RequirePermissions('api.deals.remove')
   @LogAction("deal_delete", "deals")
   @ApiResponse({

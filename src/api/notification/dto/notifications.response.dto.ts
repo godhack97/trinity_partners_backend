@@ -1,6 +1,20 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { NotificationCategory, NotificationIconType } from "@orm/entities";
-import { Expose } from "class-transformer";
+import {
+  NotificationCategory,
+  NotificationIconType,
+  NotificationType,
+} from "@orm/entities";
+import { Expose, Type } from "class-transformer";
+
+export class NotificationActionResponseDto {
+  @ApiProperty()
+  @Expose()
+  label: string;
+
+  @ApiProperty()
+  @Expose()
+  url: string;
+}
 
 export class NotificationsResponseDto {
   @ApiProperty()
@@ -19,15 +33,15 @@ export class NotificationsResponseDto {
   @Expose()
   text: string;
 
-  @ApiProperty()
+  @ApiProperty({ enum: NotificationType })
   @Expose()
-  type: string;
+  type: NotificationType;
 
   @ApiProperty()
   @Expose()
   is_read: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ enum: NotificationIconType })
   @Expose()
   icon: NotificationIconType;
 
@@ -35,11 +49,33 @@ export class NotificationsResponseDto {
   @Expose()
   category: NotificationCategory;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true, format: "date-time" })
   @Expose()
-  read_at: Date;
+  read_at: Date | null;
 
-  @ApiProperty({ type: "array", items: { type: "object" }, nullable: true })
+  @ApiProperty({ type: [NotificationActionResponseDto], nullable: true })
   @Expose()
+  @Type(() => NotificationActionResponseDto)
   actions: { label: string; url: string }[] | null;
+
+  @ApiProperty({ nullable: true })
+  @Expose()
+  ticket_id: number | null;
+
+  @ApiProperty({ format: "date-time" })
+  @Expose()
+  created_at: Date;
+
+  @ApiProperty({ format: "date-time" })
+  @Expose()
+  updated_at: Date;
+
+  @ApiProperty({
+    type: () => [NotificationsResponseDto],
+    required: false,
+    description: "Предыдущие уведомления, сгруппированные по ticket_id",
+  })
+  @Expose()
+  @Type(() => NotificationsResponseDto)
+  related?: NotificationsResponseDto[];
 }

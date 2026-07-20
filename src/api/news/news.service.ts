@@ -2,6 +2,7 @@ import { NewsPaginationDto } from "@api/news/dto/news-pagination.dto";
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
 import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -98,13 +99,13 @@ export class NewsService {
   }
   async create(data: NewsRequestDto, auth_user: Partial<UserEntity>) {
     const { name, content, photo, image_big } = data;
+    this.assertEditorContent(content);
     const slug = this.makeCHEPEU(name);
     const url = slug;
     const isExistSlug = await this.newsRepository.findBySlugOrName({
       slug,
       name,
     });
-    console.log({ isExistSlug });
     if (isExistSlug)
       throw new HttpException(this.ERROR_EXISTS, HttpStatus.CONFLICT);
 
@@ -119,6 +120,7 @@ export class NewsService {
   }
   async update(slug: string, data: NewsRequestDto) {
     const { name, content, photo, image_big } = data;
+    this.assertEditorContent(content);
     const slugNew = this.makeCHEPEU(name);
     const url = slugNew;
     const news = await this.newsRepository.findBySlug({ slug });
@@ -183,6 +185,19 @@ export class NewsService {
       "",
     );
     return text;
+  }
+
+  private assertEditorContent(content: string) {
+    let document: any;
+    try {
+      document = JSON.parse(content);
+    } catch {
+      throw new BadRequestException("Контент новости должен быть валидным JSON EditorJS");
+    }
+
+    if (!document || !Array.isArray(document.blocks) || document.blocks.length === 0) {
+      throw new BadRequestException("Добавьте текст новости");
+    }
   }
 
   async check() {

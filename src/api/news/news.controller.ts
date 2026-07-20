@@ -2,10 +2,9 @@ import { NewsPaginationDto } from "@api/news/dto/news-pagination.dto";
 import { NewsRequestDto } from "@api/news/dto/news.request.dto";
 import {
   NewsResponseDto,
-  NewsResponseListDto,
+  NewsPaginationResponseDto,
 } from "@api/news/dto/news.response.dto";
 import { NewsService } from "@api/news/news.service";
-import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AuthUser } from "@decorators/auth-user";
 import { Roles } from "@decorators/Roles";
@@ -18,6 +17,7 @@ import {
   Post,
   Query,
   UseInterceptors,
+  ValidationPipe,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { UserEntity } from "@orm/entities";
@@ -31,7 +31,7 @@ export class NewsController {
 
   @Get()
   //@UseInterceptors(new TransformResponse(PaginationResponseDto<NewsResponseListDto>))
-  @ApiResponse({ type: PaginationResponseDto<NewsResponseListDto> })
+  @ApiResponse({ type: NewsPaginationResponseDto })
   async findAll(@Query() filters: NewsPaginationDto) {
     return this.newsService.findAll(filters);
   }
@@ -55,7 +55,8 @@ export class NewsController {
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async create(
-    @Body() data: NewsRequestDto,
+    @Body(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
+    data: NewsRequestDto,
     @AuthUser() auth_user: Partial<UserEntity>,
   ) {
     return this.newsService.create(data, auth_user);
@@ -66,7 +67,11 @@ export class NewsController {
   @LogAction("news_update", "news")
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
-  async update(@Param("slug") slug: string, @Body() data: NewsRequestDto) {
+  async update(
+    @Param("slug") slug: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
+    data: NewsRequestDto,
+  ) {
     return this.newsService.update(slug, data);
   }
 

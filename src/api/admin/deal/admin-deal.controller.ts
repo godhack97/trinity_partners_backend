@@ -5,6 +5,7 @@ import { RoleTypes } from "@app/types/RoleTypes";
 import { Roles } from "@decorators/Roles";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 import { LogAction } from "src/logs/log-action.decorator";
+import { ReviewDealDuplicateDto } from "./dto/request/review-deal-duplicate.dto";
 
 @ApiTags("deals")
 @ApiBearerAuth()
@@ -25,7 +26,7 @@ export class AdminDealController {
   @ApiOperation({ summary: "Назначить итоговый статус ручной проверки дубля" })
   reviewDuplicate(
     @Param("id") id: string,
-    @Body() body: { status: "duplicate" | "not_duplicate" },
+    @Body() body: ReviewDealDuplicateDto,
   ) {
     return this.dealsService.reviewDuplicate(+id, body.status);
   }

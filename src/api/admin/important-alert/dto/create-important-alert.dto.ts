@@ -1,12 +1,29 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsEnum, IsBoolean, IsNumber } from "class-validator";
+import { Transform, Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from "class-validator";
 import { ImportantAlertSeverity } from "@orm/entities";
 
 export class CreateImportantAlertDto {
-  @ApiProperty()
+  @ApiProperty({ maxLength: 255 })
+  @Transform(({ value }) => typeof value === "string" ? value.trim() : value)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   title: string;
 
   @ApiProperty()
+  @Transform(({ value }) => typeof value === "string" ? value.trim() : value)
+  @IsString()
+  @IsNotEmpty()
   message: string;
 
   @ApiPropertyOptional({ enum: ImportantAlertSeverity, default: ImportantAlertSeverity.Info })
@@ -19,8 +36,13 @@ export class CreateImportantAlertDto {
   @IsBoolean()
   is_active?: boolean;
 
-  @ApiPropertyOptional({ description: "ID компании для адресного оповещения" })
+  @ApiPropertyOptional({
+    description: "ID компании для адресного оповещения; null — для всех компаний",
+    nullable: true,
+  })
   @IsOptional()
-  @IsNumber()
-  target_company_id?: number;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  target_company_id?: number | null;
 }

@@ -1,52 +1,114 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Roles } from "@decorators/Roles";
+import { AuthUser } from "@decorators/auth-user";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { NewsService } from "@api/news/news.service";
 import { DistributorService } from "@api/distributor/distributor.service";
 import { AdminUserAdminService } from "@api/admin/user/admin/admin-user-admin.service";
+import { AdminUserService } from "@api/admin/user/admin-user.service";
 import AdminPartnerService from "@api/admin/partner/admin-partner.service";
 import { ConfiguratorService } from "@api/configurator/configurator.service";
-import { CompanyStatus } from "@orm/entities";
-import { UsersService } from "@api/users/users.service";
+import { CompanyStatus, UserEntity } from "@orm/entities";
 import { DealService } from "@api/deal/deal.service";
 import { UserActionsService } from "@api/logs-list/user-actions.service";
 import { AdminImportantAlertService } from "@api/admin/important-alert/admin-important-alert.service";
-import { request } from "http";
+import { AdminCountsResponseDto } from "./dto/admin-counts.response.dto";
 
 @ApiTags("counts")
 @ApiBearerAuth()
 @Controller("admin")
-@Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager, RoleTypes.EmployeeAdmin])
+@Roles([
+  RoleTypes.SuperAdmin,
+  RoleTypes.ContentManager,
+  RoleTypes.EmployeeAdmin,
+  RoleTypes.PartnerManager,
+])
 export class AdminCountsController {
   constructor(
     private readonly newsService: NewsService,
     private readonly adminUserAdminService: AdminUserAdminService,
+    private readonly adminUserService: AdminUserService,
     private readonly adminPartnerService: AdminPartnerService,
     private readonly configuratorService: ConfiguratorService,
     private readonly distributorService: DistributorService,
-    private readonly usersService: UsersService,
     private readonly dealService: DealService,
     private readonly userActionsService: UserActionsService,
     private readonly adminImportantAlertService: AdminImportantAlertService,
   ) {}
 
   @Get("/counts")
-  @ApiOperation({ summary: 'Получить количества сущностей' })
-  @ApiResponse({ type: Object })
-  async getAllCounts() {
+  @ApiOperation({ summary: "Получить доступные текущей роли количества сущностей" })
+  @ApiOkResponse({ type: AdminCountsResponseDto })
+  async getAllCounts(
+    @AuthUser() authUser: UserEntity,
+  ): Promise<AdminCountsResponseDto> {
+    const response: AdminCountsResponseDto = {};
+    const isSuperAdmin = this.hasRole(authUser, RoleTypes.SuperAdmin);
+    const canViewPartners =
+      isSuperAdmin || this.hasRole(authUser, RoleTypes.PartnerManager);
+    const canViewContent =
+      isSuperAdmin || this.hasRole(authUser, RoleTypes.ContentManager);
+
+    const sections: Promise<void>[] = [];
+
+    if (isSuperAdmin) {
+      sections.push(this.loadSuperAdminCounts(response));
+    }
+    if (canViewPartners) {
+      sections.push(this.loadPartnerCounts(response, isSuperAdmin));
+    }
+    if (canViewContent) {
+      sections.push(this.loadContentCounts(response));
+    }
+
+    await Promise.all(sections);
+    return response;
+  }
+
+  private async loadContentCounts(response: AdminCountsResponseDto) {
+    const [newsCount, importantAlertsCount] = await Promise.all([
+      this.newsService.getCount(),
+      this.adminImportantAlertService.getCount(),
+    ]);
+
+    response.news = newsCount;
+    response.importantAlerts = importantAlertsCount;
+  }
+
+  private async loadPartnerCounts(
+    response: AdminCountsResponseDto,
+    includeCompanyEmployees: boolean,
+  ) {
+    const [requests, accepted, rejected, suspended, users] = await Promise.all([
+      this.adminPartnerService.getCountByStatus(CompanyStatus.Pending),
+      this.adminPartnerService.getCountByStatus(CompanyStatus.Accept),
+      this.adminPartnerService.getCountByStatus(CompanyStatus.Reject),
+      this.adminPartnerService.getCountByStatus(CompanyStatus.Suspended),
+      includeCompanyEmployees
+        ? this.adminUserService.getCount()
+        : Promise.resolve(undefined),
+    ]);
+
+    response.partners = {
+      ...(users === undefined ? {} : { users }),
+      requests,
+      accepted,
+      rejected,
+      suspended,
+    };
+  }
+
+  private async loadSuperAdminCounts(response: AdminCountsResponseDto) {
     const [
-      newsCount,
-      // adminCount,
-      // superAdminCount,
-      // contentManagerCount,
       adminCount,
       rolesCounts,
       archivedCount,
-      partnersUsersCount,
-      partnerRequestsCount,
-      partnersCount,
-      partnersRejectedCount,
       serverboxCount,
       slotsCount,
       serverGenerationsCount,
@@ -55,7 +117,6 @@ export class AdminCountsController {
       componentsCount,
       componentstypesCount,
       distributorsCount,
-
       allDealsCount,
       moderationCount,
       registeredCount,
@@ -63,21 +124,11 @@ export class AdminCountsController {
       winCount,
       looseCount,
       requestDeletedCount,
-
       logsCount,
-      importantAlertsCount,
     ] = await Promise.all([
-      this.newsService.getCount(),
-
       this.adminUserAdminService.getCount(),
       this.adminUserAdminService.getCountsByAllRoles(),
       this.adminUserAdminService.getArchivedCount(),
-
-      this.usersService.getCount(),
-      this.adminPartnerService.getCountByStatus(CompanyStatus.Pending),
-      this.adminPartnerService.getCountByStatus(CompanyStatus.Accept),
-      this.adminPartnerService.getCountByStatus(CompanyStatus.Reject),
-
       this.configuratorService.getServerboxCount(),
       this.configuratorService.getSlotsCount(),
       this.configuratorService.getServerGenerationsCount(),
@@ -86,7 +137,6 @@ export class AdminCountsController {
       this.configuratorService.getComponentsCount(),
       this.configuratorService.componentstypesCount(),
       this.distributorService.getCount(),
-
       this.dealService.getCount(),
       this.dealService.getModerationCount(),
       this.dealService.getRegisteredCount(),
@@ -94,47 +144,41 @@ export class AdminCountsController {
       this.dealService.getWinCount(),
       this.dealService.getLooseCount(),
       this.dealService.getRequestDeletedCount(),
-
       this.userActionsService.getCount(),
-      this.adminImportantAlertService.getCount(),
     ]);
 
-    return {
-      news: newsCount,
-      admins: {
-        all: adminCount,
-        archived: archivedCount,
-        byRole: rolesCounts, // <- добавить все роли
-      },
-      partners: {
-        users: partnersUsersCount,
-        requests: partnerRequestsCount,
-        accepted: partnersCount,
-        rejected: partnersRejectedCount,
-      },
-      configurator: {
-        serverboxes: serverboxCount,
-        slots: slotsCount,
-        serverGenerations: serverGenerationsCount,
-        servers: serversCount,
-        processorGenerations: processorGenerationsCount,
-        components: componentsCount,
-        componentstypes: componentstypesCount,
-      },
-      deals: {
-        distributors: distributorsCount,
-        all: allDealsCount,
-        moderation: moderationCount,
-        registered: registeredCount,
-        canceled: canceledCount,
-        win: winCount,
-        loose: looseCount,
-        requestDeleted: requestDeletedCount,
-      },
-      tools: {
-        logs: logsCount,
-      },
-      importantAlerts: importantAlertsCount,
+    response.admins = {
+      all: adminCount,
+      archived: archivedCount,
+      byRole: rolesCounts,
     };
+    response.configurator = {
+      serverboxes: serverboxCount,
+      slots: slotsCount,
+      serverGenerations: serverGenerationsCount,
+      servers: serversCount,
+      processorGenerations: processorGenerationsCount,
+      components: componentsCount,
+      componentstypes: componentstypesCount,
+    };
+    response.deals = {
+      distributors: distributorsCount,
+      all: allDealsCount,
+      moderation: moderationCount,
+      registered: registeredCount,
+      canceled: canceledCount,
+      win: winCount,
+      loose: looseCount,
+      requestDeleted: requestDeletedCount,
+    };
+    response.tools = { logs: logsCount };
+  }
+
+  private hasRole(user: UserEntity, role: RoleTypes): boolean {
+    return (
+      user?.role?.name === role ||
+      user?.user_roles?.some(userRole => userRole.role?.name === role) ||
+      user?.roles?.some(userRole => userRole.name === role)
+    );
   }
 }

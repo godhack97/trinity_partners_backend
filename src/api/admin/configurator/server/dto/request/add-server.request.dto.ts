@@ -6,9 +6,10 @@ import {
   IsBooleanRu,
   IsNumberRu,
 } from "@decorators/validate";
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsOptional, ValidateNested } from "class-validator";
+import { IsArray, IsDefined, IsOptional, ValidateNested } from "class-validator";
+import { UpsertPlatformProfileRequestDto } from "./upsert-platform-profile.request.dto";
 
 class BaseServerSlotDto {
   @ApiProperty()
@@ -16,10 +17,10 @@ class BaseServerSlotDto {
   @IsNumberRu()
   amount: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBooleanRu()
-  on_back_panel: boolean;
+  on_back_panel?: boolean;
 }
 
 export class ServerSlotDto extends BaseServerSlotDto {
@@ -60,42 +61,50 @@ export class AddServerRequestDto {
   @MinRu(1)
   price: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsStringRu()
-  image: string;
+  image?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsStringRu()
-  guide: string;
+  guide?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsStringRu()
-  cert: string;
+  cert?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsStringRu()
-  gisp: string;
+  gisp?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ default: 100 })
   @IsOptional()
   @IsNumberRu()
-  sort: number; // Добавляем sort
+  sort?: number;
 
-  @ApiProperty({ type: [ServerSlotDto] })
+  @ApiPropertyOptional({ type: [ServerSlotDto] })
   @IsOptional()
   @IsArray()
-  @ValidateNested()
+  @ValidateNested({ each: true })
   @Type(() => ServerSlotDto)
-  slots: ServerSlotDto[];
+  slots?: ServerSlotDto[];
 
-  @ApiProperty({ type: [ServerMultislotDto] })
+  @ApiPropertyOptional({ type: [ServerMultislotDto] })
   @IsOptional()
   @IsArray()
-  @ValidateNested()
+  @ValidateNested({ each: true })
   @Type(() => ServerMultislotDto)
-  multislots: ServerMultislotDto[];
+  multislots?: ServerMultislotDto[];
+}
+
+export class SaveServerWithProfileRequestDto extends AddServerRequestDto {
+  @ApiProperty({ type: () => UpsertPlatformProfileRequestDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => UpsertPlatformProfileRequestDto)
+  profile: UpsertPlatformProfileRequestDto;
 }

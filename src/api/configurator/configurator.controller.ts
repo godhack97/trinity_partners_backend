@@ -9,6 +9,8 @@ import {
   ValidateConfiguratorRequestDto,
 } from "./dto/request/validate-configurator.request.dto";
 import { LogAction } from "@app/logs/log-action.decorator";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
 @ApiTags("configurator")
 @Controller("configurator")
 @ApiBearerAuth()
@@ -121,6 +123,7 @@ export class ConfiguratorController {
 
 
   @Post("componentType")
+  @Roles([RoleTypes.SuperAdmin])
   @LogAction("configurator_componenttype_add", "cnf_component_types")
   @ApiOperation({ summary: "Создать новый тип компонента" })
   createComponentType(@Body() dto: CreateComponentTypeDto) {
@@ -128,6 +131,7 @@ export class ConfiguratorController {
   }
 
   @Patch("componentType/:id")
+  @Roles([RoleTypes.SuperAdmin])
   @LogAction("configurator_componenttype_update", "cnf_component_types")
   @ApiOperation({ summary: "Обновить тип компонента" })
   updateComponentType(@Param("id") id: string, @Body() dto: UpdateComponentTypeDto) {
@@ -135,6 +139,7 @@ export class ConfiguratorController {
   }
 
   @Delete("componentType/:id")
+  @Roles([RoleTypes.SuperAdmin])
   @LogAction("configurator_componenttype_delete", "cnf_component_types")
   @ApiOperation({ summary: "Удалить тип компонента" })
   deleteComponentType(@Param("id") id: string) {

@@ -15,6 +15,8 @@ import {
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { INTERNAL_ADMIN_ROLE_NAMES } from "./internal-admin-roles";
+import { AdminRoleCountsResponseDto } from "@api/admin/counts/dto/admin-counts.response.dto";
 
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
 
@@ -29,26 +31,27 @@ export class AdminUserAdminService {
     private readonly userRoleRepository: Repository<UserRoleEntity>,
   ) {}
 
-  async getCountsByAllRoles(): Promise<Record<string, number>> {
-    const roles = await this.roleRepository.find();
-    const counts: Record<string, number> = {};
+  async getCountsByAllRoles(): Promise<AdminRoleCountsResponseDto> {
+    const [superAdmin, employeeAdmin, contentManager, partnerManager] =
+      await Promise.all(
+        INTERNAL_ADMIN_ROLE_NAMES.map(roleName => this.getCountByRole(roleName)),
+      );
 
-    for (const role of roles) {
-      counts[role.name] = await this.getCountByRole(role.name);
-    }
-
-    return counts;
+    return {
+      super_admin: superAdmin,
+      employee_admin: employeeAdmin,
+      content_manager: contentManager,
+      partner_manager: partnerManager,
+    };
   }
 
   async getCount(): Promise<number> {
-    return await this.userRepository.createQueryBuilder("u").getCount();
+    const queryBuilder = this.createInternalUsersQuery();
+    return await queryBuilder.getCount();
   }
 
   async getCountByRole(role?: string): Promise<number> {
-    let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
-    queryBuilder.leftJoin("user_roles", "ur", "u.id = ur.user_id");
-    queryBuilder.leftJoin("roles", "r2", "ur.role_id = r2.id");
+    const queryBuilder = this.createInternalUsersQuery();
 
     if (role && role !== 'all') {
       queryBuilder.andWhere("(r.name = :name OR r2.name = :name)", { name: role });
@@ -58,17 +61,14 @@ export class AdminUserAdminService {
   }
 
   async getArchivedCount(): Promise<number> {
-    let queryBuilder = this.userRepository.createQueryBuilder("u");
+    const queryBuilder = this.createInternalUsersQuery();
     queryBuilder.withDeleted();
     queryBuilder.andWhere("u.deleted_at IS NOT NULL");
     return await queryBuilder.getCount();
   }
 
   async findAll(entry?: SearchAdminDto) {
-    let queryBuilder = this.userRepository.createQueryBuilder("u");
-    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
-    queryBuilder.leftJoin("user_roles", "ur", "u.id = ur.user_id");
-    queryBuilder.leftJoin("roles", "r2", "ur.role_id = r2.id");
+    const queryBuilder = this.createInternalUsersQuery();
     queryBuilder.leftJoinAndMapMany(
       "u.user_roles",
       "user_roles",
@@ -92,6 +92,18 @@ export class AdminUserAdminService {
     }
   
     return queryBuilder.getMany();
+  }
+
+  private createInternalUsersQuery() {
+    const queryBuilder = this.userRepository.createQueryBuilder("u");
+    queryBuilder.leftJoinAndMapOne("u.role", "roles", "r", "u.role_id = r.id");
+    queryBuilder.leftJoin("user_roles", "ur", "u.id = ur.user_id");
+    queryBuilder.leftJoin("roles", "r2", "ur.role_id = r2.id");
+    queryBuilder.andWhere(
+      "(r.name IN (:...internalRoles) OR r2.name IN (:...internalRoles))",
+      { internalRoles: INTERNAL_ADMIN_ROLE_NAMES },
+    );
+    return queryBuilder;
   }
 
   async create(data: CreateAdminRequestDto) {

@@ -7,7 +7,7 @@ import {
   IsArray,
   IsPositive,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 
 // ─── Groups ───────────────────────────────────────────────────────────────────
@@ -102,11 +102,13 @@ export class CreateDocumentDto {
   @ApiProperty({ description: 'ID группы', required: false, nullable: true })
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === 'null' ? null : Number(value)))
+  @IsInt()
   group_id?: number | null;
 
   @ApiProperty({ description: 'ID уровня доступа', required: false, nullable: true })
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === 'null' ? null : Number(value)))
+  @IsInt()
   access_level_id?: number | null;
 
   @ApiProperty({ description: 'Массив ID тегов', required: false })
@@ -116,6 +118,8 @@ export class CreateDocumentDto {
     if (Array.isArray(value)) return value.map(Number);
     return String(value).split(',').map(Number).filter(Boolean);
   })
+  @IsArray()
+  @IsInt({ each: true })
   tag_ids?: number[];
 }
 
@@ -129,29 +133,38 @@ export class UpdateDocumentDto {
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === 'null' ? null : Number(value)))
+  @IsInt()
   group_id?: number | null;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === 'null' ? null : Number(value)))
+  @IsInt()
   access_level_id?: number | null;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @Transform(({ value }) => {
-    if (!value) return undefined;
+    if (value === undefined) return undefined;
+    if (value === null || value === '' || value === 'null' || value === '[]') {
+      return [];
+    }
     if (Array.isArray(value)) return value.map(Number);
     return String(value).split(',').map(Number).filter(Boolean);
   })
+  @IsArray()
+  @IsInt({ each: true })
   tag_ids?: number[];
 }
 
 export class FindDocumentsQueryDto {
+  @ApiPropertyOptional({ type: Number })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   groupId?: number;
 
+  @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
   @Transform(({ value }) => {
     if (!value) return undefined;
@@ -160,10 +173,12 @@ export class FindDocumentsQueryDto {
   })
   tagIds?: number[];
 
+  @ApiPropertyOptional({ type: String, maxLength: 255 })
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ type: Number })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

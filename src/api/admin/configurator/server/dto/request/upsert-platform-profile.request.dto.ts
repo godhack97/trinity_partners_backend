@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Min,
@@ -68,10 +69,12 @@ export class PlatformForbiddenComponentTypeDto {
 export class UpsertPlatformProfileRequestDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   platform_code: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   family: string;
 
   @ApiPropertyOptional({ default: "standard" })
@@ -87,6 +90,7 @@ export class UpsertPlatformProfileRequestDto {
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   ram_type: string;
 
   @ApiPropertyOptional()

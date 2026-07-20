@@ -12,7 +12,15 @@ const config = {
   password: `${process.env.DATABASE_PASSWORD}`,
   database: `${process.env.DATABASE_NAME}`,
   entities: ['dist/**/*.entity{.ts,.js}'],
-  migrations: ['src/migrations/*{.ts,.js}'],
+  // Keep the original schema migrations and the newer application migrations
+  // in one chain so a fresh database can be bootstrapped from zero. Existing
+  // databases are unaffected because TypeORM skips migrations already recorded
+  // in the migrations table.
+  migrations: [
+    '1745997975688-CreateUserTokensTable.ts',
+    'migrations/*{.ts,.js}',
+    'src/migrations/*{.ts,.js}',
+  ],
   autoLoadEntities: true,
   synchronize: false,
   driver: require('mysql2')

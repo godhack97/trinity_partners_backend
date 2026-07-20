@@ -1,6 +1,7 @@
 import { IsNotEmptyRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString } from "class-validator";
+import { IsIn, IsString } from "class-validator";
+import { INTERNAL_ADMIN_ROLE_NAMES } from "../../internal-admin-roles";
 
 export class UpdateAdminRequestDto {
   @ApiProperty({
@@ -9,5 +10,6 @@ export class UpdateAdminRequestDto {
   })
   @IsNotEmptyRu()
   @IsString()
+  @IsIn([...INTERNAL_ADMIN_ROLE_NAMES])
   role: string;
 }

@@ -1,12 +1,35 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, EntityManager, Repository } from "typeorm";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import { CnfComponentRepository, CnfComponentTypeRepository, CnfSlotRepository } from "@orm/repositories";
-import { CreateConfigurationComponentRequestDto } from "./dto/request/create-configurator-component.request.dto";
+import {
+  SaveConfigurationComponentRequestDto,
+} from "./dto/request/create-configurator-component.request.dto";
+import { UpdateConfigurationComponentRequestDto } from "./dto/request/update-configurator-component.request.dto";
 import { CnfComponentEntity, CnfComponentSlotEntity } from "@orm/entities";
 import * as entities from "src/orm/entities";
 import { UpsertComponentProfilesRequestDto } from "./dto/request/upsert-component-profiles.request.dto";
+import {
+  COMPONENT_PROFILE_NAMES,
+  ComponentProfileMetadata,
+  ComponentProfileName,
+  getComponentProfileErrors,
+  resolveComponentProfileMetadata,
+  SPECIALIZED_COMPONENT_PROFILE_NAMES,
+} from "@api/configurator/component-profile-kind";
+import {
+  CONFIGURATOR_COMPONENT_BACKUP_FIELDS,
+  CONFIGURATOR_COMPONENT_SCHEMA_VERSION,
+  CONFIGURATOR_COMPONENT_SLOT_BACKUP_FIELDS,
+} from "./configurator-component-schema";
 
+type ComponentProfilesAggregate = ComponentProfileMetadata &
+  Record<ComponentProfileName, any | null> & {
+    component: CnfComponentEntity;
+    profile_errors: string[];
+  };
 
 interface ExcelRow {
   [key: string]: any;
@@ -32,6 +55,52 @@ interface ExcelRow {
   'Слот[5]'?: string;
   'Количество[5]'?: number;
   'Увеличение[5]'?: boolean;
+}
+
+interface ComponentBackupSnapshot {
+  schema_version: number;
+  created_at: string;
+  references: {
+    component_types: Array<{ id: string; name: string }>;
+    slots: Array<{ id: string; name: string }>;
+    multislots: Array<{ id: string; name: string }>;
+    multislot_slots: Array<{
+      id: string;
+      multislot_id: string;
+      slot_id: string;
+    }>;
+    server_generations: Array<{ id: string; name: string }>;
+    processor_generations: Array<{ id: string; name: string }>;
+  };
+  components: Array<{
+    component: Record<string, any>;
+    slots: Array<Record<string, any>>;
+    profiles: Record<ComponentProfileName, Record<string, any> | null>;
+  }>;
+}
+
+interface ValidatedExcelComponent {
+  row_number: number;
+  id?: string;
+  action: "upsert" | "delete";
+  changed: boolean;
+  payload?: SaveConfigurationComponentRequestDto;
+}
+
+export interface ComponentImportReport {
+  schema_version: number;
+  dry_run: boolean;
+  total_rows: number;
+  valid_rows: number;
+  added: number;
+  updated: number;
+  unchanged: number;
+  deleted: number;
+  added_ids: string[];
+  updated_ids: string[];
+  deleted_ids: string[];
+  errors: string[];
+  backup_id: string | null;
 }
 
 const PROFILE_EXCEL_COLUMNS = {
@@ -125,6 +194,7 @@ const PROFILE_EXCEL_COLUMNS = {
     pcie_lanes: "profile.gpu.pcie_lanes",
     rear_pcie_lanes: "profile.gpu.rear_pcie_lanes",
     physical_slots: "profile.gpu.physical_slots",
+    memory_gb: "profile.gpu.memory_gb",
     power_w: "profile.gpu.power_w",
   },
   transceiver: {
@@ -174,6 +244,8 @@ const PROFILE_NUMBER_FIELDS = new Set([
   "years",
   "percent",
   "fixed_price",
+  "m2_slot_count",
+  "memory_gb",
 ]);
 
 const PROFILE_BOOLEAN_FIELDS = new Set([
@@ -184,6 +256,34 @@ const PROFILE_BOOLEAN_FIELDS = new Set([
   "supports_sas",
   "supports_nvme",
 ]);
+
+const PROFILE_ENTITIES: Record<ComponentProfileName, any> = {
+  catalog: entities.CnfComponentCatalogProfileEntity,
+  resource: entities.CnfComponentResourceProfileEntity,
+  price: entities.CnfComponentPriceProfileEntity,
+  cpu: entities.CnfCpuProfileEntity,
+  ram: entities.CnfRamProfileEntity,
+  drive: entities.CnfDriveProfileEntity,
+  controller: entities.CnfControllerProfileEntity,
+  network: entities.CnfNetworkProfileEntity,
+  gpu: entities.CnfGpuProfileEntity,
+  transceiver: entities.CnfTransceiverProfileEntity,
+  psu: entities.CnfPsuProfileEntity,
+  service: entities.CnfServiceProfileEntity,
+};
+
+const PROFILE_BACKUP_FIELDS = Object.fromEntries(
+  COMPONENT_PROFILE_NAMES.map((profileName) => [
+    profileName,
+    [
+      "id",
+      "component_id",
+      ...Object.keys(PROFILE_EXCEL_COLUMNS[profileName]),
+      "created_at",
+      "updated_at",
+    ],
+  ]),
+) as Record<ComponentProfileName, string[]>;
 
 @Injectable()
 export class AdminConfiguratorComponentService {
@@ -203,57 +303,34 @@ export class AdminConfiguratorComponentService {
 
   ) {}
 
-  async getComponentProfiles(componentId: string) {
-    const component = await this.cnfComponentRepository.findOneBy({
-      id: componentId,
+  async getComponentProfiles(
+    componentId: string,
+    manager: EntityManager = this.dataSource.manager,
+  ): Promise<ComponentProfilesAggregate> {
+    const component = await manager.getRepository(CnfComponentEntity).findOne({
+      where: { id: componentId },
+      relations: ["slots"],
     });
 
     if (!component) {
       throw new HttpException("Компонент не найден", HttpStatus.NOT_FOUND);
     }
 
-    const [
-      catalog,
-      resource,
-      price,
-      cpu,
-      ram,
-      drive,
-      controller,
-      network,
-      gpu,
-      transceiver,
-      psu,
-      service,
-    ] = await Promise.all([
-      this.findComponentProfile(entities.CnfComponentCatalogProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfComponentResourceProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfComponentPriceProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfCpuProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfRamProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfDriveProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfControllerProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfNetworkProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfGpuProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfTransceiverProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfPsuProfileEntity, componentId),
-      this.findComponentProfile(entities.CnfServiceProfileEntity, componentId),
-    ]);
+    const profiles = {} as Record<ComponentProfileName, any | null>;
+    for (const profileName of COMPONENT_PROFILE_NAMES) {
+      profiles[profileName] = await this.findComponentProfile(
+        manager,
+        PROFILE_ENTITIES[profileName],
+        componentId,
+      );
+    }
+    const metadata = resolveComponentProfileMetadata(component, profiles);
 
     return {
       component,
-      catalog,
-      resource,
-      price,
-      cpu,
-      ram,
-      drive,
-      controller,
-      network,
-      gpu,
-      transceiver,
-      psu,
-      service,
+      ...profiles,
+      ...metadata,
+      profile_errors: getComponentProfileErrors(metadata, profiles),
     };
   }
 
@@ -261,280 +338,543 @@ export class AdminConfiguratorComponentService {
     componentId: string,
     data: UpsertComponentProfilesRequestDto,
   ) {
-    const component = await this.cnfComponentRepository.findOneBy({
-      id: componentId,
+    return this.dataSource.transaction(async (manager) => {
+      const component = await manager
+        .getRepository(CnfComponentEntity)
+        .findOneBy({ id: componentId });
+
+      if (!component) {
+        throw new HttpException("Компонент не найден", HttpStatus.NOT_FOUND);
+      }
+
+      await this.applyComponentProfiles(manager, component, data);
+      return this.getComponentProfiles(componentId, manager);
     });
-
-    if (!component) {
-      throw new HttpException("Компонент не найден", HttpStatus.NOT_FOUND);
-    }
-
-    await Promise.all([
-      this.upsertComponentProfile(
-        entities.CnfComponentCatalogProfileEntity,
-        componentId,
-        data.catalog,
-      ),
-      this.upsertComponentProfile(
-        entities.CnfComponentResourceProfileEntity,
-        componentId,
-        data.resource,
-      ),
-      this.upsertComponentProfile(
-        entities.CnfComponentPriceProfileEntity,
-        componentId,
-        data.price,
-      ),
-      this.upsertComponentProfile(entities.CnfCpuProfileEntity, componentId, data.cpu),
-      this.upsertComponentProfile(entities.CnfRamProfileEntity, componentId, data.ram),
-      this.upsertComponentProfile(
-        entities.CnfDriveProfileEntity,
-        componentId,
-        data.drive,
-      ),
-      this.upsertComponentProfile(
-        entities.CnfControllerProfileEntity,
-        componentId,
-        data.controller,
-      ),
-      this.upsertComponentProfile(
-        entities.CnfNetworkProfileEntity,
-        componentId,
-        data.network,
-      ),
-      this.upsertComponentProfile(entities.CnfGpuProfileEntity, componentId, data.gpu),
-      this.upsertComponentProfile(
-        entities.CnfTransceiverProfileEntity,
-        componentId,
-        data.transceiver,
-      ),
-      this.upsertComponentProfile(entities.CnfPsuProfileEntity, componentId, data.psu),
-      this.upsertComponentProfile(
-        entities.CnfServiceProfileEntity,
-        componentId,
-        data.service,
-      ),
-    ]);
-
-    return this.getComponentProfiles(componentId);
   }
 
-  private async findComponentProfile(entity: any, componentId: string) {
-    return this.dataSource.getRepository(entity).findOne({
+  private async findComponentProfile(
+    manager: EntityManager,
+    entity: any,
+    componentId: string,
+  ) {
+    return manager.getRepository(entity).findOne({
       where: { component_id: componentId },
     });
   }
 
-  private async upsertComponentProfile(
-    entity: any,
-    componentId: string,
-    data?: object,
+  private async applyComponentProfiles(
+    manager: EntityManager,
+    component: CnfComponentEntity,
+    data: UpsertComponentProfilesRequestDto,
   ) {
-    if (!data) {
-      return null;
+    const profileData = data as Record<string, any>;
+    const metadata = resolveComponentProfileMetadata(component, profileData);
+
+    for (const profileName of COMPONENT_PROFILE_NAMES) {
+      const repo = manager.getRepository(PROFILE_ENTITIES[profileName]);
+      const requestedProfile = profileData[profileName];
+      const isIncompatibleSpecializedProfile =
+        SPECIALIZED_COMPONENT_PROFILE_NAMES.includes(profileName as any) &&
+        profileName !== metadata.profile_kind;
+
+      if (isIncompatibleSpecializedProfile || requestedProfile === null) {
+        await repo.delete({ component_id: component.id });
+        continue;
+      }
+
+      if (requestedProfile === undefined) {
+        continue;
+      }
+
+      const existing = await repo.findOne({
+        where: { component_id: component.id },
+      });
+      const normalizedProfile = this.normalizeProfileForComponent(
+        profileName,
+        requestedProfile,
+        metadata,
+      );
+
+      await repo.save(
+        repo.create({
+          ...(existing || {}),
+          ...normalizedProfile,
+          component_id: component.id,
+        }),
+      );
+    }
+  }
+
+  private normalizeProfileForComponent(
+    profileName: ComponentProfileName,
+    profile: Record<string, any>,
+    metadata: ReturnType<typeof resolveComponentProfileMetadata>,
+  ) {
+    if (profileName === "catalog") {
+      return {
+        ...profile,
+        component_type_key: metadata.component_type_key,
+      };
+    }
+    if (profileName === "resource") {
+      return { ...profile, resource_kind: metadata.resource_kind };
+    }
+    if (profileName === "controller" && metadata.controller_type) {
+      return { ...profile, controller_type: metadata.controller_type };
+    }
+    if (profileName === "network" && metadata.network_kind) {
+      return { ...profile, network_kind: metadata.network_kind };
     }
 
-    const repo = this.dataSource.getRepository(entity);
-    const existing = await repo.findOne({ where: { component_id: componentId } });
-
-    return repo.save(
-      repo.create({
-        ...(existing || {}),
-        ...data,
-        component_id: componentId,
-      }),
-    );
+    return profile;
   }
 
   async createBackup(name: string, createdBy?: string) {
-    try {
-      // Получаем все компоненты со слотами
-      const components = await this.cnfComponentRepository
-        .createQueryBuilder('component')
-        .leftJoinAndSelect('component.slots', 'slot')
-        .leftJoinAndSelect('slot.slot', 'slotInfo') // если есть связь со слотом
-        .getMany();
-  
-      // Получаем все поколения для маппинга ID в имена
-      const allServerGenerations = await this.cnfServerGenerationRepo.find();
-      const allProcessorGenerations = await this.cnfProcessorGenerationRepo.find();
-      
-      const serverGenerationsById = new Map(allServerGenerations.map(gen => [gen.id, gen.name]));
-      const processorGenerationsById = new Map(allProcessorGenerations.map(gen => [gen.id, gen.name]));
-  
-      // Создаем запись бекапа
-      const backup = this.cnfComponentBackupRepository.create({
-        name,
+    return this.dataSource.transaction((manager) =>
+      this.createBackupWithManager(manager, name, createdBy),
+    );
+  }
+
+  private async createBackupWithManager(
+    manager: EntityManager,
+    name: string,
+    createdBy?: string,
+  ) {
+    const snapshot = await this.buildBackupSnapshot(manager);
+    await this.validateBackupSnapshot(manager, snapshot);
+    const backupRepo = manager.getRepository(entities.CnfComponentBackup);
+    const backupDataRepo = manager.getRepository(
+      entities.CnfComponentBackupData,
+    );
+    const backup = await backupRepo.save(
+      backupRepo.create({
+        name: name.trim(),
         created_by: createdBy,
-        components_count: components.length
-      });
-  
-      const savedBackup = await this.cnfComponentBackupRepository.save(backup);
-  
-      // Сохраняем данные компонентов в JSON
-      const backupData = this.cnfComponentBackupDataRepository.create({
-        backup_id: savedBackup.id,
-        component_data: {
-          components: components.map(component => ({
-            ...component,
-            server_generation_name: component.server_generation_id 
-              ? serverGenerationsById.get(component.server_generation_id) 
-              : null,
-            processor_generation_name: component.processor_generation_id 
-              ? processorGenerationsById.get(component.processor_generation_id) 
-              : null
-          }))
-        }
-      });
-  
-      await this.cnfComponentBackupDataRepository.save(backupData);
-  
-      return {
-        id: savedBackup.id,
-        name: savedBackup.name,
-        created_at: savedBackup.created_at,
-        components_count: savedBackup.components_count
-      };
-    } catch (error) {
-      throw new Error(`Ошибка создания бекапа: ${error.message}`);
-    }
+        components_count: snapshot.components.length,
+      }),
+    );
+    await backupDataRepo.save(
+      backupDataRepo.create({
+        backup_id: backup.id,
+        component_data: snapshot,
+      }),
+    );
+
+    return {
+      id: backup.id,
+      name: backup.name,
+      created_at: backup.created_at,
+      components_count: backup.components_count,
+      schema_version: snapshot.schema_version,
+      profiles_count: snapshot.components.reduce(
+        (count, item) =>
+          count + Object.values(item.profiles).filter(Boolean).length,
+        0,
+      ),
+    };
+  }
+
+  private async buildBackupSnapshot(
+    manager: EntityManager,
+  ): Promise<ComponentBackupSnapshot> {
+    const [
+      components,
+      componentTypes,
+      slots,
+      multislots,
+      multislotSlots,
+      serverGenerations,
+      processorGenerations,
+      ...profileCollections
+    ] = await Promise.all([
+      manager.getRepository(CnfComponentEntity).find({ relations: ["slots"] }),
+      manager.getRepository(entities.CnfComponentTypeEntity).find(),
+      manager.getRepository(entities.CnfSlotEntity).find(),
+      manager.getRepository(entities.CnfMultislotEntity).find(),
+      manager.getRepository(entities.CnfMultislotSlotEntity).find(),
+      manager.getRepository(entities.CnfServerGeneration).find(),
+      manager.getRepository(entities.CnfProcessorGeneration).find(),
+      ...COMPONENT_PROFILE_NAMES.map((profileName) =>
+        manager.getRepository(PROFILE_ENTITIES[profileName]).find(),
+      ),
+    ]);
+    const profilesByName = Object.fromEntries(
+      COMPONENT_PROFILE_NAMES.map((profileName, index) => [
+        profileName,
+        new Map(
+          (profileCollections[index] as any[]).map((profile) => [
+            profile.component_id,
+            profile,
+          ]),
+        ),
+      ]),
+    ) as Record<ComponentProfileName, Map<string, any>>;
+
+    return {
+      schema_version: CONFIGURATOR_COMPONENT_SCHEMA_VERSION,
+      created_at: new Date().toISOString(),
+      references: {
+        component_types: componentTypes.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+        })),
+        slots: slots.map((item: any) => ({ id: item.id, name: item.name })),
+        multislots: multislots.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+        })),
+        multislot_slots: multislotSlots.map((item: any) => ({
+          id: item.id,
+          multislot_id: item.multislot_id,
+          slot_id: item.slot_id,
+        })),
+        server_generations: serverGenerations.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+        })),
+        processor_generations: processorGenerations.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+        })),
+      },
+      components: components
+        .map((component: any) => ({
+          component: this.pickBackupFields(
+            component,
+            CONFIGURATOR_COMPONENT_BACKUP_FIELDS,
+          ),
+          slots: (component.slots || [])
+            .map((slot: any) =>
+              this.pickBackupFields(
+                slot,
+                CONFIGURATOR_COMPONENT_SLOT_BACKUP_FIELDS,
+              ),
+            )
+            .sort((a, b) => `${a.id}`.localeCompare(`${b.id}`)),
+          profiles: Object.fromEntries(
+            COMPONENT_PROFILE_NAMES.map((profileName) => {
+              const profile = profilesByName[profileName].get(component.id);
+              return [
+                profileName,
+                profile
+                  ? this.pickBackupFields(
+                      profile,
+                      PROFILE_BACKUP_FIELDS[profileName],
+                    )
+                  : null,
+              ];
+            }),
+          ) as Record<
+            ComponentProfileName,
+            Record<string, any> | null
+          >,
+        }))
+        .sort((a, b) => `${a.component.id}`.localeCompare(`${b.component.id}`)),
+    };
+  }
+
+  private pickBackupFields(source: any, fields: readonly string[]) {
+    return Object.fromEntries(
+      fields
+        .filter((field) => source?.[field] !== undefined)
+        .map((field) => [field, source[field]]),
+    );
   }
 
   async getBackups() {
-    try {
-      const backups = await this.cnfComponentBackupRepository
-        .createQueryBuilder('backup')
-        .orderBy('backup.created_at', 'DESC')
-        .getMany();
-  
-      return backups.map(backup => ({
-        id: backup.id,
-        name: backup.name,
-        created_at: backup.created_at,
-        components_count: backup.components_count
-      }));
-    } catch (error) {
-      throw new Error(`Ошибка получения бекапов: ${error.message}`);
-    }
+    const [backups, backupData] = await Promise.all([
+      this.cnfComponentBackupRepository.find({
+        order: { created_at: "DESC" },
+      }),
+      this.cnfComponentBackupDataRepository.find(),
+    ]);
+    const dataByBackupId = new Map(
+      backupData.map((item) => [item.backup_id, item.component_data]),
+    );
+
+    return backups.map((backup) => ({
+      id: backup.id,
+      name: backup.name,
+      created_at: backup.created_at,
+      components_count: backup.components_count,
+      schema_version:
+        dataByBackupId.get(backup.id)?.schema_version ?? 1,
+    }));
   }
 
-
   async restoreFromBackup(backupId: string) {
-    const queryRunner = this.cnfComponentRepository.manager.connection.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-  
-    try {
-      // Проверяем существование бекапа
-      const backup = await this.cnfComponentBackupRepository.findOne({ 
-        where: { id: backupId } 
-      });
-      
+    return this.dataSource.transaction(async (manager) => {
+      const backup = await manager
+        .getRepository(entities.CnfComponentBackup)
+        .findOne({ where: { id: backupId } });
       if (!backup) {
-        throw new Error('Бекап не найден');
+        throw new HttpException("Бекап не найден", HttpStatus.NOT_FOUND);
       }
-  
-      // Получаем данные бекапа
-      const backupData = await this.cnfComponentBackupDataRepository.findOne({
-        where: { backup_id: backupId }
-      });
-  
+      const backupData = await manager
+        .getRepository(entities.CnfComponentBackupData)
+        .findOne({ where: { backup_id: backupId } });
       if (!backupData) {
-        throw new Error('Данные бекапа не найдены');
+        throw new HttpException(
+          "Данные бекапа не найдены",
+          HttpStatus.NOT_FOUND,
+        );
       }
-  
-      // Очищаем текущие данные
-      await queryRunner.manager.delete(entities.CnfComponentSlotEntity, {});
-      await queryRunner.manager.delete(entities.CnfComponentEntity, {});
-  
-      // Восстанавливаем компоненты
-      const { components } = backupData.component_data;
-      
-      for (const componentData of components) {
-        const { slots, server_generation_name, processor_generation_name, ...componentFields } = componentData;
-        
-        // Находим поколения по именам
-        let serverGenerationId = null;
-        let processorGenerationId = null;
-        
-        if (server_generation_name) {
-          const serverGeneration = await this.cnfServerGenerationRepo.findOne({
-            where: { name: server_generation_name }
-          });
-          serverGenerationId = serverGeneration?.id || null;
+
+      const snapshot = backupData.component_data as ComponentBackupSnapshot;
+      await this.validateBackupSnapshot(manager, snapshot);
+
+      for (const profileName of COMPONENT_PROFILE_NAMES) {
+        await manager.getRepository(PROFILE_ENTITIES[profileName]).delete({});
+      }
+      await manager.getRepository(CnfComponentSlotEntity).delete({});
+      await manager.getRepository(CnfComponentEntity).delete({});
+
+      const componentRepo = manager.getRepository(CnfComponentEntity);
+      const slotRepo = manager.getRepository(CnfComponentSlotEntity);
+      let profilesCount = 0;
+      let slotsCount = 0;
+
+      for (const item of snapshot.components) {
+        const componentData = this.restoreBackupDates(item.component);
+        await componentRepo.save(componentRepo.create(componentData));
+
+        if (item.slots.length) {
+          const restoredSlots = item.slots.map((slot) =>
+            slotRepo.create({
+              ...this.restoreBackupDates(slot),
+              component_id: componentData.id,
+            }),
+          );
+          await slotRepo.save(restoredSlots);
+          slotsCount += restoredSlots.length;
         }
-        
-        if (processor_generation_name) {
-          const processorGeneration = await this.cnfProcessorGenerationRepo.findOne({
-            where: { name: processor_generation_name }
-          });
-          processorGenerationId = processorGeneration?.id || null;
-        }
-  
-        // Преобразуем даты в Date объекты
-        const componentToRestore = {
-          ...componentFields,
-          server_generation_id: serverGenerationId,
-          processor_generation_id: processorGenerationId,
-          created_at: componentFields.created_at ? new Date(componentFields.created_at) : new Date(),
-          updated_at: componentFields.updated_at ? new Date(componentFields.updated_at) : new Date()
-        };
-  
-        // Создаем компонент с оригинальным ID
-        const newComponent = queryRunner.manager.create(entities.CnfComponentEntity, componentToRestore);
-  
-        // Сохраняем компонент (TypeORM правильно обработает даты)
-        const savedComponent = await queryRunner.manager.save(entities.CnfComponentEntity, newComponent);
-  
-        // Восстанавливаем слоты с оригинальными ID
-        if (slots && slots.length > 0) {
-          for (const slotData of slots) {
-            const slotToRestore = {
-              ...slotData,
-              component_id: savedComponent.id,
-              created_at: slotData.created_at ? new Date(slotData.created_at) : new Date(),
-              updated_at: slotData.updated_at ? new Date(slotData.updated_at) : new Date()
-            };
-  
-            const newSlot = queryRunner.manager.create(entities.CnfComponentSlotEntity, slotToRestore);
-            await queryRunner.manager.save(entities.CnfComponentSlotEntity, newSlot);
-          }
+
+        for (const profileName of COMPONENT_PROFILE_NAMES) {
+          const profile = item.profiles[profileName];
+          if (!profile) continue;
+
+          const repo = manager.getRepository(PROFILE_ENTITIES[profileName]);
+          await repo.save(
+            repo.create({
+              ...this.restoreBackupDates(profile),
+              component_id: componentData.id,
+            }),
+          );
+          profilesCount += 1;
         }
       }
-  
-      await queryRunner.commitTransaction();
-  
+
       return {
         success: true,
-        message: `Успешно восстановлено ${components.length} компонентов из бекапа "${backup.name}" с оригинальными ID`
+        backup_id: backup.id,
+        schema_version: snapshot.schema_version,
+        components_count: snapshot.components.length,
+        slots_count: slotsCount,
+        profiles_count: profilesCount,
       };
-  
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw new Error(`Ошибка восстановления бекапа: ${error.message}`);
-    } finally {
-      await queryRunner.release();
+    });
+  }
+
+  private restoreBackupDates(row: Record<string, any>) {
+    const result = { ...row };
+    for (const field of ["created_at", "updated_at"]) {
+      if (result[field]) result[field] = new Date(result[field]);
+    }
+    return result;
+  }
+
+  private async validateBackupSnapshot(
+    manager: EntityManager,
+    snapshot: ComponentBackupSnapshot,
+  ) {
+    if (
+      !snapshot ||
+      snapshot.schema_version !== CONFIGURATOR_COMPONENT_SCHEMA_VERSION
+    ) {
+      throw new HttpException(
+        `Версия бекапа ${snapshot?.schema_version ?? 1} несовместима с текущей схемой ${CONFIGURATOR_COMPONENT_SCHEMA_VERSION}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!Array.isArray(snapshot.components)) {
+      throw new HttpException(
+        "Некорректная структура бекапа: components должен быть массивом",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const [
+      componentTypes,
+      slots,
+      multislots,
+      serverGenerations,
+      processorGenerations,
+    ] =
+      await Promise.all([
+        manager.getRepository(entities.CnfComponentTypeEntity).find(),
+        manager.getRepository(entities.CnfSlotEntity).find(),
+        manager.getRepository(entities.CnfMultislotEntity).find(),
+        manager.getRepository(entities.CnfServerGeneration).find(),
+        manager.getRepository(entities.CnfProcessorGeneration).find(),
+      ]);
+    const typeIds = new Set(componentTypes.map((item: any) => item.id));
+    const slotIds = new Set(slots.map((item: any) => item.id));
+    const multislotIds = new Set(multislots.map((item: any) => item.id));
+    const serverGenerationIds = new Set(
+      serverGenerations.map((item: any) => item.id),
+    );
+    const processorGenerationIds = new Set(
+      processorGenerations.map((item: any) => item.id),
+    );
+    const componentIds = new Set<string>();
+
+    for (const relation of snapshot.references?.multislot_slots || []) {
+      if (!multislotIds.has(relation.multislot_id)) {
+        throw new HttpException(
+          `Связь multislot ${relation.id}: multislot ${relation.multislot_id} отсутствует в текущем справочнике`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (!slotIds.has(relation.slot_id)) {
+        throw new HttpException(
+          `Связь multislot ${relation.id}: слот ${relation.slot_id} отсутствует в текущем справочнике`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    for (const [index, item] of snapshot.components.entries()) {
+      const component = item?.component;
+      const prefix = `Компонент backup[${index}]`;
+      if (!component?.id || !component?.name || !component?.type_id) {
+        throw new HttpException(
+          `${prefix}: отсутствуют id, name или type_id`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (componentIds.has(component.id)) {
+        throw new HttpException(
+          `${prefix}: дублирующийся id ${component.id}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      componentIds.add(component.id);
+      if (!typeIds.has(component.type_id)) {
+        throw new HttpException(
+          `${prefix}: тип ${component.type_id} отсутствует в текущем справочнике`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (
+        component.server_generation_id &&
+        !serverGenerationIds.has(component.server_generation_id)
+      ) {
+        throw new HttpException(
+          `${prefix}: поколение сервера ${component.server_generation_id} отсутствует`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (
+        component.processor_generation_id &&
+        !processorGenerationIds.has(component.processor_generation_id)
+      ) {
+        throw new HttpException(
+          `${prefix}: поколение CPU ${component.processor_generation_id} отсутствует`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      for (const slot of item.slots || []) {
+        if (slot.component_id && slot.component_id !== component.id) {
+          throw new HttpException(
+            `${prefix}: слот ${slot.id} ссылается на другой component_id`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        if (!slotIds.has(slot.slot_id)) {
+          throw new HttpException(
+            `${prefix}: слот ${slot.slot_id} отсутствует в текущем справочнике`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      const profiles = item.profiles || ({} as any);
+      const metadata = resolveComponentProfileMetadata(component, {
+        ...profiles,
+        catalog: null,
+      });
+      for (const profileName of COMPONENT_PROFILE_NAMES) {
+        const profile = profiles[profileName];
+        if (!profile) continue;
+        if (profile.component_id && profile.component_id !== component.id) {
+          throw new HttpException(
+            `${prefix}: ${profileName} profile ссылается на другой component_id`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        if (
+          SPECIALIZED_COMPONENT_PROFILE_NAMES.includes(profileName as any) &&
+          profileName !== metadata.profile_kind
+        ) {
+          throw new HttpException(
+            `${prefix}: несовместимый ${profileName} profile для ${component.type_id}`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+      if (
+        profiles.catalog &&
+        profiles.catalog.component_type_key !== metadata.component_type_key
+      ) {
+        throw new HttpException(
+          `${prefix}: catalog profile не соответствует component type`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (
+        profiles.resource &&
+        profiles.resource.resource_kind !== metadata.resource_kind
+      ) {
+        throw new HttpException(
+          `${prefix}: resource profile не соответствует component type`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (
+        profiles.catalog?.server_generation_id &&
+        !serverGenerationIds.has(profiles.catalog.server_generation_id)
+      ) {
+        throw new HttpException(
+          `${prefix}: catalog profile ссылается на отсутствующее поколение сервера ${profiles.catalog.server_generation_id}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (
+        profiles.catalog?.processor_generation_id &&
+        !processorGenerationIds.has(profiles.catalog.processor_generation_id)
+      ) {
+        throw new HttpException(
+          `${prefix}: catalog profile ссылается на отсутствующее поколение CPU ${profiles.catalog.processor_generation_id}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     }
   }
   
   async deleteBackup(backupId: string) {
-    try {
-      const backup = await this.cnfComponentBackupRepository.findOne({
-        where: { id: backupId }
-      });
-  
+    return this.dataSource.transaction(async (manager) => {
+      const backupRepo = manager.getRepository(entities.CnfComponentBackup);
+      const backup = await backupRepo.findOne({ where: { id: backupId } });
       if (!backup) {
-        throw new Error('Бекап не найден');
+        throw new HttpException("Бекап не найден", HttpStatus.NOT_FOUND);
       }
-  
-      // Удаляем данные бекапа (CASCADE удалит связанные записи)
-      await this.cnfComponentBackupRepository.delete(backupId);
-      await this.cnfComponentBackupDataRepository.delete({ backup_id: backupId });
-  
+
+      await manager
+        .getRepository(entities.CnfComponentBackupData)
+        .delete({ backup_id: backupId });
+      await backupRepo.delete({ id: backupId });
       return { success: true };
-    } catch (error) {
-      throw new Error(`Ошибка удаления бекапа: ${error.message}`);
-    }
+    });
   }
   
 
@@ -543,12 +883,9 @@ export class AdminConfiguratorComponentService {
       relations: ["slots", "slots.slot"],
     });
 
-    // Получаем все типы компонентов, поколения серверов и процессоров
-    const allTypes = await this.cnfComponentTypeRepository.find();
     const allServerGenerations = await this.cnfServerGenerationRepo.find();
     const allProcessorGenerations = await this.cnfProcessorGenerationRepo.find();
 
-    const typesById = new Map(allTypes.map(type => [type.id, type]));
     const serverGenerationsById = new Map(allServerGenerations.map(gen => [gen.id, gen]));
     const processorGenerationsById = new Map(allProcessorGenerations.map(gen => [gen.id, gen]));
 
@@ -556,6 +893,7 @@ export class AdminConfiguratorComponentService {
       const profiles = await this.getComponentProfiles(component.id);
       const result: any = {
         'ID': component.id,
+        'Действие': 'upsert',
         'Название': component.name,
         'Подтип': component.subtype || 'Не указано',
         'Цена': component.price || 0,
@@ -590,88 +928,229 @@ export class AdminConfiguratorComponentService {
     }));
   }
 
-  async importExcel(excelData: any[], userId?: string) {
+  getExcelSchema() {
+    const schema = [
+      {
+        column: "ID",
+        type: "uuid",
+        required: "Нет",
+        description: "ID существующего компонента; пустое значение создает новый",
+      },
+      {
+        column: "Действие",
+        type: "upsert | delete",
+        required: "Нет",
+        description: "По умолчанию upsert; delete требует ID существующего компонента",
+      },
+      {
+        column: "Название",
+        type: "text",
+        required: "Да",
+        description: "Название компонента",
+      },
+      {
+        column: "Подтип",
+        type: "text",
+        required: "Нет",
+        description: "SAS, SATA, U.2, M.2 или другой подтип",
+      },
+      {
+        column: "Цена",
+        type: "number >= 1",
+        required: "Да",
+        description: "Базовая цена компонента",
+      },
+      {
+        column: "Тип компонента",
+        type: "component type id",
+        required: "Да",
+        description: "Точный ID из справочника componentType",
+      },
+      {
+        column: "Поколение сервера",
+        type: "text",
+        required: "Нет",
+        description: "Точное название из справочника serverGeneration",
+      },
+      {
+        column: "Поколение процессора",
+        type: "text",
+        required: "Нет",
+        description: "Точное название из справочника processorGeneration",
+      },
+    ];
 
-    try {
-      const backupName = `Авто-бекап перед импортом ${new Date().toLocaleString('ru-RU')}`;
-      await this.createBackup(backupName, userId);
-      console.log('Автоматический бекап создан:', backupName);
-    } catch (error) {
-      console.error('Ошибка создания автобекапа:', error);
-      // Не останавливаем импорт, только логируем ошибку
+    for (let index = 1; index <= 5; index += 1) {
+      schema.push(
+        {
+          column: `Слот[${index}]`,
+          type: "text",
+          required: "Нет",
+          description: "Точное название слота из справочника",
+        },
+        {
+          column: `Количество[${index}]`,
+          type: "integer >= 1",
+          required: "При наличии слота",
+          description: "Количество занимаемых слотов",
+        },
+        {
+          column: `Увеличение[${index}]`,
+          type: "boolean",
+          required: "При наличии слота",
+          description: "Да/Нет, true/false или 1/0",
+        },
+      );
     }
 
-    console.log('Starting Excel import. Total rows:', excelData.length);
-    console.log('First few rows:', excelData.slice(0, 3));
+    for (const [profileName, columns] of Object.entries(
+      PROFILE_EXCEL_COLUMNS,
+    )) {
+      for (const [fieldName, column] of Object.entries(columns)) {
+        schema.push({
+          column,
+          type: PROFILE_NUMBER_FIELDS.has(fieldName)
+            ? "number"
+            : PROFILE_BOOLEAN_FIELDS.has(fieldName)
+              ? "boolean"
+              : "text",
+          required: "Зависит от profile kind",
+          description: `${profileName} profile: ${fieldName}`,
+        });
+      }
+    }
 
+    return schema;
+  }
+
+  async importExcel(
+    excelData: any[],
+    userId?: string,
+    options: { dryRun?: boolean; schemaVersion?: number } = {},
+  ) {
+    const schemaVersion = options.schemaVersion ?? 1;
+    if (schemaVersion > CONFIGURATOR_COMPONENT_SCHEMA_VERSION) {
+      throw new HttpException(
+        `Версия XLSX ${schemaVersion} новее поддерживаемой ${CONFIGURATOR_COMPONENT_SCHEMA_VERSION}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const errors: string[] = [];
-    const validatedData: any[] = [];
+    const validatedData: ValidatedExcelComponent[] = [];
+    const seenIds = new Set<string>();
 
     // Получаем все типы, слоты и поколения для валидации
-    const allTypes = await this.cnfComponentTypeRepository.find();
-    const allSlots = await this.cnfSlotRepository.find();
-    const allServerGenerations = await this.cnfServerGenerationRepo.find();
-    const allProcessorGenerations = await this.cnfProcessorGenerationRepo.find();
-
-    console.log('Available types count:', allTypes.length);
-    console.log('Available slots count:', allSlots.length);
-    console.log('Available server generations count:', allServerGenerations.length);
-    console.log('Available processor generations count:', allProcessorGenerations.length);
-
-    const typesByName = new Map(allTypes.map(type => [type.name, type]));
+    const [
+      allTypes,
+      allSlots,
+      allServerGenerations,
+      allProcessorGenerations,
+      existingComponents,
+      ...existingProfileCollections
+    ] = await Promise.all([
+      this.cnfComponentTypeRepository.find(),
+      this.cnfSlotRepository.find(),
+      this.cnfServerGenerationRepo.find(),
+      this.cnfProcessorGenerationRepo.find(),
+      this.cnfComponentRepository.find({ relations: ["slots"] }),
+      ...COMPONENT_PROFILE_NAMES.map((profileName) =>
+        this.dataSource.manager
+          .getRepository(PROFILE_ENTITIES[profileName])
+          .find(),
+      ),
+    ]);
+    const typesById = new Map(allTypes.map(type => [type.id, type]));
     const slotsByName = new Map(allSlots.map(slot => [slot.name, slot]));
     const serverGenerationsByName = new Map(allServerGenerations.map(gen => [gen.name, gen]));
     const processorGenerationsByName = new Map(allProcessorGenerations.map(gen => [gen.name, gen]));
-
-    console.log('Slot names:', Array.from(slotsByName.keys()));
-    console.log('Server generation names:', Array.from(serverGenerationsByName.keys()));
-    console.log('Processor generation names:', Array.from(processorGenerationsByName.keys()));
+    const existingById = new Map(
+      existingComponents.map((component) => [component.id, component]),
+    );
+    const existingProfilesByName = Object.fromEntries(
+      COMPONENT_PROFILE_NAMES.map((profileName, index) => [
+        profileName,
+        new Map(
+          (existingProfileCollections[index] as any[]).map((profile) => [
+            profile.component_id,
+            profile,
+          ]),
+        ),
+      ]),
+    ) as Record<ComponentProfileName, Map<string, any>>;
 
     // Валидация всех строк
     for (let rowIndex = 0; rowIndex < excelData.length; rowIndex++) {
       const row = excelData[rowIndex] as ExcelRow;
       const rowNum = rowIndex + 2; // +2 так как в Excel нумерация с 1 и есть заголовок
-
-      console.log(`Processing row ${rowNum}:`, {
-        ID: row.ID,
-        Название: row['Название'],
-        Подтип: row['Подтип'],
-        Цена: row['Цена'],
-        'Поколение сервера': row['Поколение сервера'],
-        'Поколение процессора': row['Поколение процессора']
-      });
+      const errorsBeforeRow = errors.length;
 
       // Пропускаем пустые строки
-      if (!row || Object.keys(row).length === 0 || !row['Название']) {
-        console.log(`Skipping empty row ${rowNum}`);
+      if (!row || Object.keys(row).length === 0) {
+        continue;
+      }
+
+      const rawAction = row["Действие"]?.toString()?.trim()?.toLowerCase();
+      const action = !rawAction || rawAction === "upsert"
+        ? "upsert"
+        : rawAction === "delete"
+          ? "delete"
+          : null;
+      if (!action) {
+        errors.push(
+          `Строка ${rowNum}: Поле "Действие" допускает только upsert или delete`,
+        );
+        continue;
+      }
+
+      const rawId = row.ID?.toString()?.trim();
+      if (action === "delete") {
+        if (!rawId) {
+          errors.push(`Строка ${rowNum}: Для delete обязательно поле ID`);
+          continue;
+        }
+        if (seenIds.has(rawId)) {
+          errors.push(`Строка ${rowNum}: ID ${rawId} повторяется в файле`);
+          continue;
+        }
+        seenIds.add(rawId);
+        if (!existingById.has(rawId)) {
+          errors.push(`Строка ${rowNum}: Компонент с ID ${rawId} не найден`);
+          continue;
+        }
+        validatedData.push({
+          row_number: rowNum,
+          id: rawId,
+          action,
+          changed: true,
+        });
         continue;
       }
 
       // Валидация обязательных полей
       if (!row['Название']?.toString()?.trim()) {
         errors.push(`Строка ${rowNum}: Поле "Название" обязательно для заполнения`);
-        console.log(`Row ${rowNum}: Missing name`);
         continue;
       }
 
-      // Валидация подтипа - разрешаем "Не указано"
-      if (!row['Подтип']?.toString()?.trim()) {
-        errors.push(`Строка ${rowNum}: Поле "Подтип" обязательно для заполнения`);
-        console.log(`Row ${rowNum}: Missing subtype`);
+      const typeId = row['Тип компонента']?.toString()?.trim();
+      if (!typeId) {
+        errors.push(`Строка ${rowNum}: Поле "Тип компонента" обязательно`);
+        continue;
+      }
+      if (!typesById.has(typeId)) {
+        errors.push(`Строка ${rowNum}: Тип компонента "${typeId}" не найден`);
         continue;
       }
 
       // Валидация цены
       if (row['Цена'] === undefined || row['Цена'] === null) {
         errors.push(`Строка ${rowNum}: Поле "Цена" обязательно для заполнения`);
-        console.log(`Row ${rowNum}: Missing price`);
         continue;
       }
 
       const price = Number(row['Цена']);
-      if (isNaN(price) || price < 0) {
-        errors.push(`Строка ${rowNum}: Поле "Цена" должно быть положительным числом`);
-        console.log(`Row ${rowNum}: Invalid price:`, row['Цена']);
+      if (!Number.isFinite(price) || price < 1) {
+        errors.push(`Строка ${rowNum}: Поле "Цена" должно быть числом не меньше 1`);
         continue;
       }
 
@@ -681,7 +1160,6 @@ export class AdminConfiguratorComponentService {
       if (serverGenerationName) {
         if (!serverGenerationsByName.has(serverGenerationName)) {
           errors.push(`Строка ${rowNum}: Поколение сервера "${serverGenerationName}" не найдено`);
-          console.log(`Row ${rowNum}: Server generation "${serverGenerationName}" not found`);
           continue;
         }
         serverGenerationId = serverGenerationsByName.get(serverGenerationName)!.id;
@@ -693,7 +1171,6 @@ export class AdminConfiguratorComponentService {
       if (processorGenerationName) {
         if (!processorGenerationsByName.has(processorGenerationName)) {
           errors.push(`Строка ${rowNum}: Поколение процессора "${processorGenerationName}" не найдено`);
-          console.log(`Row ${rowNum}: Processor generation "${processorGenerationName}" not found`);
           continue;
         }
         processorGenerationId = processorGenerationsByName.get(processorGenerationName)!.id;
@@ -708,38 +1185,35 @@ export class AdminConfiguratorComponentService {
         const increase = row[`Увеличение[${i}]` as keyof ExcelRow];
 
         if (slotName) {
-          console.log(`Row ${rowNum}, Slot ${i}:`, { slotName, amount, increase });
-
           // Проверяем существование слота
           if (!slotsByName.has(slotName)) {
             errors.push(`Строка ${rowNum}, колонка "Слот[${i}]": Слот "${slotName}" не найден`);
-            console.log(`Row ${rowNum}: Slot "${slotName}" not found`);
             continue;
           }
 
           // Валидация amount - обязательно при указании слота
           if (amount === undefined || amount === null || amount === '') {
             errors.push(`Строка ${rowNum}, колонка "Количество[${i}]": Поле обязательно при указании слота`);
-            console.log(`Row ${rowNum}: Missing amount for slot ${i}`);
             continue;
           }
 
           // Валидация increase - обязательно при указании слота
           if (increase === undefined || increase === null || increase === '') {
             errors.push(`Строка ${rowNum}, колонка "Увеличение[${i}]": Поле обязательно при указании слота`);
-            console.log(`Row ${rowNum}: Missing increase for slot ${i}`);
             continue;
           }
 
           const numericAmount = Number(amount);
-          if (isNaN(numericAmount) || numericAmount < 0) {
-            errors.push(`Строка ${rowNum}, колонка "Количество[${i}]": Значение должно быть положительным числом`);
-            console.log(`Row ${rowNum}: Invalid amount for slot ${i}:`, amount);
+          if (!Number.isInteger(numericAmount) || numericAmount < 1) {
+            errors.push(`Строка ${rowNum}, колонка "Количество[${i}]": Значение должно быть целым числом не меньше 1`);
             continue;
           }
 
-          // Обрабатываем "Да"/"Нет" для increase
-          const boolIncrease = increase === 'Да' || increase === true || increase === 1;
+          const boolIncrease = this.parseExcelBoolean(increase);
+          if (boolIncrease === undefined) {
+            errors.push(`Строка ${rowNum}, колонка "Увеличение[${i}]": Допустимы Да/Нет, true/false или 1/0`);
+            continue;
+          }
 
           validatedSlots.push({
             slot_id: slotsByName.get(slotName)!.id,
@@ -749,12 +1223,17 @@ export class AdminConfiguratorComponentService {
         }
       }
 
+      if (errors.length > errorsBeforeRow) continue;
+
       // Формируем данные для компонента
       const componentData: any = {
         name: row['Название'].toString().trim(),
-        subtype: row['Подтип'].toString().trim() === 'Не указано' ? null : row['Подтип'].toString().trim(),
+        subtype:
+          !row['Подтип'] || row['Подтип'].toString().trim() === 'Не указано'
+            ? null
+            : row['Подтип'].toString().trim(),
         price: Number(row['Цена']),
-        type_id: row['Тип компонента']?.toString()?.trim() || null,
+        type_id: typeId,
         server_generation_id: serverGenerationId,
         processor_generation_id: processorGenerationId,
         slots: validatedSlots,
@@ -762,171 +1241,122 @@ export class AdminConfiguratorComponentService {
       };
 
       // Добавляем ID только если он есть и не пустой
-      const rawId = row.ID?.toString()?.trim();
       if (rawId) {
+        if (seenIds.has(rawId)) {
+          errors.push(`Строка ${rowNum}: ID ${rawId} повторяется в файле`);
+          continue;
+        }
+        seenIds.add(rawId);
+        if (!existingById.has(rawId)) {
+          errors.push(`Строка ${rowNum}: Компонент с ID ${rawId} не найден`);
+          continue;
+        }
         componentData.id = rawId;
       }
 
-      console.log(`Validated component data for row ${rowNum}:`, componentData);
-      validatedData.push(componentData);
-    }
-
-    console.log('Validation completed. Errors:', errors.length);
-    console.log('Valid components:', validatedData.length);
-
-    // Если есть ошибки, не выполняем импорт
-    if (errors.length > 0) {
-      console.log('Validation errors:', errors);
-      throw new HttpException(
-        `Ошибки валидации:\n${errors.join('\n')}`,
-        HttpStatus.BAD_REQUEST
+      const profileDto = plainToInstance(
+        UpsertComponentProfilesRequestDto,
+        componentData.profiles,
       );
-    }
-
-    // Выполняем импорт
-    let importedCount = 0;
-    for (const componentData of validatedData) {
-      try {
-        if (componentData.id) {
-          console.log(`Updating existing component: ${componentData.id}`);
-          await this.updateExistingComponent(componentData);
-        } else {
-          console.log(`Creating new component: ${componentData.name}`);
-          await this.createNewComponent(componentData);
-        }
-        importedCount++;
-      } catch (error) {
-        console.error(`Error processing component ${componentData.name}:`, error);
-        errors.push(`Ошибка при обработке компонента "${componentData.name}": ${error.message}`);
+      const profileValidationErrors = await validate(profileDto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+      if (profileValidationErrors.length) {
+        errors.push(
+          `Строка ${rowNum}: Некорректные profile.* поля: ${this.formatValidationErrors(profileValidationErrors)}`,
+        );
+        continue;
       }
+
+      const existingComponent = rawId ? existingById.get(rawId) : null;
+      const existingProfiles = rawId
+        ? Object.fromEntries(
+            COMPONENT_PROFILE_NAMES.map((profileName) => [
+              profileName,
+              existingProfilesByName[profileName].get(rawId) || null,
+            ]),
+          )
+        : {};
+      validatedData.push({
+        row_number: rowNum,
+        id: rawId || undefined,
+        action,
+        changed: !existingComponent || this.excelImportWouldChange(
+          existingComponent,
+          componentData,
+          existingProfiles,
+        ),
+        payload: componentData,
+      });
     }
 
-    console.log(`Import completed. Processed ${importedCount} components.`);
+    const report: ComponentImportReport = {
+      schema_version: schemaVersion,
+      dry_run: Boolean(options.dryRun),
+      total_rows: excelData.length,
+      valid_rows: validatedData.length,
+      added: validatedData.filter(
+        (item) => item.action === "upsert" && !item.id,
+      ).length,
+      updated: validatedData.filter(
+        (item) => item.action === "upsert" && item.id && item.changed,
+      ).length,
+      unchanged: validatedData.filter(
+        (item) => item.action === "upsert" && item.id && !item.changed,
+      ).length,
+      deleted: validatedData.filter((item) => item.action === "delete").length,
+      added_ids: [],
+      updated_ids: validatedData
+        .filter((item) => item.action === "upsert" && item.changed)
+        .map((item) => item.id)
+        .filter(Boolean) as string[],
+      deleted_ids: validatedData
+        .filter((item) => item.action === "delete")
+        .map((item) => item.id) as string[],
+      errors,
+      backup_id: null,
+    };
 
-    if (errors.length > 0) {
+    if (options.dryRun) return report;
+    if (errors.length) {
       throw new HttpException(
-        `Ошибки при импорте:\n${errors.join('\n')}`,
-        HttpStatus.BAD_REQUEST
+        {
+          message: "XLSX содержит ошибки; импорт не выполнялся",
+          report,
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
-  }
 
-  private async updateExistingComponent(componentData: any) {
-    console.log(`Updating component with ID: ${componentData.id}`);
-    
-    const existingComponent = await this.cnfComponentRepository.findOne({
-      where: { id: componentData.id },
-      relations: ["slots"],
+    return this.dataSource.transaction(async (manager) => {
+      const backup = await this.createBackupWithManager(
+        manager,
+        `Авто-бекап перед импортом ${new Date().toLocaleString("ru-RU")}`,
+        userId,
+      );
+      report.backup_id = backup.id;
+
+      for (const item of validatedData) {
+        if (item.action === "delete") {
+          await this.deleteComponentWithManager(manager, item.id!);
+          continue;
+        }
+        if (item.id && !item.changed) continue;
+        const componentRepo = manager.getRepository(CnfComponentEntity);
+        const existingComponent = item.id
+          ? await componentRepo.findOneBy({ id: item.id })
+          : null;
+        const saved = await this.saveComponentWithProfiles(
+          manager,
+          existingComponent,
+          item.payload!,
+        );
+        if (!item.id) report.added_ids.push(saved.component.id);
+      }
+
+      return report;
     });
-
-    if (!existingComponent) {
-      console.log(`Component with ID ${componentData.id} not found, skipping update`);
-      return;
-    }
-
-    console.log(`Found existing component: ${existingComponent.name}`);
-
-    // Проверяем есть ли изменения
-    const hasChanges = 
-      existingComponent.name !== componentData.name ||
-      (existingComponent.subtype || null) !== (componentData.subtype || null) ||
-      existingComponent.price !== componentData.price ||
-      existingComponent.type_id !== componentData.type_id ||
-      existingComponent.server_generation_id !== componentData.server_generation_id ||
-      existingComponent.processor_generation_id !== componentData.processor_generation_id ||
-      this.hasSlotChanges(existingComponent.slots, componentData.slots);
-
-    console.log(`Component has changes: ${hasChanges}`);
-
-    if (hasChanges) {
-      try {
-        existingComponent.name = componentData.name;
-        existingComponent.subtype = componentData.subtype;
-        existingComponent.price = componentData.price;
-        existingComponent.type_id = componentData.type_id;
-        existingComponent.server_generation_id = componentData.server_generation_id;
-        existingComponent.processor_generation_id = componentData.processor_generation_id;
-
-        // Удаляем старые slots
-        console.log(`Deleting old slots for component ${componentData.id}`);
-        await this.cnfComponentRepository
-          .createQueryBuilder()
-          .delete()
-          .from(CnfComponentSlotEntity)
-          .where('component_id = :id', { id: componentData.id })
-          .execute();
-
-        // Сохраняем компонент без слотов
-        console.log(`Saving updated component ${componentData.id}`);
-        await this.cnfComponentRepository.save(existingComponent);
-
-        // Создаем новые slots с правильным component_id
-        if (componentData.slots && componentData.slots.length > 0) {
-          console.log(`Creating ${componentData.slots.length} new slots`);
-          
-          for (const slotData of componentData.slots) {
-            const newSlot = CnfComponentSlotEntity.init({
-              ...slotData,
-              component_id: componentData.id,
-            });
-            console.log(`Saving slot:`, newSlot);
-            await this.cnfComponentRepository.manager.save(CnfComponentSlotEntity, newSlot);
-          }
-        }
-
-        console.log(`Successfully updated component ${componentData.id}`);
-      } catch (error) {
-        console.error(`Error updating component ${componentData.id}:`, error);
-        throw error;
-      }
-    } else {
-      console.log(`No changes detected for component ${componentData.id}, skipping update`);
-    }
-
-    await this.upsertImportedProfiles(componentData.id, componentData.profiles);
-  }
-
-  private async createNewComponent(componentData: any) {
-    console.log(`Creating new component: ${componentData.name}`);
-    
-    try {
-      // Исключаем slots из данных для создания компонента
-      const { slots, profiles, ...componentOnlyData } = componentData;
-      
-      console.log(`Component data:`, componentOnlyData);
-      
-      // Создаем новый компонент без слотов
-      const newComponent = CnfComponentEntity.init(componentOnlyData);
-      console.log(`Initialized component entity:`, newComponent);
-      
-      const savedComponent = await this.cnfComponentRepository.save(newComponent);
-      console.log(`Saved component with ID: ${savedComponent.id}`);
-
-      // Создаем слоты после сохранения компонента
-      if (slots && slots.length > 0) {
-        console.log(`Creating ${slots.length} slots for component ${savedComponent.id}`);
-        
-        for (const slotData of slots) {
-          const newSlot = CnfComponentSlotEntity.init({
-            ...slotData,
-            component_id: savedComponent.id,
-          });
-          console.log(`Saving slot:`, newSlot);
-          await this.cnfComponentRepository.manager.save(CnfComponentSlotEntity, newSlot);
-        }
-        
-        console.log(`Successfully created all slots for component ${savedComponent.id}`);
-      } else {
-        console.log(`No slots to create for component ${savedComponent.id}`);
-      }
-
-      await this.upsertImportedProfiles(savedComponent.id, profiles);
-
-      console.log(`Successfully created component ${savedComponent.id}: ${savedComponent.name}`);
-    } catch (error) {
-      console.error(`Error creating component ${componentData.name}:`, error);
-      throw error;
-    }
   }
 
   private appendProfilesToExcelRow(row: any, profiles: any) {
@@ -968,7 +1398,7 @@ export class AdminConfiguratorComponentService {
 
   private normalizeProfileExcelValue(fieldName: string, rawValue: any) {
     if (PROFILE_BOOLEAN_FIELDS.has(fieldName)) {
-      return rawValue === true || rawValue === 1 || rawValue === "1" || rawValue === "Да" || rawValue === "да" || rawValue === "true";
+      return this.parseExcelBoolean(rawValue) ?? rawValue;
     }
 
     if (PROFILE_NUMBER_FIELDS.has(fieldName)) {
@@ -978,77 +1408,203 @@ export class AdminConfiguratorComponentService {
     return rawValue.toString().trim();
   }
 
-  private async upsertImportedProfiles(
-    componentId: string,
-    profiles?: UpsertComponentProfilesRequestDto,
+  private excelImportWouldChange(
+    existingComponent: any,
+    payload: SaveConfigurationComponentRequestDto,
+    existingProfiles: Record<string, any>,
   ) {
-    if (!profiles || Object.keys(profiles).length === 0) {
-      return;
-    }
+    const baseChanged =
+      existingComponent.name !== payload.name ||
+      (existingComponent.subtype || null) !== (payload.subtype || null) ||
+      !this.sameImportValue(existingComponent.price, payload.price) ||
+      existingComponent.type_id !== payload.type_id ||
+      (existingComponent.server_generation_id || null) !==
+        (payload.server_generation_id || null) ||
+      (existingComponent.processor_generation_id || null) !==
+        (payload.processor_generation_id || null);
+    if (baseChanged) return true;
 
-    await this.upsertComponentProfiles(componentId, profiles);
-  }
-
-  private hasSlotChanges(existingSlots: CnfComponentSlotEntity[], newSlots: any[]): boolean {
-    if (existingSlots.length !== newSlots.length) {
+    const normalizeSlots = (slots: any[]) =>
+      (slots || [])
+        .map((slot) => ({
+          slot_id: slot.slot_id,
+          amount: Number(slot.amount),
+          increase: Boolean(slot.increase),
+        }))
+        .sort((a, b) =>
+          `${a.slot_id}:${a.amount}:${a.increase}`.localeCompare(
+            `${b.slot_id}:${b.amount}:${b.increase}`,
+          ),
+        );
+    if (
+      JSON.stringify(normalizeSlots(existingComponent.slots)) !==
+      JSON.stringify(normalizeSlots(payload.slots || []))
+    ) {
       return true;
     }
 
-    const existingSlotsData = existingSlots.map(slot => ({
-      slot_id: slot.slot_id,
-      amount: slot.amount,
-      increase: slot.increase,
-    }));
+    const profileData = payload.profiles as Record<string, any>;
+    const metadata = resolveComponentProfileMetadata(payload, profileData);
+    for (const profileName of COMPONENT_PROFILE_NAMES) {
+      const current = existingProfiles[profileName];
+      const requested = profileData[profileName];
+      const incompatible =
+        SPECIALIZED_COMPONENT_PROFILE_NAMES.includes(profileName as any) &&
+        profileName !== metadata.profile_kind;
+      if (incompatible) {
+        if (current) return true;
+        continue;
+      }
+      if (requested === undefined) continue;
+      if (requested === null) {
+        if (current) return true;
+        continue;
+      }
+      if (!current) return true;
 
-    const newSlotsData = newSlots.map(slot => ({
-      slot_id: slot.slot_id,
-      amount: slot.amount,
-      increase: slot.increase,
-    }));
+      const normalized = this.normalizeProfileForComponent(
+        profileName,
+        requested,
+        metadata,
+      );
+      if (
+        Object.entries(normalized).some(
+          ([field, value]) =>
+            !this.sameImportValue(current[field], value),
+        )
+      ) {
+        return true;
+      }
+    }
 
-    return JSON.stringify(existingSlotsData.sort()) !== JSON.stringify(newSlotsData.sort());
+    return false;
   }
 
-  async createComponent(data: CreateConfigurationComponentRequestDto) {
-    const component = CnfComponentEntity.init(data);
-    return this.createOrUpdate(component, data);
+  private sameImportValue(left: any, right: any) {
+    if (left === right) return true;
+    if (left == null || right == null) return false;
+    const leftNumber = Number(left);
+    const rightNumber = Number(right);
+    if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+      return leftNumber === rightNumber;
+    }
+    return `${left}` === `${right}`;
+  }
+
+  private parseExcelBoolean(value: any): boolean | undefined {
+    if (value === true || value === 1) return true;
+    if (value === false || value === 0) return false;
+
+    const normalized = `${value}`.trim().toLowerCase();
+    if (["да", "true", "1"].includes(normalized)) return true;
+    if (["нет", "false", "0"].includes(normalized)) return false;
+    return undefined;
+  }
+
+  private formatValidationErrors(errors: any[]): string {
+    return errors
+      .flatMap((error) => [
+        ...Object.values(error.constraints || {}),
+        ...(error.children?.length
+          ? [
+              `${error.property}: ${this.formatValidationErrors(error.children)}`,
+            ]
+          : []),
+      ])
+      .join(", ");
+  }
+
+  async createComponent(data: SaveConfigurationComponentRequestDto) {
+    return this.dataSource.transaction((manager) =>
+      this.saveComponentWithProfiles(manager, null, data),
+    );
   }
 
   async updateComponent(
     id: string,
-    data: Partial<CreateConfigurationComponentRequestDto>,
+    data: UpdateConfigurationComponentRequestDto,
   ) {
-    const component = await this.cnfComponentRepository.findOneByOrFail({ id });
-    component.update(data);
-    return this.createOrUpdate(component, data);
+    return this.dataSource.transaction(async (manager) => {
+      const component = await manager
+        .getRepository(CnfComponentEntity)
+        .findOneBy({ id });
+
+      if (!component) {
+        throw new HttpException("Компонент не найден", HttpStatus.NOT_FOUND);
+      }
+
+      return this.saveComponentWithProfiles(manager, component, data);
+    });
   }
 
-  async createOrUpdate(
-    component: CnfComponentEntity,
-    data: Partial<CreateConfigurationComponentRequestDto>,
+  private async saveComponentWithProfiles(
+    manager: EntityManager,
+    existingComponent: CnfComponentEntity | null,
+    data: SaveConfigurationComponentRequestDto,
   ) {
-    // Сначала сохраняем компонент без слотов
-    const savedComponent = await this.cnfComponentRepository.save(component);
-
-    // Затем обрабатываем слоты, если они есть
-    if (data.slots?.length > 0) {
-      const slots = data.slots.map((item: Partial<CnfComponentSlotEntity>) => {
-        return CnfComponentSlotEntity.init({
-          ...item,
-          component_id: savedComponent.id,
-        });
-      });
-
-      // Сохраняем слоты по одному
-      for (const slot of slots) {
-        await this.cnfComponentRepository.manager.save(CnfComponentSlotEntity, slot);
-      }
+    const componentType = await manager
+      .getRepository(entities.CnfComponentTypeEntity)
+      .findOneBy({ id: data.type_id });
+    if (!componentType) {
+      throw new HttpException(
+        "Тип компонента не найден",
+        HttpStatus.NOT_FOUND,
+      );
     }
 
-    return await this.cnfComponentRepository.findOne({
-      where: { id: savedComponent.id },
-      relations: ["slots"],
-    });
+    const componentRepo = manager.getRepository(CnfComponentEntity);
+    const componentValues = {
+      name: data.name,
+      price: data.price,
+      type_id: data.type_id,
+      subtype: data.subtype ?? "",
+      server_generation_id: data.server_generation_id ?? null,
+      processor_generation_id: data.processor_generation_id ?? null,
+    };
+    const component = existingComponent
+      ? componentRepo.merge(existingComponent, componentValues)
+      : componentRepo.create(componentValues);
+    const savedComponent = await componentRepo.save(component);
+
+    const slotRepo = manager.getRepository(CnfComponentSlotEntity);
+    await slotRepo.delete({ component_id: savedComponent.id });
+    if (data.slots?.length) {
+      await slotRepo.save(
+        data.slots.map((slot) =>
+          slotRepo.create({
+            component_id: savedComponent.id,
+            slot_id: slot.slot_id,
+            amount: slot.amount,
+            increase: slot.increase ?? false,
+          }),
+        ),
+      );
+    }
+
+    await this.applyComponentProfiles(
+      manager,
+      savedComponent,
+      data.profiles,
+    );
+
+    return this.getComponentProfiles(savedComponent.id, manager);
+  }
+
+  private async deleteComponentWithManager(
+    manager: EntityManager,
+    componentId: string,
+  ) {
+    for (const profileName of COMPONENT_PROFILE_NAMES) {
+      await manager
+        .getRepository(PROFILE_ENTITIES[profileName])
+        .delete({ component_id: componentId });
+    }
+    await manager
+      .getRepository(CnfComponentSlotEntity)
+      .delete({ component_id: componentId });
+    await manager
+      .getRepository(CnfComponentEntity)
+      .delete({ id: componentId });
   }
 
   async deleteComponent(id: string) {

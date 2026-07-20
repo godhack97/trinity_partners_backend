@@ -1,6 +1,7 @@
 import { WithIdDto } from "@app/dto/with-id.dto";
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
+import { RecommendedConfigComponentDto } from "../request/create-recommended-config.dto";
 
 export class RecommendedConfigResponseDto extends WithIdDto {
   @ApiProperty()
@@ -11,25 +12,25 @@ export class RecommendedConfigResponseDto extends WithIdDto {
   @Expose()
   category_label: string;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true, format: "uuid" })
   @Expose()
-  server_id: string;
+  server_id: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @Expose()
-  server_name: string;
+  server_name: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @Expose()
-  description: string;
+  description: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true, type: [RecommendedConfigComponentDto] })
   @Expose()
-  components: any;
+  components: RecommendedConfigComponentDto[] | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @Expose()
-  image: string;
+  image: string | null;
 
   @ApiProperty()
   @Expose()

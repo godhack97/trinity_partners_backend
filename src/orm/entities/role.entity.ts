@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
 import { UserEntity as User } from './user.entity';
 import { Permission } from './permission.entity';
 import { UserRoleEntity } from './user-roles.entity';
@@ -20,7 +20,7 @@ export class RoleEntity {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @DeleteDateColumn({ type: 'timestamp', nullable: true })
   deleted_at?: Date;
 
   @OneToMany(() => User, user => user.role)

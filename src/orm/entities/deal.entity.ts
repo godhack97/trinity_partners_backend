@@ -183,23 +183,23 @@ export class DealEntity extends BasisEntity {
   status: DealStatus;
 
   @Column({ nullable: true })
-  duplicate_of_deal_id?: number;
+  duplicate_of_deal_id?: number | null;
 
   @Column({
     type: "enum",
     enum: DealDuplicateReviewStatus,
     nullable: true,
   })
-  duplicate_review_status?: DealDuplicateReviewStatus;
+  duplicate_review_status?: DealDuplicateReviewStatus | null;
 
   @Column({ nullable: true, type: "varchar" })
-  special_discount: string;
+  special_discount: string | null;
 
   @Column({ nullable: true, type: "decimal", precision: 10, scale: 2 })
-  special_price: number;
+  special_price: number | null;
 
   @Column({ nullable: true })
-  discount_date: Date;
+  discount_date: Date | null;
 
   @DeleteDateColumn({ name: "deleted_at" })
   deletedAt?: Date;

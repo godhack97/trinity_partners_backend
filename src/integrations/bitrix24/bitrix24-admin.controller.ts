@@ -15,10 +15,13 @@ import {
 } from "@nestjs/swagger";
 import { Bitrix24QueueService } from "./bitrix24-queue.service";
 import { Bitrix24Service } from "./bitrix24.service";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 @ApiTags("bitrix24-admin")
 @ApiBearerAuth()
 @Controller("admin/bitrix24")
+@Roles([RoleTypes.SuperAdmin])
 export class Bitrix24AdminController {
   constructor(
     private readonly bitrix24QueueService: Bitrix24QueueService,

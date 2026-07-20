@@ -1,0 +1,2566 @@
+{
+  "version": 2,
+  "principals": [
+    "anonymous",
+    "super_admin",
+    "employee_admin",
+    "content_manager",
+    "partner_manager",
+    "partner"
+  ],
+  "operations": [
+    {
+      "signature": "DELETE /api/admin/configurator/component/backup/{backupId}",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_deleteComponentBackup",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/admin/configurator/processorGeneration/{id}",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorProcessorGeneration_removeProcessorGeneration",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/admin/configurator/serverGeneration/{id}",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServerGeneration_removeServerGeneration",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/admin/forbidden-inns/{id}",
+      "scope": "admin",
+      "operationId": "ForbiddenInn_remove",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/configurator/componentType/{id}",
+      "scope": "shared-admin",
+      "operationId": "Configurator_deleteComponentType",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/configurator/recommended/{id}",
+      "scope": "shared-admin",
+      "operationId": "RecommendedConfigs_remove",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/deal/{id}",
+      "scope": "shared-admin",
+      "operationId": "Deal_remove",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [
+        "api.deals.remove"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/documents/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_remove",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/documents/access-levels/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_removeAccessLevel",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/documents/groups/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_removeGroup",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/documents/tags/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_removeTag",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/download-centr/{id}",
+      "scope": "shared-admin",
+      "operationId": "DownloadCentr_remove",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/role/{id}",
+      "scope": "shared-admin",
+      "operationId": "Role_remove",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.remove"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "DELETE /api/user/{id}",
+      "scope": "shared-admin",
+      "operationId": "User_remove",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin",
+      "scope": "admin",
+      "operationId": "Admin_adminhello",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/bitrix24/connection/test",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_testConnection",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/bitrix24/lead/{id}",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_getLead",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/bitrix24/sync/leads/statistics/detailed",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_getDetailedLeadStatistics",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/bitrix24/sync/statistics",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_getSyncStatistics",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/bitrix24/sync/validate-leads",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_validateLeads",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/configurator/component/{id}/profiles",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_getComponentProfiles",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/configurator/component/backups",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_getComponentBackups",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/configurator/component/export",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_getComponents",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/configurator/multislot",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorMultislot_getMultislots",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/configurator/server/{id}/profile",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServer_getPlatformProfile",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/counts",
+      "scope": "admin",
+      "operationId": "AdminCounts_getAllCounts",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager",
+        "employee_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/forbidden-inns",
+      "scope": "admin",
+      "operationId": "ForbiddenInn_findAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/important-alerts",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_findAll",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/important-alerts/{id}",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_findOne",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/important-alerts/count",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_getCount",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/important-alerts/target-companies",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_findTargetCompanies",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner",
+      "scope": "admin",
+      "operationId": "AdminPartner_getAll",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner/count",
+      "scope": "admin",
+      "operationId": "AdminPartner_getCount",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner/count/accepted",
+      "scope": "admin",
+      "operationId": "AdminPartner_getAcceptedCount",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner/count/pending",
+      "scope": "admin",
+      "operationId": "AdminPartner_getPendingCount",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner/count/rejected",
+      "scope": "admin",
+      "operationId": "AdminPartner_getRejectedCount",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner/count/suspended",
+      "scope": "admin",
+      "operationId": "AdminPartner_getSuspendedCount",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/partner/employee/requests",
+      "scope": "admin",
+      "operationId": "AdminPartner_getEmployeeRequests",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/permissions",
+      "scope": "admin",
+      "operationId": "AdminPermissions_findAllPermissions",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/permissions/by-type/{type}",
+      "scope": "admin",
+      "operationId": "AdminPermissions_getPermissionsByType",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/permissions/roles/{roleId}",
+      "scope": "admin",
+      "operationId": "AdminPermissions_getRolePermissions",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/user",
+      "scope": "admin",
+      "operationId": "AdminUser_findAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/user/admin",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_findAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/user/admin/count",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_getCount",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/user/admin/count/{role}",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_getCountByRole",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/admin/user/admin/count/archived",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_getArchivedCount",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/configurator/recommended/admin",
+      "scope": "shared-admin",
+      "operationId": "RecommendedConfigs_findAllAdmin",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/logs-list",
+      "scope": "shared-admin",
+      "operationId": "UserActions_getAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/logs-list/count",
+      "scope": "shared-admin",
+      "operationId": "UserActions_getCount",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/logs-list/entity",
+      "scope": "shared-admin",
+      "operationId": "UserActions_getEntityHistory",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/logs-list/entity/backup-operations",
+      "scope": "shared-admin",
+      "operationId": "UserActions_getEntityBulkOperations",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/logs-list/paged",
+      "scope": "shared-admin",
+      "operationId": "UserActions_getPaged",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/role",
+      "scope": "shared-admin",
+      "operationId": "Role_findAll",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.read"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/role/{id}",
+      "scope": "shared-admin",
+      "operationId": "Role_findOne",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.read"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/role/{id}/can-delete",
+      "scope": "shared-admin",
+      "operationId": "Role_canDelete",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.remove"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/role/archived",
+      "scope": "shared-admin",
+      "operationId": "Role_findDeleted",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.read"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/role/stats",
+      "scope": "shared-admin",
+      "operationId": "Role_getRolesWithStats",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.read"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/user",
+      "scope": "shared-admin",
+      "operationId": "User_findAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/user/{id}",
+      "scope": "shared-admin",
+      "operationId": "User_findOne",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/users",
+      "scope": "shared-admin",
+      "operationId": "Users_find",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/users/all",
+      "scope": "shared-admin",
+      "operationId": "Users_findAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/users/by-email",
+      "scope": "shared-admin",
+      "operationId": "Users_findbyEmail",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "GET /api/users/count",
+      "scope": "shared-admin",
+      "operationId": "Users_getCount",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/admin/configurator/processorGeneration/{id}",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorProcessorGeneration_updateProcessorGeneration",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/admin/configurator/serverGeneration/{id}",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServerGeneration_updateServerGeneration",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/admin/deals/{id}/accept-deal",
+      "scope": "admin",
+      "operationId": "AdminDeal_acceptDeal",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/admin/deals/{id}/duplicate-review",
+      "scope": "admin",
+      "operationId": "AdminDeal_reviewDuplicate",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/admin/forbidden-inns/{id}",
+      "scope": "admin",
+      "operationId": "ForbiddenInn_update",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/admin/partner/{id}",
+      "scope": "admin",
+      "operationId": "AdminPartner_updateBusinessFields",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/configurator/componentType/{id}",
+      "scope": "shared-admin",
+      "operationId": "Configurator_updateComponentType",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/role/{id}",
+      "scope": "shared-admin",
+      "operationId": "Role_update",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.write"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/user/{id}",
+      "scope": "shared-admin",
+      "operationId": "User_update",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PATCH /api/user/partner/{id}",
+      "scope": "shared-admin",
+      "operationId": "User_updatePartner",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/lead/convert/{id}",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_convertLeadToDeal",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/lead/update/{id}",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_updateLead",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/leads/bulk-convert",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_bulkConvertLeads",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/sync/cleanup",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_cleanupOldSyncData",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/sync/force-all",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_forceResyncAll",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/sync/lead/{id}",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_forceSyncLead",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/bitrix24/sync/run-now",
+      "scope": "admin",
+      "operationId": "Bitrix24Admin_runSyncNow",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_createComponent",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_deleteComponent",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/{id}/profiles",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_upsertComponentProfiles",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_update",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/backup",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_createComponentBackup",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/import",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_importComponents",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/import/dry-run",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_dryRunImportComponents",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/component/restore/{backupId}",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorComponent_restoreComponentBackup",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/multislot/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorMultislot_deleteMultislot",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/multislot/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorMultislot_updateMultislot",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/multislot/create",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorMultislot_createMultislot",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/processorGeneration",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorProcessorGeneration_addProcessorGeneration",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/server/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServer_deleteServer",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/server/{id}/profile",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServer_upsertPlatformProfile",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/server/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServer_updateServer",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/server/add",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServer_addServer",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/serverGeneration",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServerGeneration_addServerGeneration",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/serverHeight/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServerHeight_deleteServerHeight",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/serverHeight/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServerHeight_updateServerHeight",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/serverHeight/add",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorServerHeight_addServerHeight",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/slot/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorSlot_deleteSlot",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/slot/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorSlot_updateSlot",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/configurator/slot/add",
+      "scope": "admin",
+      "operationId": "AdminConfiguratorSlot_create",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/distributor/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminDistributor_deleteDistributor",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/distributor/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminDistributor_updateDistributor",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/distributor/add",
+      "scope": "admin",
+      "operationId": "AdminDistributor_addDistributor",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/forbidden-inns",
+      "scope": "admin",
+      "operationId": "ForbiddenInn_create",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/image",
+      "scope": "admin",
+      "operationId": "AdminImage_saveForm",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/important-alerts",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_create",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/important-alerts/{id}",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_update",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/important-alerts/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminImportantAlert_delete",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/{id}/accept",
+      "scope": "admin",
+      "operationId": "AdminPartner_acceptPartner",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/{id}/reject",
+      "scope": "admin",
+      "operationId": "AdminPartner_rejectPartner",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/{id}/restore",
+      "scope": "admin",
+      "operationId": "AdminPartner_restorePartner",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/{id}/resume",
+      "scope": "admin",
+      "operationId": "AdminPartner_resumePartner",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/{id}/suspend",
+      "scope": "admin",
+      "operationId": "AdminPartner_suspendPartner",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/employee/{id}/accept",
+      "scope": "admin",
+      "operationId": "AdminPartner_acceptEmployee",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/partner/employee/{id}/reject",
+      "scope": "admin",
+      "operationId": "AdminPartner_rejectEmployee",
+      "requiredRoles": [
+        "super_admin",
+        "partner_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 200,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/permissions",
+      "scope": "admin",
+      "operationId": "AdminPermissions_createPermission",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/permissions/roles/{roleId}/assign",
+      "scope": "admin",
+      "operationId": "AdminPermissions_assignPermissions",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/permissions/roles/{roleId}/remove",
+      "scope": "admin",
+      "operationId": "AdminPermissions_removePermissions",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/permissions/roles/{roleId}/set",
+      "scope": "admin",
+      "operationId": "AdminPermissions_setRolePermissions",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "system.permissions.manage"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/user/{id}/restore-employee",
+      "scope": "admin",
+      "operationId": "AdminUser_restoreCompanyEmployee",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/user/admin",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_create",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/user/admin/{id}/delete",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_delete",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/user/admin/{id}/restore",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_restore",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/admin/user/admin/{id}/update",
+      "scope": "admin",
+      "operationId": "AdminUserAdmin_update",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/configurator/componentType",
+      "scope": "shared-admin",
+      "operationId": "Configurator_createComponentType",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/configurator/recommended",
+      "scope": "shared-admin",
+      "operationId": "RecommendedConfigs_create",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/documents",
+      "scope": "shared-admin",
+      "operationId": "Documents_create",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/documents/access-levels",
+      "scope": "shared-admin",
+      "operationId": "Documents_createAccessLevel",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/documents/groups",
+      "scope": "shared-admin",
+      "operationId": "Documents_createGroup",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/documents/tags",
+      "scope": "shared-admin",
+      "operationId": "Documents_createTag",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/download-centr",
+      "scope": "shared-admin",
+      "operationId": "DownloadCentr_create",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/news",
+      "scope": "shared-admin",
+      "operationId": "News_create",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/news/{slug}",
+      "scope": "shared-admin",
+      "operationId": "News_update",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/news/{slug}/delete",
+      "scope": "shared-admin",
+      "operationId": "News_delete",
+      "requiredRoles": [
+        "super_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/role",
+      "scope": "shared-admin",
+      "operationId": "Role_create",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.write"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/role/{id}/restore",
+      "scope": "shared-admin",
+      "operationId": "Role_restore",
+      "requiredRoles": [],
+      "requiredPermissions": [
+        "api.roles.write"
+      ],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/user/update-role/{id}",
+      "scope": "shared-admin",
+      "operationId": "User_updateRole",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "POST /api/user/update-roles/{id}",
+      "scope": "shared-admin",
+      "operationId": "User_updateRoles",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PUT /api/configurator/recommended/{id}",
+      "scope": "shared-admin",
+      "operationId": "RecommendedConfigs_update",
+      "requiredRoles": [
+        "super_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 403,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PUT /api/documents/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_update",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PUT /api/documents/access-levels/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_updateAccessLevel",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PUT /api/documents/groups/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_updateGroup",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PUT /api/documents/tags/{id}",
+      "scope": "shared-admin",
+      "operationId": "Documents_updateTag",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin",
+        "content_manager"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 200,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    },
+    {
+      "signature": "PUT /api/download-centr/{id}",
+      "scope": "shared-admin",
+      "operationId": "DownloadCentr_update",
+      "requiredRoles": [
+        "super_admin",
+        "employee_admin"
+      ],
+      "requiredPermissions": [],
+      "statuses": {
+        "anonymous": 401,
+        "super_admin": 200,
+        "employee_admin": 200,
+        "content_manager": 403,
+        "partner_manager": 403,
+        "partner": 403
+      }
+    }
+  ]
+}

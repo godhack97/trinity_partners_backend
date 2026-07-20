@@ -1,14 +1,15 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Expose } from "class-transformer";
+import { Expose, Type } from "class-transformer";
+import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
 
 export class NewsResponseListDto {
   @ApiProperty()
   @Expose()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @Expose()
-  photo: string;
+  photo: string | null;
 
   @ApiProperty()
   @Expose()
@@ -28,15 +29,22 @@ export class NewsResponseDto extends NewsResponseListDto {
   @Expose()
   content: string;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @Expose()
-  image_big: string;
+  image_big: string | null;
 
   @ApiProperty()
   @Expose()
-  author_id: string;
+  author_id: number;
 
   @ApiProperty()
   @Expose()
   updated_at: string;
+}
+
+export class NewsPaginationResponseDto extends PaginationResponseDto<NewsResponseDto> {
+  @ApiProperty({ type: [NewsResponseDto] })
+  @Expose()
+  @Type(() => NewsResponseDto)
+  data: NewsResponseDto[];
 }

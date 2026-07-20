@@ -17,7 +17,7 @@ export class NewsEntity extends BasisEntity {
   @Column()
   name: string;
 
-  @Column()
+  @Column({ type: "text" })
   content: string;
 
   @Column()
@@ -26,11 +26,11 @@ export class NewsEntity extends BasisEntity {
   @Column()
   url: string;
 
-  @Column()
-  photo: string;
+  @Column({ nullable: true })
+  photo: string | null;
 
-  @Column()
-  image_big: string;
+  @Column({ nullable: true })
+  image_big: string | null;
 
   @DeleteDateColumn()
   deleted_at: Date;

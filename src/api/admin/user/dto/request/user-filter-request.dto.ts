@@ -1,24 +1,49 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { RoleTypes } from "../../../../../types/RoleTypes";
-import { IsBoolean, IsOptional } from "class-validator";
+import { CompanyEmployeeStatus } from "@orm/entities";
+import { Transform, Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
 import { PaginationRequestDto } from "../../../../../dto/pagination.request.dto";
 
 export class UserFilterRequestDto extends PaginationRequestDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: RoleTypes })
   @IsOptional()
+  @IsEnum(RoleTypes)
   role_name?: RoleTypes;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
+  @Transform(({ value }) =>
+    value === true || value === "true"
+      ? true
+      : value === false || value === "false"
+        ? false
+        : value,
+  )
   @IsBoolean()
   is_activated?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
-  //@IsEmailRu()
-  email?: string;
+  @IsString()
+  search?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: Number })
   @IsOptional()
-  company_id?: number; //(id компании для фильтрации принадлежности к компании)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  company_id?: number;
+
+  @ApiPropertyOptional({ enum: CompanyEmployeeStatus })
+  @IsOptional()
+  @IsEnum(CompanyEmployeeStatus)
+  status?: CompanyEmployeeStatus;
 }

@@ -43,10 +43,19 @@ const makeService = (overrides: Record<string, any> = {}) => {
     emailSend: jest.fn().mockResolvedValue({}),
     ...overrides.emailConfirmerService,
   };
+  const notificationService = {
+    send: jest.fn().mockResolvedValue({}),
+    ...overrides.notificationService,
+  };
   const userRoleRepository = {
     delete: jest.fn().mockResolvedValue({}),
     save: jest.fn().mockResolvedValue({}),
     ...overrides.userRoleRepository,
+  };
+  const dealRepository = {
+    find: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue({ affected: 0 }),
+    ...overrides.dealRepository,
   };
 
   return {
@@ -58,7 +67,9 @@ const makeService = (overrides: Record<string, any> = {}) => {
       userInfoRepository as any,
       roleRepository as any,
       emailConfirmerService as any,
+      notificationService as any,
       userRoleRepository as any,
+      dealRepository as any,
     ),
     mocks: {
       userRepository,

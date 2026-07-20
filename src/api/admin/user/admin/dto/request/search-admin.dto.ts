@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { IsIn, IsOptional, IsString } from "class-validator";
 import { Transform } from "class-transformer";
+import { INTERNAL_ADMIN_ROLE_NAMES } from "../../internal-admin-roles";
 
 export class SearchAdminDto {
   @ApiProperty({
@@ -10,6 +11,7 @@ export class SearchAdminDto {
   })
   @IsOptional()
   @IsString()
+  @IsIn([...INTERNAL_ADMIN_ROLE_NAMES, "all"])
   role?: string;
 
   @ApiProperty({

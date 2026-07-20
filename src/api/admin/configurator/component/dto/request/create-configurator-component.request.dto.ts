@@ -1,17 +1,43 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsArrayRu,
   IsNotEmptyRu,
   MinRu,
-} from "../../../../../../decorators/validate";
-import { IsOptional } from "class-validator";
+} from "@decorators/validate";
+import {
+  IsArray,
+  IsBoolean,
+  IsDefined,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { UpsertComponentProfilesRequestDto } from "./upsert-component-profiles.request.dto";
+
+export class ConfigurationComponentSlotDto {
+  @ApiProperty()
+  @IsString()
+  slot_id: string;
+
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  amount: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  increase?: boolean;
+}
 
 export class CreateConfigurationComponentRequestDto {
   @ApiProperty()
   @IsNotEmptyRu()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ minimum: 1 })
   @MinRu(1)
   price: number;
 
@@ -19,23 +45,33 @@ export class CreateConfigurationComponentRequestDto {
   @IsNotEmptyRu()
   type_id: string;
 
-  @ApiProperty()
-  subtype: string;
-
-  @ApiProperty()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
-  @IsArrayRu()
-  slots?: [
-    {
-      amount: number;
-      increase: boolean;
-      slot_id: string;
-    },
-  ];
+  @IsString()
+  subtype?: string | null;
 
-  @ApiProperty()
-  server_generation_id?: string;
+  @ApiPropertyOptional({ type: [ConfigurationComponentSlotDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConfigurationComponentSlotDto)
+  slots?: ConfigurationComponentSlotDto[];
 
-  @ApiProperty()
-  processor_generation_id?: string;
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  server_generation_id?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  processor_generation_id?: string | null;
+}
+
+export class SaveConfigurationComponentRequestDto extends CreateConfigurationComponentRequestDto {
+  @ApiProperty({ type: () => UpsertComponentProfilesRequestDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => UpsertComponentProfilesRequestDto)
+  profiles: UpsertComponentProfilesRequestDto;
 }

@@ -1,10 +1,11 @@
 import { NotEntityException } from "@app/filters/not-entity.exception";
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
 } from "@nestjs/common";
-import { ImportantAlertRepository } from "@orm/repositories";
+import { CompanyRepository, ImportantAlertRepository } from "@orm/repositories";
 import { CreateImportantAlertDto } from "./dto/create-important-alert.dto";
 import { UpdateImportantAlertDto } from "./dto/update-important-alert.dto";
 
@@ -12,6 +13,7 @@ import { UpdateImportantAlertDto } from "./dto/update-important-alert.dto";
 export class AdminImportantAlertService {
   constructor(
     private readonly importantAlertRepository: ImportantAlertRepository,
+    private readonly companyRepository: CompanyRepository,
   ) {}
 
   async getCount(): Promise<number> {
@@ -28,7 +30,15 @@ export class AdminImportantAlertService {
     return alert;
   }
 
+  async findTargetCompanies() {
+    return this.companyRepository.find({
+      select: { id: true, name: true, inn: true, status: true },
+      order: { name: "ASC" },
+    });
+  }
+
   async create(data: CreateImportantAlertDto, authorId: number) {
+    await this.assertTargetCompany(data.target_company_id);
     return await this.importantAlertRepository.save({
       ...data,
       author_id: authorId,
@@ -38,6 +48,9 @@ export class AdminImportantAlertService {
   async update(id: number, data: UpdateImportantAlertDto) {
     const alert = await this.importantAlertRepository.findById(id);
     if (!alert) throw new NotEntityException();
+    if (data.target_company_id !== undefined) {
+      await this.assertTargetCompany(data.target_company_id);
+    }
 
     const updateData: Partial<UpdateImportantAlertDto> = {};
     if (data.title !== undefined) updateData.title = data.title;
@@ -58,6 +71,14 @@ export class AdminImportantAlertService {
     }
 
     return await this.importantAlertRepository.findById(id);
+  }
+
+  private async assertTargetCompany(targetCompanyId?: number | null) {
+    if (targetCompanyId == null) return;
+    const company = await this.companyRepository.findOneBy({ id: targetCompanyId });
+    if (!company) {
+      throw new BadRequestException("Целевая компания не найдена");
+    }
   }
 
   async delete(id: number) {

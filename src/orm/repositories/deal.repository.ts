@@ -69,6 +69,7 @@ export class DealRepository extends Repository<DealEntity> {
       .leftJoinAndSelect("deal.customer", "customer")
       .leftJoinAndSelect("deal.partner", "partner")
       .leftJoinAndSelect("partner.role", "role")
+      .leftJoinAndSelect("partner.user_info", "partner_user_info")
       .leftJoinAndSelect("partner.manager", "manager")
       .leftJoin(
         "deal_deletion_requests",

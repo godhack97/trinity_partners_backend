@@ -19,7 +19,12 @@ export class UsersService {
   ) {}
 
   async getCount(): Promise<number> {
-    return await this.usersRepository.createQueryBuilder().getCount();
+    return await this.usersRepository
+      .createQueryBuilder("u")
+      .innerJoin("company_employees", "ce", "ce.employee_id = u.id")
+      .innerJoin("companies", "c", "c.id = ce.company_id")
+      .where("c.owner_id <> u.id")
+      .getCount();
   }
 
   async findUsersByRoleIdGreaterThanOne(): Promise<UserEntity[]> {
@@ -48,7 +53,7 @@ export class UsersService {
 
   async findAll(filters?: UserFilterRequestDto) {
     const current_page = filters?.current_page || 1;
-    const limit = filters?.limit || 0;
+    const limit = filters?.limit || defaultFilter.limit;
     const skip = (current_page - 1) * limit;
 
     const qb = this.usersRepository.createQueryBuilder("u")

@@ -13,11 +13,12 @@ import {
     ParseIntPipe,
     Res,
     StreamableFile,
+    ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { DownloadCentrService } from './download-centr.service';
-import { CreateDownloadCentrDto } from './download-centr.dto';
+import { CreateDownloadCentrDto, UpdateDownloadCentrDto } from './download-centr.dto';
 import { CheckUserOrCompanyStatusGuard } from "@app/guards/check-user-or-company-status.guard";
 import { AuthGuard } from "@app/guards/auth.guard";
 import { PermissionsGuard } from "@app/guards/permissions.guard";
@@ -25,6 +26,13 @@ import { createReadStream } from 'fs';
 import { join } from 'path';
 import { Response } from 'express';
 import { LogAction } from "src/logs/log-action.decorator";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
+
+const DOWNLOAD_CENTRE_EDITOR_ROLES = [
+    RoleTypes.SuperAdmin,
+    RoleTypes.EmployeeAdmin,
+];
 
 @ApiTags('download-centr')
 @ApiBearerAuth()
@@ -34,16 +42,18 @@ export class DownloadCentrController {
     constructor(private readonly downloadCentrService: DownloadCentrService) { }
 
     @Post()
+    @Roles(DOWNLOAD_CENTRE_EDITOR_ROLES)
     @ApiOperation({ summary: 'Загрузить файл в центр загрузок' })
     @LogAction("download_centr_add", "download_centr")
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {
             type: 'object',
+            required: ['name', 'file'],
             properties: {
                 name: { type: 'string' },
-                description: { type: 'string' },
-                tags: { type: 'string' },
+                description: { type: 'string', description: 'Пустая строка очищает описание' },
+                tags: { type: 'string', description: 'Пустая строка очищает теги' },
                 file: {
                     type: 'string',
                     format: 'binary',
@@ -53,13 +63,18 @@ export class DownloadCentrController {
     })
     @UseInterceptors(FileInterceptor('file'))
     async create(
-        @Body() createDto: CreateDownloadCentrDto,
+        @Body(new ValidationPipe({
+            transform: true,
+            whitelist: true,
+            forbidNonWhitelisted: true,
+        })) createDto: CreateDownloadCentrDto,
         @UploadedFile() file: Express.Multer.File,
     ) {
         return await this.downloadCentrService.create(createDto, file);
     }
 
     @Put(':id')
+    @Roles(DOWNLOAD_CENTRE_EDITOR_ROLES)
     @ApiOperation({ summary: 'Обновить файл' })
     @LogAction("download_centr_update", "download_centr")
     @ApiConsumes('multipart/form-data')
@@ -68,8 +83,8 @@ export class DownloadCentrController {
             type: 'object',
             properties: {
                 name: { type: 'string' },
-                description: { type: 'string' },
-                tags: { type: 'string' },
+                description: { type: 'string', description: 'Пустая строка очищает описание' },
+                tags: { type: 'string', description: 'Пустая строка очищает теги' },
                 file: {
                     type: 'string',
                     format: 'binary',
@@ -80,7 +95,11 @@ export class DownloadCentrController {
     @UseInterceptors(FileInterceptor('file'))
     async update(
         @Param('id', ParseIntPipe) id: number,
-        @Body() updateDto: CreateDownloadCentrDto,
+        @Body(new ValidationPipe({
+            transform: true,
+            whitelist: true,
+            forbidNonWhitelisted: true,
+        })) updateDto: UpdateDownloadCentrDto,
         @UploadedFile() file?: Express.Multer.File,
     ) {
         return await this.downloadCentrService.update(id, updateDto, file);
@@ -128,6 +147,7 @@ export class DownloadCentrController {
     }
 
     @Delete(':id')
+    @Roles(DOWNLOAD_CENTRE_EDITOR_ROLES)
     @LogAction("download_centr_delete", "download_centr")
     @ApiOperation({ summary: 'Удалить файл' })
     async remove(@Param('id', ParseIntPipe) id: number) {
