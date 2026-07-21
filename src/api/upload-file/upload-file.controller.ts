@@ -49,10 +49,11 @@ export class UploadFileController {
     @UploadedFile(new ParseFilePipe({ fileIsRequired: true }))
     file: Express.Multer.File,
   ) {
-    const baseUrl = process.env.BACKEND_HOSTNAME;
     const filePath = path.posix.join("public", "files", file.filename);
 
-    const configuration_link = `${baseUrl}/${filePath}`;
+    // Store a host-independent path. Clients resolve it against the API host,
+    // so links keep working behind a proxy and in local/stage environments.
+    const configuration_link = `/${filePath}`;
     return {
       configuration_link,
     };

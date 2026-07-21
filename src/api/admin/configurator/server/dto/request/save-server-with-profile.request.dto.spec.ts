@@ -19,6 +19,11 @@ describe("SaveServerWithProfileRequestDto", () => {
     serverbox_height_id: "height-1",
     server_generation_id: "generation-1",
     price: 1000,
+    image: "/public/server/front.webp",
+    images: [
+      "/public/server/front.webp",
+      "/public/server/rear.webp",
+    ],
     sort: 10,
     slots: [
       { slot_id: "slot-1", amount: 2, on_back_panel: false },
@@ -41,6 +46,19 @@ describe("SaveServerWithProfileRequestDto", () => {
     expect(result.profile.platform_code).toBe("ER220-M8");
     expect(result.slots?.[0].on_back_panel).toBe(false);
     expect(result.multislots?.[0].on_back_panel).toBe(true);
+    expect(result.images).toEqual([
+      "/public/server/front.webp",
+      "/public/server/rear.webp",
+    ]);
+  });
+
+  it("rejects non-string values in the images array", async () => {
+    const payload: any = validPayload();
+    payload.images.push(42);
+
+    await expect(pipe.transform(payload, metadata)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("rejects a server without a platform profile", async () => {

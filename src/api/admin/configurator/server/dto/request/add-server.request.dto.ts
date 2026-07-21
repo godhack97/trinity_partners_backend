@@ -8,7 +8,13 @@ import {
 } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsDefined, IsOptional, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsDefined,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from "class-validator";
 import { UpsertPlatformProfileRequestDto } from "./upsert-platform-profile.request.dto";
 
 class BaseServerSlotDto {
@@ -65,6 +71,15 @@ export class AddServerRequestDto {
   @IsOptional()
   @IsStringRu()
   image?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: "Изображения сервера; первый элемент используется как обложка",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

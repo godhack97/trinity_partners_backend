@@ -130,6 +130,11 @@ const payload = (): SaveServerWithProfileRequestDto => ({
   serverbox_height_id: "height-1",
   server_generation_id: "generation-1",
   price: 1000,
+  image: "/public/server/front.webp",
+  images: [
+    "/public/server/front.webp",
+    "/public/server/rear.webp",
+  ],
   sort: 10,
   slots: [
     { slot_id: "slot-front", amount: 2, on_back_panel: false },
@@ -166,6 +171,11 @@ describe("AdminConfiguratorServerService atomic server/profile save", () => {
 
     expect(memory.dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(result.server.name).toBe("ER220");
+    expect(result.server.image).toBe("/public/server/front.webp");
+    expect(result.server.images).toEqual([
+      "/public/server/front.webp",
+      "/public/server/rear.webp",
+    ]);
     expect(result.server.slots).toEqual([
       expect.objectContaining({
         slot_id: "slot-front",
@@ -183,6 +193,30 @@ describe("AdminConfiguratorServerService atomic server/profile save", () => {
     );
     expect(result.bays).toHaveLength(1);
     expect(result.forbidden_component_types).toHaveLength(1);
+  });
+
+  it("keeps legacy image clients compatible and removes duplicate images", async () => {
+    const memory = createInMemoryDataSource();
+    const service = new AdminConfiguratorServerService(memory.dataSource);
+    const legacyPayload = payload();
+    legacyPayload.images = undefined;
+
+    const legacy = await service.addServer(legacyPayload);
+    expect(legacy.server.images).toEqual(["/public/server/front.webp"]);
+    expect(legacy.server.image).toBe("/public/server/front.webp");
+
+    const update = payload();
+    update.images = [
+      "/public/server/rear.webp",
+      "/public/server/rear.webp",
+      "/public/server/front.webp",
+    ];
+    const updated = await service.updateServer(legacy.server.id, update);
+    expect(updated.server.images).toEqual([
+      "/public/server/rear.webp",
+      "/public/server/front.webp",
+    ]);
+    expect(updated.server.image).toBe("/public/server/rear.webp");
   });
 
   it("atomically replaces server fields, slots and profile and returns round-trip data", async () => {

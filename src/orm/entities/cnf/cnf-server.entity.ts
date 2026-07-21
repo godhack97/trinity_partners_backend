@@ -57,6 +57,9 @@ export class CnfServerEntity {
   @Column({ nullable: true })
   image: string;
 
+  @Column({ type: "json", nullable: true })
+  images: string[];
+
   @Column({ nullable: true })
   guide: string;
 

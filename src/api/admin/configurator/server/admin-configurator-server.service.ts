@@ -105,13 +105,24 @@ export class AdminConfiguratorServerService {
   }
 
   private getServerValues(data: AddServerRequestDto) {
+    const images = Array.from(
+      new Set(
+        (Array.isArray(data.images) ? data.images : [data.image])
+          .filter((image): image is string => typeof image === "string")
+          .map((image) => image.trim())
+          .filter(Boolean),
+      ),
+    );
+
     return {
       name: data.name,
       description: data.description,
       serverbox_height_id: data.serverbox_height_id,
       server_generation_id: data.server_generation_id,
       price: data.price,
-      image: data.image,
+      // Keep the legacy cover field in sync while older clients still use it.
+      image: images[0] ?? null,
+      images,
       guide: data.guide,
       cert: data.cert,
       gisp: data.gisp ?? "",
