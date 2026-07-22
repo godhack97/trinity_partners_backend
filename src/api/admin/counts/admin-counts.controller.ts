@@ -28,6 +28,7 @@ import { AdminCountsResponseDto } from "./dto/admin-counts.response.dto";
   RoleTypes.ContentManager,
   RoleTypes.EmployeeAdmin,
   RoleTypes.PartnerManager,
+  RoleTypes.TechnicalSpecialist,
 ])
 export class AdminCountsController {
   constructor(
@@ -50,8 +51,6 @@ export class AdminCountsController {
   ): Promise<AdminCountsResponseDto> {
     const response: AdminCountsResponseDto = {};
     const isSuperAdmin = this.hasRole(authUser, RoleTypes.SuperAdmin);
-    const canViewPartners =
-      isSuperAdmin || this.hasRole(authUser, RoleTypes.PartnerManager);
     const canViewContent =
       isSuperAdmin || this.hasRole(authUser, RoleTypes.ContentManager);
 
@@ -60,7 +59,7 @@ export class AdminCountsController {
     if (isSuperAdmin) {
       sections.push(this.loadSuperAdminCounts(response));
     }
-    if (canViewPartners) {
+    if (isSuperAdmin) {
       sections.push(this.loadPartnerCounts(response, isSuperAdmin));
     }
     if (canViewContent) {
@@ -88,7 +87,7 @@ export class AdminCountsController {
     const [requests, accepted, rejected, suspended, users] = await Promise.all([
       this.adminPartnerService.getCountByStatus(CompanyStatus.Pending),
       this.adminPartnerService.getCountByStatus(CompanyStatus.Accept),
-      this.adminPartnerService.getCountByStatus(CompanyStatus.Reject),
+      Promise.resolve(0),
       this.adminPartnerService.getCountByStatus(CompanyStatus.Suspended),
       includeCompanyEmployees
         ? this.adminUserService.getCount()

@@ -6,9 +6,14 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { NotificationModule } from "@api/notification/notification.module";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 import { DealEntity } from "@orm/entities";
+import { AdminPartnerModule } from "@api/admin/partner/admin-partner.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserRoleEntity, DealEntity]), NotificationModule],
+  imports: [
+    TypeOrmModule.forFeature([UserRoleEntity, DealEntity]),
+    NotificationModule,
+    AdminPartnerModule,
+  ],
   controllers: [CompanyController],
   providers: [CompanyService, EmailConfirmerService],
 })

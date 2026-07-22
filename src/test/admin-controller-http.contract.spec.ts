@@ -72,27 +72,13 @@ describe("Admin controller HTTP contracts", () => {
   describe("partner business fields", () => {
     const endpoint = "/api/admin/partner/21";
 
-    it("returns the handler response and transforms numeric fields", async () => {
-      const responseBody = {
-        id: 21,
-        name: "Acme Systems",
-        employees_count: 12,
-      };
-      partnerService.updateBusinessFields.mockResolvedValueOnce(responseBody);
-
+    it("returns 410 because legacy wide company editing is closed", async () => {
       await request(app.getHttpServer())
         .patch(endpoint)
         .send({ name: "Acme Systems", employees_count: "12" })
-        .expect(200)
-        .expect(responseBody);
+        .expect(410);
 
-      expect(partnerService.updateBusinessFields).toHaveBeenCalledWith(
-        21,
-        expect.objectContaining({
-          name: "Acme Systems",
-          employees_count: 12,
-        }),
-      );
+      expect(partnerService.updateBusinessFields).not.toHaveBeenCalled();
     });
 
     it("rejects malformed ids and non-whitelisted lifecycle fields", async () => {
@@ -109,19 +95,6 @@ describe("Admin controller HTTP contracts", () => {
       expect(partnerService.updateBusinessFields).not.toHaveBeenCalled();
     });
 
-    it("preserves a service-level 404", async () => {
-      partnerService.updateBusinessFields.mockRejectedValueOnce(
-        new NotFoundException("Компания не найдена"),
-      );
-
-      await request(app.getHttpServer())
-        .patch(endpoint)
-        .send({ name: "Acme Systems" })
-        .expect(404)
-        .expect(({ body }) => {
-          expect(body.message).toBe("Компания не найдена");
-        });
-    });
   });
 
   describe("admin users", () => {

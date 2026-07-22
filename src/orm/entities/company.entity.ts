@@ -3,6 +3,7 @@ import {
   Entity,
   JoinColumn,
   JoinTable,
+  ManyToOne,
   ManyToMany,
   OneToOne,
 } from "typeorm";
@@ -44,6 +45,39 @@ export class CompanyEntity extends BasisEntity {
   @Column({ type: "timestamp", nullable: true })
   validated_at?: Date;
 
+  @Column({ nullable: true, unsigned: true })
+  responsible_manager_id?: number | null;
+
+  @Column({ nullable: true, unsigned: true })
+  approved_by_user_id?: number | null;
+
+  @Column({ type: "timestamp", nullable: true })
+  approved_at?: Date | null;
+
+  @Column({ nullable: true })
+  contact_email?: string | null;
+
+  @Column({ nullable: true })
+  contact_phone?: string | null;
+
+  @Column({ type: "timestamp", nullable: true })
+  review_locked_at?: Date | null;
+
+  @Column({ nullable: true, unsigned: true })
+  review_locked_by_user_id?: number | null;
+
+  @Column({ type: "text", nullable: true })
+  review_lock_reason?: string | null;
+
+  @Column({ type: "timestamp", nullable: true })
+  suspended_at?: Date | null;
+
+  @Column({ nullable: true, unsigned: true })
+  suspended_by_user_id?: number | null;
+
+  @Column({ type: "text", nullable: true })
+  suspension_reason?: string | null;
+
   @Column()
   name: string;
 
@@ -54,6 +88,34 @@ export class CompanyEntity extends BasisEntity {
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: "validated_by_manager_id" })
   validated_by_manager?: UserEntity;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "responsible_manager_id" })
+  responsible_manager?: UserEntity | null;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "approved_by_user_id" })
+  approved_by_user?: UserEntity | null;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "review_locked_by_user_id" })
+  review_locked_by_user?: UserEntity | null;
+
+  @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "suspended_by_user_id" })
+  suspended_by_user?: UserEntity | null;
 
   @ManyToMany(() => UserEntity)
   @JoinTable({

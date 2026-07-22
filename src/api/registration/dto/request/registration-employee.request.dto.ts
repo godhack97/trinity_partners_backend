@@ -19,11 +19,11 @@ export class RegistrationEmployeeRequestDto {
 
   @ApiProperty({
     required: false,
-    enum: [RoleTypes.SalesManager, RoleTypes.TechnicalSpecialist, RoleTypes.Staff],
+    enum: [RoleTypes.SalesManager, RoleTypes.Staff],
   })
   @IsOptional()
-  @IsIn([RoleTypes.SalesManager, RoleTypes.TechnicalSpecialist, RoleTypes.Staff])
-  business_role?: RoleTypes.SalesManager | RoleTypes.TechnicalSpecialist | RoleTypes.Staff;
+  @IsIn([RoleTypes.SalesManager, RoleTypes.Staff])
+  business_role?: RoleTypes.SalesManager | RoleTypes.Staff;
 
   @ApiProperty()
   password: string;

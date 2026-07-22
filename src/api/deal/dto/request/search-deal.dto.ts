@@ -36,4 +36,11 @@ export class SearchDealDto {
   @Type(() => Number)
   @ApiPropertyOptional()
   distributorId?: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @ApiPropertyOptional({ description: "Фильтр по компании" })
+  companyId?: number;
 }

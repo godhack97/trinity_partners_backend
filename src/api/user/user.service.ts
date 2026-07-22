@@ -266,7 +266,7 @@ export class UserService {
   ) {
     try {
       const partnerUser = await this.userRepository.findById(company.owner_id);
-      const managerId = company.validated_by_manager_id || partnerUser?.manager_id;
+      const managerId = company.responsible_manager_id;
       if (!managerId) return;
 
       const manager = await this.userRepository.findById(managerId);
@@ -305,7 +305,7 @@ export class UserService {
         actions: [
           {
             label: "Подробнее",
-            url: "/admin/partner",
+            url: `/employee.management?companyId=${company.id}`,
           },
         ],
       });
@@ -318,11 +318,13 @@ export class UserService {
   }
 
   private async notifyTrinityManagersAboutNewPartner({
+    company_id,
     company_name,
     first_name,
     last_name,
     email,
   }: {
+    company_id: number;
     company_name?: string;
     first_name?: string;
     last_name?: string;
@@ -355,7 +357,7 @@ export class UserService {
         actions: [
           {
             label: "Открыть заявки",
-            url: "/admin/partner?status=pending",
+            url: `/companies/${company_id}`,
           },
         ],
       });
@@ -439,6 +441,8 @@ export class UserService {
       products_of_interest: registrationCompanyDto.products_of_interest,
       main_customers: registrationCompanyDto.main_customers,
       email_domain: this.extractEmailDomain(registrationCompanyDto.email),
+      contact_email: registrationCompanyDto.email.trim().toLowerCase(),
+      contact_phone: registrationCompanyDto.phone.trim(),
       owner: newUser,
       status: CompanyStatus.Pending,
     });
@@ -456,6 +460,7 @@ export class UserService {
     });
 
     await this.notifyTrinityManagersAboutNewPartner({
+      company_id: company.id,
       company_name: registrationCompanyDto.company_name,
       first_name: registrationCompanyDto.first_name,
       last_name: registrationCompanyDto.last_name,

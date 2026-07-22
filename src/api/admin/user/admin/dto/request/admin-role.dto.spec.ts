@@ -10,6 +10,7 @@ describe("internal admin role DTOs", () => {
       "employee_admin",
       "content_manager",
       "partner_manager",
+      "technical_specialist",
     ]) {
       const dto = plainToInstance(UpdateAdminRequestDto, { role });
       expect(await validate(dto)).toHaveLength(0);

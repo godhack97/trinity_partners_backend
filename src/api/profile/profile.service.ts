@@ -121,25 +121,6 @@ export class ProfileService {
     data: ProfilePartnerRequestDto,
   ) {
     await this._updateInfo(user, data);
-
-    const company = await this.companyRepository.findOneBy({
-      owner_id: user.id,
-    });
-
-    const updateResultCompany = await this.companyRepository.update(
-      company.id,
-      {
-        company_business_line: data.company_business_line,
-        employees_count: data.employees_count,
-        site_url: data.site_url,
-        promoted_products: data.promoted_products,
-        products_of_interest: data.products_of_interest,
-        main_customers: data.main_customers,
-      },
-    );
-
-    if (updateResultCompany.affected === 0)
-      throw new InternalServerErrorException("Не удалось обновить");
   }
 
   async updateEmail(id: number, data: ProfileUpdateEmailRequestDto) {

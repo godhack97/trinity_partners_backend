@@ -6,6 +6,7 @@ import { RoleGuard } from "@app/guards/role.guard";
 import { HbsViewModule } from "@app/hbs-view/hbs-view.module";
 import { SendsayModule } from "@app/sendsay/sendsay.module";
 import { MailerModule } from "@nestjs-modules/mailer";
+import { ScheduleModule } from "@nestjs/schedule";
 import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handlebars.adapter";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -25,6 +26,7 @@ import { DownloadCentrModule } from "./api/download-centr/download-centr.module"
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthGuard } from "./guards/auth.guard";
+import { CompanyPortalAccessGuard } from "./guards/company-portal-access.guard";
 import { OrmModule } from "./orm/orm.module";
 import { AdminModule } from "./api/admin/admin.module";
 import { ServeStaticModule } from "@nestjs/serve-static";
@@ -66,6 +68,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
       isGlobal: true,
       envFilePath: ".env",
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([UserAction]),
     TypeOrmModule.forRootAsync({
       imports: [
@@ -167,6 +170,10 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CompanyPortalAccessGuard,
     },
     {
       provide: APP_GUARD,

@@ -5,6 +5,7 @@ import { NotificationsReadDto } from "./dto/notifications-read.dto";
 import { NotificationsResponseDto } from "./dto/notifications.response.dto";
 import { NotificationController } from "./notification.controller";
 import { NotificationService } from "./notification.service";
+import { NotificationType } from "@orm/entities";
 
 describe("notification contract", () => {
   it("accepts unique positive integer ids and rejects unsafe read payloads", async () => {
@@ -123,5 +124,59 @@ describe("notification contract", () => {
       id: expect.anything(),
       user_id: 42,
     });
+  });
+
+  it("does not duplicate a site notification with the same delivery key", async () => {
+    const existing = { id: 11, delivery_key: "company:event:user:site" };
+    const notificationRepository: any = {
+      findOneBy: jest.fn().mockResolvedValue(existing),
+      save: jest.fn(),
+    };
+    const service = new NotificationService(
+      {} as any,
+      {} as any,
+      notificationRepository,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(
+      service.sendWeb({
+        user_id: 42,
+        title: "Статус",
+        text: "Доступ восстановлен",
+        type: NotificationType.Site,
+        delivery_key: "company:event:user:site",
+      }),
+    ).resolves.toBe(existing);
+    expect(notificationRepository.save).not.toHaveBeenCalled();
+  });
+
+  it("handles a concurrent delivery-key insert idempotently", async () => {
+    const existing = { id: 12, delivery_key: "company:race:user:site" };
+    const notificationRepository: any = {
+      findOneBy: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existing),
+      save: jest.fn().mockRejectedValue({ code: "ER_DUP_ENTRY" }),
+    };
+    const service = new NotificationService(
+      {} as any,
+      {} as any,
+      notificationRepository,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(
+      service.sendWeb({
+        user_id: 42,
+        title: "Статус",
+        text: "Доступ восстановлен",
+        type: NotificationType.Site,
+        delivery_key: "company:race:user:site",
+      }),
+    ).resolves.toBe(existing);
   });
 });

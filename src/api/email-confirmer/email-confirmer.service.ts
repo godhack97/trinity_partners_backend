@@ -120,7 +120,17 @@ export class EmailConfirmerService {
     return await this._emailSend({ email, subject, template, context });
   }
 
-  private async _emailSend({ email, subject, template, context }) {
+  async emailSendOrThrow({ email, subject, template, context }) {
+    return await this._emailSend(
+      { email, subject, template, context },
+      true,
+    );
+  }
+
+  private async _emailSend(
+    { email, subject, template, context },
+    throwOnError = false,
+  ) {
     try {
       const isGmail = email.includes("gmail");
       const templateVariation = isGmail
@@ -139,6 +149,7 @@ export class EmailConfirmerService {
       });
     } catch (error) {
       Logger.error(error);
+      if (throwOnError) throw error;
     }
   }
 

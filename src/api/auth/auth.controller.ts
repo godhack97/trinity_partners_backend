@@ -13,6 +13,7 @@ import { AuthLoginRequestDto } from "./dto/request/auth-login.request.dto";
 import { AuthCheckResponseDto } from "./dto/response/auth-check.response.dto";
 import { Request } from "express";
 import { Public } from "src/decorators/Public";
+import { AllowRestrictedCompanyAccess } from "@decorators/AllowRestrictedCompanyAccess";
 import { LogAction } from "src/logs/log-action.decorator";
 import {
   ApiTags,
@@ -54,6 +55,7 @@ export class AuthController {
   }
 
   @Post("logout")
+  @AllowRestrictedCompanyAccess()
   @ApiOperation({ summary: "Выход из системы" })
   @ApiResponse({ status: 201, description: "Успешный выход" })
   async logout(@Headers() headers, @Query() query, @Req() req: Request) {
@@ -63,6 +65,7 @@ export class AuthController {
   }
 
   @Get("check")
+  @AllowRestrictedCompanyAccess()
   @ApiOperation({ summary: "Проверка токена" })
   @ApiResponse({ status: 200, type: AuthCheckResponseDto })
   async check(@Headers() headers, @Query() query, @Req() req: Request) {

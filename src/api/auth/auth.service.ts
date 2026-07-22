@@ -25,9 +25,8 @@ import {
 import { AuthLoginRequestDto } from "./dto/request/auth-login.request.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
-  CompanyEmployeeStatus,
   CompanyEntity,
-  CompanyStatus,
+  CompanyEmployeeStatus,
   NotificationCategory,
 } from "@orm/entities";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
@@ -157,22 +156,6 @@ export class AuthService {
     ];
 
     if (roleNames.includes(RoleTypes.SuperAdmin)) return;
-
-    let company: CompanyEntity | undefined = user.company_employee?.company;
-    if (
-      !company &&
-      (roleNames.includes(RoleTypes.Partner) ||
-        roleNames.includes(RoleTypes.CompanyAdmin))
-    ) {
-      company = await user.lazy_owner_company;
-    }
-
-    if (company?.status === CompanyStatus.Suspended) {
-      throw new HttpException(
-        "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
-        HttpStatus.FORBIDDEN,
-      );
-    }
 
     if (
       [
@@ -363,6 +346,10 @@ export class AuthService {
 
     return {
       ...user,
+      // `roles` is a prototype getter on UserEntity. Object spread does not
+      // copy prototype accessors, so expose the effective secondary roles
+      // explicitly for role-aware portal navigation.
+      roles: user.roles,
       notifications,
       notifications_unread,
       notifications_settings,

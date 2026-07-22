@@ -43,4 +43,18 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
       ],
     });
   }
+
+  public async findCompanyEmployeesByCompanyIds(companyIds: number[]) {
+    if (!companyIds.length) return [];
+    return await this.repo.find({
+      where: { company_id: In(companyIds) },
+      relations: [
+        "employee",
+        "employee.role",
+        "employee.user_roles",
+        "employee.user_roles.role",
+        "employee.user_info",
+      ],
+    });
+  }
 }

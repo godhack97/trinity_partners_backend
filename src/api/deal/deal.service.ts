@@ -13,6 +13,7 @@ import {
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
   CompanyEmployeeStatus,
+  CompanyStatus,
   DealDuplicateReviewStatus,
   DealStatus,
   DealStatusRu,
@@ -356,10 +357,7 @@ export class DealService {
   ) {
     if (!similarDeal || similarDeal.id === newDeal.id) return;
 
-    const creatorWithManager = await this.userRepository.findByIdWithUserInfo(
-      creator.id,
-    );
-    const managerId = creatorWithManager?.manager_id || creatorWithManager?.manager?.id;
+    const managerId = await this.getResponsibleManagerId(creator);
 
     if (!managerId) return;
 
@@ -493,12 +491,10 @@ export class DealService {
     integratorName: string,
     integratorInn: string,
   ) {
-    const creator = await this.userRepository.findOne({
-      where: { id: deal.creator_id },
-      relations: ["manager"],
-    });
+    const creator = await this.userRepository.findById(deal.creator_id);
+    if (!creator) return;
 
-    const managerId = creator?.manager_id || creator?.manager?.id;
+    const managerId = await this.getResponsibleManagerId(creator);
     if (!managerId) return;
 
     await this.notificationService.send({
@@ -588,7 +584,27 @@ export class DealService {
   async findAll(auth_user: UserEntity, entry?: SearchDealDto) {
     let deals: any[];
 
-    if (this.isSuperAdmin(auth_user)) {
+    if (
+      this.isSuperAdmin(auth_user) ||
+      this.hasAnyRole(auth_user, [RoleTypes.TechnicalSpecialist])
+    ) {
+      deals = await this.dealRepository.findDealsWithFilters(entry);
+    } else if (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager])) {
+      if (!entry?.companyId) return [];
+
+      const company = await this.companyRepository.findOneBy({
+        id: entry.companyId,
+      });
+      if (
+        !company ||
+        (company.status !== CompanyStatus.Pending &&
+          company.responsible_manager_id !== auth_user.id)
+      ) {
+        throw new HttpException(
+          "Нет доступа к сделкам этой компании",
+          HttpStatus.FORBIDDEN,
+        );
+      }
       deals = await this.dealRepository.findDealsWithFilters(entry);
     } else if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
       deals = [];
@@ -597,7 +613,6 @@ export class DealService {
         RoleTypes.EmployeeAdmin,
         RoleTypes.Partner,
         RoleTypes.CompanyAdmin,
-        RoleTypes.TechnicalSpecialist,
       ])
     ) {
       const authUserCompany = await this.getUserCompany(auth_user);
@@ -669,6 +684,13 @@ export class DealService {
     });
 
     return employeeCompany?.company || null;
+  }
+
+  private async getResponsibleManagerId(
+    user: UserEntity,
+  ): Promise<number | null> {
+    const company = await this.getUserCompany(user);
+    return company?.responsible_manager_id || null;
   }
 
   private async findDistributorForCompany(company: CompanyEntity) {
@@ -749,6 +771,48 @@ export class DealService {
       });
     }
 
+    if (this.hasAnyRole(auth_user, [RoleTypes.TechnicalSpecialist])) {
+      return Object.assign(deal, {
+        can_update_status: false,
+        can_update_fields: false,
+        can_update_configurations: false,
+      });
+    }
+
+    if (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager])) {
+      const visibleCompanies = await this.companyRepository.find({
+        where: [
+          { responsible_manager_id: auth_user.id },
+          { status: CompanyStatus.Pending },
+        ],
+      });
+      const visibleCompanyIds = new Set(visibleCompanies.map(({ id }) => id));
+      const creatorCompany = await this.companyEmployeeRepository.findOne({
+        where: {
+          employee_id: deal.creator_id,
+          status: CompanyEmployeeStatus.Accept,
+        },
+      });
+      const isVisible =
+        (creatorCompany && visibleCompanyIds.has(creatorCompany.company_id)) ||
+        visibleCompanies.some((company) =>
+          this.isDealVisibleForCompany(deal, company),
+        );
+
+      if (isVisible) {
+        return Object.assign(deal, {
+          can_update_status: false,
+          can_update_fields: false,
+          can_update_configurations: false,
+        });
+      }
+
+      throw new HttpException(
+        "Нет доступа к сделке этой компании",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
       throw new HttpException(
         "У вас недостаточно прав для получения деталей данной сделки",
@@ -761,7 +825,6 @@ export class DealService {
         RoleTypes.EmployeeAdmin,
         RoleTypes.Partner,
         RoleTypes.CompanyAdmin,
-        RoleTypes.TechnicalSpecialist,
       ])
     ) {
       const creatorIds = await this.getRelatedDealCreatorIds(auth_user);

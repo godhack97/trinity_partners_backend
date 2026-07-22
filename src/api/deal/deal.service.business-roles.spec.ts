@@ -24,6 +24,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
     ...overrides.dealRepository,
   };
   const companyRepository = {
+    find: jest.fn().mockResolvedValue([]),
     findByOwnerId: jest.fn().mockResolvedValue(null),
     findById: jest.fn().mockResolvedValue({ id: 10, owner_id: 1 }),
     ...overrides.companyRepository,
@@ -102,15 +103,56 @@ describe("DealService business roles", () => {
     );
   });
 
-  it("технический специалист видит сделки всех сотрудников своей компании", async () => {
+  it("внутренний технический специалист видит все сделки без company-привязки", async () => {
     const { service, mocks } = makeService();
 
     await service.findAll(makeUser(3, [RoleTypes.TechnicalSpecialist]));
 
     expect(mocks.dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
       undefined,
-      expect.arrayContaining([1, 2, 3]),
     );
+  });
+
+  it("технический специалист открывает любую сделку только для чтения", async () => {
+    const { service } = makeService();
+
+    await expect(
+      service.findOne(1, makeUser(3, [RoleTypes.TechnicalSpecialist])),
+    ).resolves.toMatchObject({
+      id: 1,
+      can_update_status: false,
+      can_update_fields: false,
+      can_update_configurations: false,
+    });
+  });
+
+  it("ответственный менеджер открывает сделку своей компании только для чтения", async () => {
+    const { service } = makeService({
+      companyRepository: {
+        find: jest.fn().mockResolvedValue([{ id: 10 }]),
+      },
+    });
+
+    await expect(
+      service.findOne(1, makeUser(7, [RoleTypes.PartnerManager])),
+    ).resolves.toMatchObject({
+      id: 1,
+      can_update_status: false,
+      can_update_fields: false,
+      can_update_configurations: false,
+    });
+  });
+
+  it("менеджер не открывает сделку чужой active-компании по прямому id", async () => {
+    const { service } = makeService({
+      companyRepository: {
+        find: jest.fn().mockResolvedValue([{ id: 11 }]),
+      },
+    });
+
+    await expect(
+      service.findOne(1, makeUser(7, [RoleTypes.PartnerManager])),
+    ).rejects.toBeInstanceOf(HttpException);
   });
 
   it("менеджер продаж видит только свои сделки", async () => {
@@ -131,6 +173,26 @@ describe("DealService business roles", () => {
       [],
     );
     expect(mocks.dealRepository.findDealsWithFilters).not.toHaveBeenCalled();
+  });
+
+  it("для уведомлений использует канонического ответственного компании", async () => {
+    const { service } = makeService({
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockResolvedValue({
+          company_id: 10,
+          company: {
+            id: 10,
+            owner_id: 1,
+            responsible_manager_id: 77,
+          },
+        }),
+      },
+    });
+    const user = { ...makeUser(5, [RoleTypes.Employee]), manager_id: 88 };
+
+    await expect(
+      (service as any).getResponsibleManagerId(user),
+    ).resolves.toBe(77);
   });
 
   it("администратор компании открывает сделку сотрудника своей компании", async () => {

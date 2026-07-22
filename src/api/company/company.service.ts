@@ -12,6 +12,7 @@ import {
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import {
   CompanyEmployeeStatus,
+  CompanyStatus,
   DealEntity,
   DealStatus,
   NotificationCategory,
@@ -196,8 +197,7 @@ export class CompanyService {
     const company = await this.companyRepository.findOneBy({ id: companyId });
     if (!company) return;
 
-    const owner = await this.userRepository.findById(company.owner_id);
-    const managerId = company.validated_by_manager_id || owner?.manager_id;
+    const managerId = company.responsible_manager_id;
     if (!managerId) return;
 
     const manager = await this.userRepository.findById(managerId);
@@ -239,7 +239,7 @@ export class CompanyService {
     });
   }
 
-  async getCompanyEmployees(request: Request) {
+  async getCompanyEmployees(request: Request, requestedCompanyId?: number) {
     const token = this.authTokenService.extractToken(request);
     const role = await this.authTokenService.getUserRole(token);
     const roleNames = role.roles || [role.role];
@@ -251,6 +251,7 @@ export class CompanyService {
         RoleTypes.CompanyAdmin,
         RoleTypes.SuperAdmin,
         RoleTypes.PartnerManager,
+        RoleTypes.TechnicalSpecialist,
       ])
     ) {
       throw new HttpException(
@@ -259,10 +260,48 @@ export class CompanyService {
       );
     }
 
+    if (requestedCompanyId && !Number.isInteger(requestedCompanyId)) {
+      throw new BadRequestException("Некорректный идентификатор компании");
+    }
+
     if (
-      this.hasAnyRole(roleNames, [RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
+      this.hasAnyRole(roleNames, [
+        RoleTypes.SuperAdmin,
+        RoleTypes.TechnicalSpecialist,
+      ])
     ) {
-      return await this.companyEmployeeRepository.findAllCompanyEmployeesWithUsersAndInfo();
+      return requestedCompanyId
+        ? await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+            requestedCompanyId,
+          )
+        : await this.companyEmployeeRepository.findAllCompanyEmployeesWithUsersAndInfo();
+    }
+
+    if (this.hasAnyRole(roleNames, [RoleTypes.PartnerManager])) {
+      const visibleCompanies = await this.companyRepository.find({
+        where: [
+          { responsible_manager_id: role.userId },
+          { status: CompanyStatus.Pending },
+        ],
+        select: { id: true },
+      });
+      const visibleCompanyIds = visibleCompanies.map((company) => company.id);
+
+      if (requestedCompanyId) {
+        if (!visibleCompanyIds.includes(requestedCompanyId)) {
+          throw new HttpException(
+            "Нет доступа к сотрудникам этой компании",
+            HttpStatus.FORBIDDEN,
+          );
+        }
+        return await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
+          requestedCompanyId,
+        );
+      }
+
+      return await this.companyEmployeeRepository.findCompanyEmployeesByCompanyIds(
+        visibleCompanyIds,
+      );
     }
 
     if (

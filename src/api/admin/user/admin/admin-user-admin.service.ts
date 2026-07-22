@@ -32,7 +32,13 @@ export class AdminUserAdminService {
   ) {}
 
   async getCountsByAllRoles(): Promise<AdminRoleCountsResponseDto> {
-    const [superAdmin, employeeAdmin, contentManager, partnerManager] =
+    const [
+      superAdmin,
+      employeeAdmin,
+      contentManager,
+      partnerManager,
+      technicalSpecialist,
+    ] =
       await Promise.all(
         INTERNAL_ADMIN_ROLE_NAMES.map(roleName => this.getCountByRole(roleName)),
       );
@@ -42,6 +48,7 @@ export class AdminUserAdminService {
       employee_admin: employeeAdmin,
       content_manager: contentManager,
       partner_manager: partnerManager,
+      technical_specialist: technicalSpecialist,
     };
   }
 
@@ -147,6 +154,18 @@ export class AdminUserAdminService {
     }
 
     const { role } = data;
+
+    if (role === RoleTypes.TechnicalSpecialist) {
+      const userWithCompany =
+        await this.userRepository.findByIdWithCompanyEmployees(id);
+      if (userWithCompany?.company_employee) {
+        throw new HttpException(
+          "Технический специалист не может быть сотрудником партнёрской компании",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
     const roleEntity = await this.roleRepository.findOneBy({ name: role });
 
     if (!roleEntity) {

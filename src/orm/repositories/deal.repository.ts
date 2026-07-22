@@ -1,7 +1,7 @@
 import { SearchDealDto } from "@api/deal/dto/request/search-deal.dto";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DealEntity } from "@orm/entities";
+import { CompanyEmployeeStatus, DealEntity } from "@orm/entities";
 import { DealDeletionStatus } from "@orm/entities/deal-deletion-request.entity";
 import {
   Between,
@@ -114,6 +114,30 @@ export class DealRepository extends Repository<DealEntity> {
       queryBuilder.andWhere("deal.distributor_id = :distributorId", {
         distributorId: entry.distributorId,
       });
+    }
+
+    if (entry?.companyId) {
+      queryBuilder.andWhere(
+        `(deal.integrator_company_id = :companyId
+          OR deal.creator_id IN (
+            SELECT company_employee.employee_id
+            FROM company_employees company_employee
+            WHERE company_employee.company_id = :companyId
+              AND company_employee.status = :acceptedCompanyEmployee
+          )
+          OR deal.distributor_id IN (
+            SELECT company_distributor.id
+            FROM distributors company_distributor
+            INNER JOIN companies selected_company
+              ON LOWER(selected_company.name) = LOWER(company_distributor.name)
+            WHERE selected_company.id = :companyId
+              AND company_distributor.deleted_at IS NULL
+          ))`,
+        {
+          companyId: entry.companyId,
+          acceptedCompanyEmployee: CompanyEmployeeStatus.Accept,
+        },
+      );
     }
 
     if (entry?.search) {

@@ -1,5 +1,5 @@
 import { UserEntity } from "@orm/entities/user.entity";
-import { Entity, Column, JoinColumn, OneToOne } from "typeorm";
+import { Entity, Column, Index, JoinColumn, OneToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 
 export enum NotificationType {
@@ -73,4 +73,8 @@ export class NotificationEntity extends BasisEntity {
 
   @Column({ nullable: true, default: null })
   ticket_id: number | null;
+
+  @Index("UQ_notifications_delivery_key", { unique: true })
+  @Column({ length: 191, nullable: true, default: null })
+  delivery_key: string | null;
 }

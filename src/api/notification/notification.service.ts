@@ -23,6 +23,7 @@ type NotificationSendDto = {
   category?: NotificationCategory;
   actions?: { label: string; url: string }[] | null;
   ticket_id?: number | null;
+  webOnly?: boolean;
 };
 
 const NotificationSettingsTypes = [
@@ -42,6 +43,7 @@ type ActionDataType = {
   category?: NotificationCategory;
   actions?: { label: string; url: string }[] | null;
   ticket_id?: number | null;
+  delivery_key?: string | null;
 };
 
 @Injectable()
@@ -67,6 +69,7 @@ export class NotificationService {
       email: additionalEmail,
       actions,
       ticket_id,
+      webOnly,
     } = data;
 
     if (!user_id) {
@@ -110,7 +113,7 @@ export class NotificationService {
     );
     const emailEnabled = emailSetting?.value === UserNotificationType.Yes || emailSetting?.value === "yes";
 
-    if (emailEnabled) {
+    if (emailEnabled && !webOnly) {
       await this.sendEmail({
         user_id: user.id,
         email: user.email,
@@ -141,18 +144,44 @@ export class NotificationService {
     }
   }
 
-  async sendWeb(data: ActionDataType & { type }) {
-    const { user_id, title, text, type, category, actions, ticket_id } = data;
-
-    return await this.notificationRepository.save({
+  async sendWeb(
+    data: ActionDataType & { type: NotificationType.Site | "site" },
+  ) {
+    const {
       user_id,
       title,
       text,
       type,
-      category: category ?? NotificationCategory.System,
-      actions: actions ?? null,
-      ticket_id: ticket_id ?? null,
-    });
+      category,
+      actions,
+      ticket_id,
+      delivery_key,
+    } = data;
+
+    if (delivery_key) {
+      const existing = await this.notificationRepository.findOneBy({
+        delivery_key,
+      });
+      if (existing) return existing;
+    }
+
+    try {
+      return await this.notificationRepository.save({
+        user_id,
+        title,
+        text,
+        type,
+        category: category ?? NotificationCategory.System,
+        actions: actions ?? null,
+        ticket_id: ticket_id ?? null,
+        delivery_key: delivery_key ?? null,
+      });
+    } catch (error) {
+      if (delivery_key && (error as any)?.code === "ER_DUP_ENTRY") {
+        return this.notificationRepository.findOneBy({ delivery_key });
+      }
+      throw error;
+    }
   }
 
   async sendOnceUnread(data: NotificationSendDto & { email?: string }) {

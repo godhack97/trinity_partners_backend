@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   ValidationPipe,
+  GoneException,
 } from "@nestjs/common";
 import AdminPartnerService from "./admin-partner.service";
 import { Roles } from "../../../decorators/Roles";
@@ -22,7 +23,7 @@ import { UpdatePartnerBusinessFieldsRequestDto } from "./dto/update-partner-busi
 @ApiTags("partner")
 @ApiBearerAuth()
 @Controller("admin/partner")
-@Roles([RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
+@Roles([RoleTypes.SuperAdmin])
 export class AdminPartnerController {
   constructor(private readonly adminPartnerService: AdminPartnerService) {}
 
@@ -51,7 +52,7 @@ export class AdminPartnerController {
   @ApiOperation({ summary: 'Получить количество партнёров (отклонённых)' })
   @ApiResponse({ type: Number })
   async getRejectedCount() {
-    return this.adminPartnerService.getCountByStatus(CompanyStatus.Reject);
+    return 0;
   }
 
   @Get("/count/suspended")
@@ -62,6 +63,7 @@ export class AdminPartnerController {
   }
 
   @Get("employee/requests")
+  @Roles([RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
   @ApiOperation({ summary: "Получить заявки сотрудников на проверку менеджером Тринити" })
   getEmployeeRequests(@AuthUser() auth_user: UserEntity) {
     return this.adminPartnerService.getEmployeeRequests(auth_user);
@@ -86,7 +88,9 @@ export class AdminPartnerController {
     }))
     data: UpdatePartnerBusinessFieldsRequestDto,
   ) {
-    return this.adminPartnerService.updateBusinessFields(id, data);
+    throw new GoneException(
+      "Редактирование компаний перенесено в раздел «Компании» партнёрского портала",
+    );
   }
 
   @Post(":id/accept")
@@ -96,17 +100,22 @@ export class AdminPartnerController {
     @Param("id", ParseIntPipe) id: number,
     @AuthUser() auth_user: UserEntity,
   ) {
-    return this.adminPartnerService.accept(id, auth_user);
+    throw new GoneException(
+      "Подтверждение компаний перенесено в раздел «Компании» партнёрского портала",
+    );
   }
 
   @Post(":id/reject")
   @LogAction("partner_reject", "companies")
   @ApiOperation({ summary: 'Отклонить заявку от партнёра' })
   rejectPartner(@Param("id", ParseIntPipe) id: number) {
-    return this.adminPartnerService.reject(id);
+    throw new GoneException(
+      "Отклонение заявки удалено. Используйте блокировку заявки с обязательной причиной",
+    );
   }
 
   @Post("employee/:id/accept")
+  @Roles([RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
   @LogAction("employee_trinity_accept", "company_employees")
   @ApiOperation({ summary: "Принять заявку сотрудника менеджером Тринити" })
   acceptEmployee(
@@ -117,6 +126,7 @@ export class AdminPartnerController {
   }
 
   @Post("employee/:id/reject")
+  @Roles([RoleTypes.SuperAdmin, RoleTypes.PartnerManager])
   @LogAction("employee_trinity_reject", "company_employees")
   @ApiOperation({ summary: "Отклонить заявку сотрудника менеджером Тринити" })
   rejectEmployee(@Param("id", ParseIntPipe) id: number) {
@@ -127,7 +137,9 @@ export class AdminPartnerController {
   @LogAction("partner_suspend", "companies")
   @ApiOperation({ summary: 'Приостановить доступ партнёра' })
   suspendPartner(@Param("id", ParseIntPipe) id: number) {
-    return this.adminPartnerService.suspend(id);
+    throw new GoneException(
+      "Приостановка компаний перенесена в раздел «Компании» и требует причину",
+    );
   }
 
   @Post(":id/restore")
@@ -137,7 +149,9 @@ export class AdminPartnerController {
     @Param("id", ParseIntPipe) id: number,
     @AuthUser() auth_user: UserEntity,
   ) {
-    return this.adminPartnerService.restore(id, auth_user);
+    throw new GoneException(
+      "Восстановление отклонённых заявок удалено из новой модели модерации",
+    );
   }
 
   @Post(":id/resume")
@@ -147,6 +161,8 @@ export class AdminPartnerController {
     @Param("id", ParseIntPipe) id: number,
     @AuthUser() auth_user: UserEntity,
   ) {
-    return this.adminPartnerService.resume(id, auth_user);
+    throw new GoneException(
+      "Возобновление компаний перенесено в раздел «Компании» партнёрского портала",
+    );
   }
 }

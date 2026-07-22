@@ -12,6 +12,9 @@ export class AdminRoleCountsResponseDto {
 
   @ApiProperty({ type: Number, example: 4 })
   partner_manager: number;
+
+  @ApiProperty({ type: Number, example: 2 })
+  technical_specialist: number;
 }
 
 export class AdminAccountCountsResponseDto {

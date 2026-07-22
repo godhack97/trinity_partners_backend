@@ -46,7 +46,11 @@ export class ProfileController {
     const data = plainToInstance(ProfileUpdateRequestDto, req.body, groups);
 
     try {
-      await validateOrReject(data, groups);
+      await validateOrReject(data, {
+        ...groups,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
     } catch (e) {
       if (e.length > 0) throw new ValidationException(e);
     }

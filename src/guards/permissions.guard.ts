@@ -5,7 +5,6 @@ import { RoleTypes } from '@app/types/RoleTypes';
 const BUSINESS_ROLE_NAMES = [
   RoleTypes.CompanyAdmin,
   RoleTypes.SalesManager,
-  RoleTypes.TechnicalSpecialist,
   RoleTypes.Staff,
 ];
 

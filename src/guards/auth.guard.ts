@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { IS_PUBLIC_KEY } from "@decorators/Public";
+import { ALLOW_RESTRICTED_COMPANY_ACCESS } from "@decorators/AllowRestrictedCompanyAccess";
 import { Reflector } from "@nestjs/core";
 import { UserRepository } from "src/orm/repositories/user.repository";
 import { UserToken } from "src/orm/entities/user-token.entity";
@@ -29,6 +30,10 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) return true;
+    const allowRestricted = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_RESTRICTED_COMPANY_ACCESS,
+      [context.getHandler(), context.getClass()],
+    );
 
     const request = context.switchToHttp().getRequest();
     const headers = request.headers;
@@ -64,7 +69,7 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException(ERROR_MSG);
 
     // Проверяем что пользователь активен
-    if (!userToken.user.is_activated) 
+    if (!userToken.user.is_activated && !allowRestricted)
       throw new UnauthorizedException('Пользователь не активирован');
 
     // Устанавливаем пользователя в запрос для совместимости с существующим кодом

@@ -1,5 +1,5 @@
 import { RoleTypes } from "@app/types/RoleTypes";
-import { IsNotEmptyRu, IsNumberRu, IsStringRu } from "@decorators/validate";
+import { IsStringRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
 
@@ -15,7 +15,6 @@ const opts = {
       RoleTypes.ContentManager,
     ],
   },
-  second: { groups: [RoleTypes.Partner] },
 };
 
 export class ProfileUpdateRequestDto {
@@ -34,34 +33,4 @@ export class ProfileUpdateRequestDto {
   @IsStringRu(opts.first)
   phone: string;
 
-  @ApiProperty()
-  @Expose(opts.second)
-  @IsStringRu(opts.second)
-  company_business_line: string; //направления деятельности
-
-  @ApiProperty()
-  @Expose(opts.second)
-  @IsNotEmptyRu(opts.second)
-  @IsNumberRu({}, opts.second)
-  employees_count: number;
-
-  @ApiProperty()
-  @Expose(opts.second)
-  @IsStringRu(opts.second)
-  site_url: string;
-
-  @ApiProperty()
-  @Expose(opts.second)
-  @IsStringRu(opts.second)
-  promoted_products: string;
-
-  @ApiProperty()
-  @Expose(opts.second)
-  @IsStringRu(opts.second)
-  products_of_interest: string;
-
-  @ApiProperty()
-  @Expose(opts.second)
-  @IsStringRu(opts.second)
-  main_customers: string;
 }

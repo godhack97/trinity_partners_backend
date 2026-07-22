@@ -71,7 +71,7 @@ describe("AdminCountsController", () => {
     expect(response).toMatchObject({
       news: 1,
       admins: { all: 2, archived: 3 },
-      partners: { users: 5, requests: 6, accepted: 6, rejected: 6, suspended: 6 },
+      partners: { users: 5, requests: 6, accepted: 6, rejected: 0, suspended: 6 },
       configurator: { components: 12, componentstypes: 13 },
       deals: { distributors: 14, all: 15, requestDeleted: 21 },
       tools: { logs: 22 },
@@ -79,19 +79,18 @@ describe("AdminCountsController", () => {
     });
   });
 
-  it("returns only partner workflow counts to partner_manager", async () => {
+  it("does not expose unscoped legacy company counts to partner_manager", async () => {
     const { controller, services } = createController();
 
     const response = await controller.getAllCounts({
       role: { name: RoleTypes.PartnerManager },
     } as any);
 
-    expect(response).toEqual({
-      partners: { requests: 6, accepted: 6, rejected: 6, suspended: 6 },
-    });
+    expect(response).toEqual({});
     expect(services.employees.getCount).not.toHaveBeenCalled();
     expect((services.admins as any).getCount).not.toHaveBeenCalled();
     expect(services.news.getCount).not.toHaveBeenCalled();
+    expect(services.partners.getCountByStatus).not.toHaveBeenCalled();
   });
 
   it("returns only content counts to content_manager", async () => {

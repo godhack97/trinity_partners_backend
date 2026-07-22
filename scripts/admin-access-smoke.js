@@ -16,6 +16,7 @@ const INTERNAL_ROLES = [
   "employee_admin",
   "content_manager",
   "partner_manager",
+  "technical_specialist",
 ];
 const SMOKE_ROLES = [...INTERNAL_ROLES, "partner"];
 const SHARED_ADMIN_ROUTE_PREFIXES = [
@@ -94,7 +95,7 @@ const seedPrincipals = async (databaseName) => {
 
   try {
     const [roles] = await connection.query(
-      "SELECT id, name FROM roles WHERE name IN (?, ?, ?, ?, ?)",
+      `SELECT id, name FROM roles WHERE name IN (${SMOKE_ROLES.map(() => "?").join(", ")})`,
       SMOKE_ROLES,
     );
     const roleIds = new Map(roles.map((role) => [role.name, role.id]));

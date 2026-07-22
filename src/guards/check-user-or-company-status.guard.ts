@@ -41,6 +41,7 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
         RoleTypes.EmployeeAdmin,
         RoleTypes.ContentManager,
         RoleTypes.PartnerManager,
+        RoleTypes.TechnicalSpecialist,
       ].some((role) => roleNames.includes(role))
     ) {
       return true;
@@ -70,7 +71,6 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
     if (
       user.role?.name === RoleTypes.Employee ||
       roleNames.includes(RoleTypes.SalesManager) ||
-      roleNames.includes(RoleTypes.TechnicalSpecialist) ||
       roleNames.includes(RoleTypes.Staff)
     ) {
       const companyEmployee = user.company_employee;

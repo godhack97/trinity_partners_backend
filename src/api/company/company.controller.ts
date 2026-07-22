@@ -10,6 +10,8 @@ import {
   Param,
   Req,
   UseInterceptors,
+  ValidationPipe,
+  Query,
 } from "@nestjs/common";
 import { UserEntity } from "@orm/entities";
 import { CompanyService } from "./company.service";
@@ -20,12 +22,55 @@ import { TransformResponse } from "@interceptors/transform-response.interceptor"
 import { CompanyEmployeesWithEmpoloyeeResponseDto } from "./dto/response/company-employees-response.dto";
 import { LogAction } from "src/logs/log-action.decorator";
 import { PartnershipType } from "@orm/entities/company.entity";
+import { CompanyManagementService } from "@api/admin/company-management/company-management.service";
+import { UpdateCompanyContactsRequestDto } from "@api/admin/company-management/dto/company-management.request.dto";
+import {
+  CompanyAccessStateResponseDto,
+  CompanyDetailResponseDto,
+} from "@api/admin/company-management/dto/company-management.response.dto";
+import { AllowRestrictedCompanyAccess } from "@decorators/AllowRestrictedCompanyAccess";
 
 @ApiTags("company")
 @ApiBearerAuth()
 @Controller("company")
 export class CompanyController {
-  constructor(private readonly companyService: CompanyService) {}
+  constructor(
+    private readonly companyService: CompanyService,
+    private readonly companyManagementService: CompanyManagementService,
+  ) {}
+
+  @Get("profile")
+  @Roles([RoleTypes.Partner, RoleTypes.CompanyAdmin])
+  @ApiResponse({ type: CompanyDetailResponseDto })
+  getOwnCompany(@AuthUser() auth_user: UserEntity) {
+    return this.companyManagementService.ownCompany(auth_user);
+  }
+
+  @Patch("profile/contacts")
+  @Roles([RoleTypes.Partner, RoleTypes.CompanyAdmin])
+  @LogAction("company_contacts_update", "companies")
+  @ApiResponse({ type: CompanyDetailResponseDto })
+  updateOwnCompanyContacts(
+    @AuthUser() auth_user: UserEntity,
+    @Body(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    data: UpdateCompanyContactsRequestDto,
+  ) {
+    return this.companyManagementService.updateOwnContacts(auth_user, data);
+  }
+
+  @Get("access-state")
+  @AllowRestrictedCompanyAccess()
+  @Roles([RoleTypes.Partner, RoleTypes.CompanyAdmin])
+  @ApiResponse({ type: CompanyAccessStateResponseDto })
+  getCompanyAccessState(@AuthUser() auth_user: UserEntity) {
+    return this.companyManagementService.accessState(auth_user);
+  }
 
   @Get("partners/:partnershipType")
   @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin, RoleTypes.SuperAdmin])
@@ -58,8 +103,14 @@ export class CompanyController {
     new TransformResponse(CompanyEmployeesWithEmpoloyeeResponseDto, true),
   )
   @ApiResponse({ type: [CompanyEmployeesWithEmpoloyeeResponseDto] })
-  getCompanyEmployees(@Req() request: Request) {
-    return this.companyService.getCompanyEmployees(request);
+  getCompanyEmployees(
+    @Req() request: Request,
+    @Query("companyId") companyId?: string,
+  ) {
+    return this.companyService.getCompanyEmployees(
+      request,
+      companyId ? Number(companyId) : undefined,
+    );
   }
 
   @Patch("change-admin-status/:id")
