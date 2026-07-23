@@ -115,6 +115,12 @@ export class RecommendedConfigsService {
         source: "manual" as const,
       })),
       options: { strict: true },
+      support: {
+        id: "standard",
+        name: "Стандартная гарантия",
+        years: 3,
+        price: 0,
+      },
     });
     if (requireCompatibility && !validation.is_valid) {
       throw new BadRequestException({
@@ -123,6 +129,26 @@ export class RecommendedConfigsService {
         warnings: validation.warnings,
       });
     }
+    const normalizedItems = Array.isArray(
+      validation?.normalized_configuration?.items,
+    )
+      ? validation.normalized_configuration.items
+      : null;
+    const normalizedComponents = normalizedItems
+      ? normalizedItems
+          .filter(
+            (item) =>
+              typeof item?.component_id === "string" &&
+              Number(item?.qty || 0) > 0,
+          )
+          .map((item) => ({
+            componentId: item.component_id,
+            amount: Number(item.qty),
+          }))
+      : components.map((component) => ({
+          componentId: component.componentId,
+          amount: Number(component.amount),
+        }));
 
     return {
       category: dto.category.trim(),
@@ -130,10 +156,7 @@ export class RecommendedConfigsService {
       server_id: server.id,
       server_name: server.name,
       description: dto.description ?? null,
-      components: components.map((component) => ({
-        componentId: component.componentId,
-        amount: Number(component.amount),
-      })),
+      components: normalizedComponents,
       image: this.getPlatformImage(server),
       is_active: dto.is_active ?? true,
     };

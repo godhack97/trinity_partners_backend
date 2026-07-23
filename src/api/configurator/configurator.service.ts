@@ -284,6 +284,7 @@ export class ConfiguratorService {
     const selectedTransceivers = [];
     const selectedPsu = [];
     const selectedServices = [];
+    const ignoredLegacyServiceComponentIds = new Set<string>();
     const virtualSupport = this.buildVirtualSupportService(dto.support);
 
     if (virtualSupport) {
@@ -330,6 +331,14 @@ export class ConfiguratorService {
       const transceiverProfile = transceiverProfiles.get(component.id);
       const psuProfile = psuProfiles.get(component.id);
       const typeKey = catalogProfile?.component_type_key || this.mapLegacyTypeKey(component.type_id);
+      const isLegacyServiceDuplicatedBySupport =
+        Boolean(virtualSupport) && (typeKey === "service" || Boolean(serviceProfile));
+
+      if (isLegacyServiceDuplicatedBySupport) {
+        ignoredLegacyServiceComponentIds.add(component.id);
+        continue;
+      }
+
       const effectiveResourceProfile = this.normalizeEffectiveResourceProfile({
         typeKey,
         platformProfile,
@@ -661,7 +670,10 @@ export class ConfiguratorService {
       is_valid: errors.length === 0,
       normalized_configuration: {
         server_id: dto.server_id,
-        items: normalizedItems,
+        items: normalizedItems.filter(
+          (item) =>
+            !ignoredLegacyServiceComponentIds.has(item.component_id),
+        ),
         options: {
           ...requestedOptions,
           rear_to_pcie: rearToPcieEnabled,

@@ -347,6 +347,84 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.price.service_total).toBe(1);
   });
 
+  it("не считает legacy-компонент сервиса повторно при переданном support", async () => {
+    const legacyService = component(
+      "legacy-service-1",
+      "service-type-id",
+      "Гарантия на сервер",
+      100,
+    );
+    const rows = baseRows();
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: legacyService.id,
+        component_type_key: "service",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: legacyService.id,
+        resource_kind: "service",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        ocp_slots: 0,
+        power_w: 0,
+        uses_power: false,
+      },
+    ]);
+    rows.set(CnfServiceProfileEntity, [
+      {
+        component_id: legacyService.id,
+        service_level: "extended",
+        years: 1,
+        formula: "percent_of_equipment",
+        percent: 10,
+        fixed_price: null,
+      },
+    ]);
+    const { service } = makeService({
+      components: [...Object.values(baseComponents), legacyService],
+      rows,
+    });
+    const items = [
+      ...baseDto().items,
+      { component_id: legacyService.id, qty: 1 },
+    ];
+
+    const withSupport = await service.validateConfiguration(
+      baseDto({
+        items,
+        support: {
+          id: "standard",
+          name: "Техподдержка 3 года",
+          years: 3,
+          price: 25,
+        },
+      }) as any,
+    );
+    const legacyOnly = await service.validateConfiguration(
+      baseDto({ items, support: undefined }) as any,
+    );
+
+    expect(withSupport.price.is_visible).toBe(true);
+    expect(withSupport.price.service_total).toBe(25);
+    expect(withSupport.normalized_configuration.items).not.toContainEqual(
+      expect.objectContaining({ component_id: legacyService.id }),
+    );
+    expect(codes(withSupport.warnings)).not.toContain("SERVICE_PRICE_RECALCULATED");
+    expect(legacyOnly.normalized_configuration.items).toContainEqual(
+      expect.objectContaining({ component_id: legacyService.id }),
+    );
+    expect(legacyOnly.price.service_total).toBe(
+      Number(legacyOnly.price.equipment_subtotal) * 0.1,
+    );
+    expect(codes(legacyOnly.warnings)).toContain("SERVICE_PRICE_RECALCULATED");
+  });
+
   it("блокирует расчет стоимости, если выбрано меньше двух модулей RAM", async () => {
     const { service } = makeService();
 

@@ -145,6 +145,12 @@ describe("RecommendedConfigsService", () => {
       server_id: serverId,
       items: [{ component_id: componentId, qty: 2, source: "manual" }],
       options: { strict: true },
+      support: {
+        id: "standard",
+        name: "Стандартная гарантия",
+        years: 3,
+        price: 0,
+      },
     });
     expect(serverRepository.findOne).toHaveBeenCalledWith({
       select: {
@@ -161,6 +167,42 @@ describe("RecommendedConfigsService", () => {
     expect(saved.server_name).toBe("Canonical server");
     expect(saved.image).toBe(platformCover);
     expect(repository.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores normalized components when validation removes a legacy service", async () => {
+    const legacyServiceId = "33333333-3333-4333-8333-333333333333";
+    const { service, repository } = makeService({
+      configuratorService: {
+        validateConfiguration: jest.fn().mockResolvedValue({
+          is_valid: true,
+          errors: [],
+          warnings: [],
+          normalized_configuration: {
+            items: [
+              {
+                component_id: componentId,
+                qty: 2,
+                source: "manual",
+              },
+            ],
+          },
+        }),
+      },
+    });
+
+    await service.create({
+      ...validPayload,
+      components: [
+        { componentId, amount: 2 },
+        { componentId: legacyServiceId, amount: 1 },
+      ],
+    });
+
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        components: [{ componentId, amount: 2 }],
+      }),
+    );
   });
 
   it("uses the platform cover on update instead of the stored or supplied image", async () => {
