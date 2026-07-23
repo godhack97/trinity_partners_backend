@@ -10,6 +10,18 @@ import { RecommendedConfigsService } from "./recommended-configs.service";
 
 const serverId = "11111111-1111-4111-8111-111111111111";
 const componentId = "22222222-2222-4222-8222-222222222222";
+const platformCover = "/public/configurator/server/front.webp";
+const legacyPlatformCover = "/public/configurator/server/legacy.webp";
+const canonicalServer = {
+  id: serverId,
+  name: "Canonical server",
+  images: [
+    "  ",
+    `  ${platformCover}  `,
+    "/public/configurator/server/rear.webp",
+  ],
+  image: `  ${legacyPlatformCover}  `,
+};
 const validPayload = {
   category: "ai-ml",
   category_label: "AI/ML",
@@ -37,10 +49,8 @@ const makeService = (overrides: any = {}) => {
     ...overrides.repository,
   };
   const serverRepository: any = {
-    findOneBy: jest.fn().mockResolvedValue({
-      id: serverId,
-      name: "Canonical server",
-    }),
+    findOne: jest.fn().mockResolvedValue(canonicalServer),
+    find: jest.fn().mockResolvedValue([canonicalServer]),
     ...overrides.serverRepository,
   };
   const configuratorService: any = {
@@ -80,14 +90,18 @@ describe("recommended config DTO", () => {
       is_active: false,
     });
 
-    expect(await validate(create, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    })).toHaveLength(0);
-    expect(await validate(update, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    })).toHaveLength(0);
+    expect(
+      await validate(create, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    ).toHaveLength(0);
+    expect(
+      await validate(update, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    ).toHaveLength(0);
   });
 
   it("rejects duplicate components, invalid amounts and an invalid category slug", async () => {
@@ -112,24 +126,194 @@ describe("RecommendedConfigsService", () => {
 
     await expect(service.findOne(2)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.findAllAdmin()).resolves.toEqual([
-      { id: 1, is_active: true },
-      { id: 2, is_active: false },
+      { id: 1, is_active: true, image: null },
+      { id: 2, is_active: false, image: null },
     ]);
     expect(repository.findAllAdmin).toHaveBeenCalledTimes(1);
   });
 
-  it("validates compatibility and stores the canonical server name", async () => {
-    const { service, repository, configuratorService } = makeService();
+  it("validates compatibility and stores the canonical server name and cover", async () => {
+    const { service, repository, serverRepository, configuratorService } =
+      makeService();
 
-    const saved = await service.create(validPayload);
+    const saved = await service.create({
+      ...validPayload,
+      image: "https://client.test/ignored.png",
+    });
 
     expect(configuratorService.validateConfiguration).toHaveBeenCalledWith({
       server_id: serverId,
       items: [{ component_id: componentId, qty: 2, source: "manual" }],
       options: { strict: true },
     });
+    expect(serverRepository.findOne).toHaveBeenCalledWith({
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        images: true,
+      },
+      where: {
+        id: serverId,
+      },
+      loadEagerRelations: false,
+    });
     expect(saved.server_name).toBe("Canonical server");
+    expect(saved.image).toBe(platformCover);
     expect(repository.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the platform cover on update instead of the stored or supplied image", async () => {
+    const { service } = makeService({
+      repository: {
+        findById: jest.fn().mockResolvedValue({
+          id: 1,
+          ...validPayload,
+          image: "https://stored.test/stale.png",
+        }),
+      },
+    });
+
+    await expect(
+      service.update(1, { image: "https://client.test/ignored-update.png" }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        image: platformCover,
+        server_name: "Canonical server",
+      }),
+    );
+  });
+
+  it("falls back to the trimmed legacy platform image when the gallery has no cover", async () => {
+    const { service } = makeService({
+      serverRepository: {
+        findOne: jest.fn().mockResolvedValue({
+          ...canonicalServer,
+          images: ["", "   "],
+          image: `  ${legacyPlatformCover}  `,
+        }),
+      },
+    });
+
+    await expect(service.create(validPayload)).resolves.toEqual(
+      expect.objectContaining({ image: legacyPlatformCover }),
+    );
+  });
+
+  it("hydrates all public configurations with current platform covers in one batch", async () => {
+    const secondServerId = "33333333-3333-4333-8333-333333333333";
+    const find = jest.fn().mockResolvedValue([
+      canonicalServer,
+      {
+        id: secondServerId,
+        images: [],
+        image: ` ${legacyPlatformCover} `,
+      },
+    ]);
+    const { service, serverRepository } = makeService({
+      repository: {
+        findAllActive: jest.fn().mockResolvedValue([
+          {
+            id: 1,
+            server_id: serverId,
+            image: "https://stored.test/stale-1.png",
+          },
+          {
+            id: 2,
+            server_id: serverId,
+            image: "https://stored.test/stale-2.png",
+          },
+          {
+            id: 3,
+            server_id: secondServerId,
+            image: "https://stored.test/stale-3.png",
+          },
+        ]),
+      },
+      serverRepository: { find },
+    });
+
+    await expect(service.findAll()).resolves.toEqual([
+      expect.objectContaining({ id: 1, image: platformCover }),
+      expect.objectContaining({ id: 2, image: platformCover }),
+      expect.objectContaining({ id: 3, image: legacyPlatformCover }),
+    ]);
+    expect(serverRepository.find).toHaveBeenCalledTimes(1);
+    expect(serverRepository.find).toHaveBeenCalledWith({
+      select: {
+        id: true,
+        image: true,
+        images: true,
+      },
+      where: {
+        id: expect.anything(),
+      },
+      loadEagerRelations: false,
+    });
+  });
+
+  it("hydrates a public item and the admin list with current platform covers", async () => {
+    const staleConfig = {
+      id: 1,
+      server_id: serverId,
+      image: "https://stored.test/stale.png",
+      is_active: true,
+    };
+    const { service, serverRepository } = makeService({
+      repository: {
+        findActiveById: jest.fn().mockResolvedValue(staleConfig),
+        findAllAdmin: jest
+          .fn()
+          .mockResolvedValue([
+            staleConfig,
+            { ...staleConfig, id: 2, is_active: false },
+          ]),
+      },
+    });
+
+    await expect(service.findOne(1)).resolves.toEqual(
+      expect.objectContaining({ id: 1, image: platformCover }),
+    );
+    await expect(service.findAllAdmin()).resolves.toEqual([
+      expect.objectContaining({ id: 1, image: platformCover }),
+      expect.objectContaining({ id: 2, image: platformCover }),
+    ]);
+    expect(serverRepository.find).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns null images for a missing platform or a platform without images", async () => {
+    const missingServerId = "44444444-4444-4444-8444-444444444444";
+    const emptyServerId = "55555555-5555-4555-8555-555555555555";
+    const { service } = makeService({
+      repository: {
+        findAllActive: jest.fn().mockResolvedValue([
+          {
+            id: 1,
+            server_id: missingServerId,
+            image: "https://stored.test/stale.png",
+          },
+          {
+            id: 2,
+            server_id: emptyServerId,
+            image: "https://stored.test/stale.png",
+          },
+        ]),
+      },
+      serverRepository: {
+        find: jest.fn().mockResolvedValue([
+          {
+            id: emptyServerId,
+            images: ["", "   "],
+            image: " ",
+          },
+        ]),
+      },
+    });
+
+    await expect(service.findAll()).resolves.toEqual([
+      expect.objectContaining({ id: 1, image: null }),
+      expect.objectContaining({ id: 2, image: null }),
+    ]);
   });
 
   it("rejects an incompatible active template before persistence", async () => {

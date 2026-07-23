@@ -66,12 +66,19 @@ export class CreateRecommendedConfigDto {
   })
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayUnique((component: RecommendedConfigComponentDto) => component.componentId)
+  @ArrayUnique(
+    (component: RecommendedConfigComponentDto) => component.componentId,
+  )
   @ValidateNested({ each: true })
   @Type(() => RecommendedConfigComponentDto)
   components: RecommendedConfigComponentDto[];
 
-  @ApiProperty({ description: "URL изображения", required: false })
+  @ApiProperty({
+    description:
+      "Устаревшее поле. Изображение автоматически берется из выбранной платформы.",
+    required: false,
+    deprecated: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
