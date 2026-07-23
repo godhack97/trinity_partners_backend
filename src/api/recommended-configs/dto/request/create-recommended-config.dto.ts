@@ -1,7 +1,7 @@
 import { IsNotEmptyRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { PartialType } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Expose, Type } from "class-transformer";
 import {
   ArrayMinSize,
   ArrayUnique,
@@ -19,10 +19,12 @@ import {
 
 export class RecommendedConfigComponentDto {
   @ApiProperty({ format: "uuid" })
+  @Expose()
   @IsUUID()
   componentId: string;
 
   @ApiProperty({ minimum: 1, default: 1 })
+  @Expose()
   @Type(() => Number)
   @IsInt()
   @Min(1)

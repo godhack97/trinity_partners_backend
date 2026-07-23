@@ -5,6 +5,7 @@ import {
   CreateRecommendedConfigDto,
   UpdateRecommendedConfigDto,
 } from "./dto/request/create-recommended-config.dto";
+import { RecommendedConfigResponseDto } from "./dto/response/recommended-config-response.dto";
 import { RecommendedConfigsService } from "./recommended-configs.service";
 
 const serverId = "11111111-1111-4111-8111-111111111111";
@@ -63,6 +64,16 @@ const makeService = (overrides: any = {}) => {
 };
 
 describe("recommended config DTO", () => {
+  it("preserves nested component fields in the public response", () => {
+    const response = plainToInstance(
+      RecommendedConfigResponseDto,
+      { id: 1, ...validPayload },
+      { strategy: "excludeAll" },
+    );
+
+    expect(response.components).toEqual([{ componentId, amount: 2 }]);
+  });
+
   it("accepts a strict nested template and a partial update", async () => {
     const create = plainToInstance(CreateRecommendedConfigDto, validPayload);
     const update = plainToInstance(UpdateRecommendedConfigDto, {
