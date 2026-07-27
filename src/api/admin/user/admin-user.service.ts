@@ -7,6 +7,7 @@ import {
 import { CompanyEmployeeRepository, UserRepository } from "@orm/repositories";
 import { CompanyEmployeeStatus } from "@orm/entities";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
+import { UpdateCompanyEmployeeRequestDto } from "./dto/request/update-company-employee.request.dto";
 
 const defaultFilter = {
   limit: 10,
@@ -120,6 +121,46 @@ export class AdminUserService {
     return {
       success: true,
       message: "Сотрудник восстановлен",
+      employee:
+        await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
+          id,
+        ),
+    };
+  }
+
+  async updateCompanyEmployee(
+    id: number,
+    data: UpdateCompanyEmployeeRequestDto,
+  ) {
+    const companyEmployee =
+      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(id);
+    if (!companyEmployee) {
+      throw new HttpException(
+        "Сотрудник компании не найден",
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (
+      typeof data.is_activated !== "boolean" &&
+      typeof data.email_confirmed !== "boolean"
+    ) {
+      throw new BadRequestException("Не переданы поля для обновления");
+    }
+
+    const update: UpdateCompanyEmployeeRequestDto = {};
+    if (typeof data.is_activated === "boolean") {
+      update.is_activated = data.is_activated;
+    }
+    if (typeof data.email_confirmed === "boolean") {
+      update.email_confirmed = data.email_confirmed;
+    }
+
+    await this.userRepository.update(id, update);
+
+    return {
+      success: true,
+      message: "Сотрудник обновлён",
       employee:
         await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
           id,

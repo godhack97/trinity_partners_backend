@@ -126,4 +126,31 @@ describe("AdminUserService", () => {
     );
     expect(companyEmployeeRepository.update).not.toHaveBeenCalled();
   });
+
+  it("updates activation and email confirmation for a company employee", async () => {
+    companyEmployeeRepository.findCompanyEmployeeByEmployeeId
+      .mockResolvedValueOnce({ id: 21, employee_id: 12 })
+      .mockResolvedValueOnce({ id: 21, employee_id: 12 });
+
+    await service.updateCompanyEmployee(12, {
+      is_activated: false,
+      email_confirmed: true,
+    });
+
+    expect(userRepository.update).toHaveBeenCalledWith(12, {
+      is_activated: false,
+      email_confirmed: true,
+    });
+  });
+
+  it("does not update a user outside the company employee scope", async () => {
+    companyEmployeeRepository.findCompanyEmployeeByEmployeeId.mockResolvedValue(
+      null,
+    );
+
+    await expect(
+      service.updateCompanyEmployee(12, { is_activated: true }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(userRepository.update).not.toHaveBeenCalled();
+  });
 });

@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from "@nestjs/common";
@@ -12,6 +14,7 @@ import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
 import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { UpdateCompanyEmployeeRequestDto } from "./dto/request/update-company-employee.request.dto";
 
 @ApiTags("user")
 @ApiBearerAuth()
@@ -24,6 +27,14 @@ export class AdminUserController {
   @ApiResponse({ type: PaginationResponseDto })
   findAll(@Query() filters: UserFilterRequestDto) {
     return this.adminUserRequest.find(filters);
+  }
+
+  @Patch(":id")
+  updateCompanyEmployee(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: UpdateCompanyEmployeeRequestDto,
+  ) {
+    return this.adminUserRequest.updateCompanyEmployee(id, body);
   }
 
   @Post(":id/restore-employee")
