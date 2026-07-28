@@ -11,6 +11,7 @@ import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handleba
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
+import { PermissionsGuard } from "@app/guards/permissions.guard";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import * as path from "node:path";
 import { DataSource } from "typeorm";
@@ -178,6 +179,10 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     {
       provide: APP_GUARD,
       useClass: RoleGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
     {
       provide: APP_INTERCEPTOR,

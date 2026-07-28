@@ -8,6 +8,8 @@ import {
 import { Reflector } from "@nestjs/core";
 import { UserRepository } from "src/orm/repositories/user.repository";
 import { ACCEPTED_ROLES } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
+import { getAdminSectionPermission } from "@app/access/admin-section-permissions";
 
 @Injectable()
 export class RoleGuard implements CanActivate {
@@ -34,6 +36,32 @@ export class RoleGuard implements CanActivate {
       user.role?.name,
       ...(user.roles || []).map((role) => role.name),
     ].filter(Boolean);
+
+    if (userRoleNames.includes(RoleTypes.SuperAdmin)) return true;
+
+    const sectionPermission = getAdminSectionPermission(
+      request.originalUrl || request.url || "",
+      request.method,
+    );
+    if (sectionPermission) {
+      const userPermissions = new Set(
+        [user.role, ...(user.roles || [])]
+          .flatMap((role) => role?.permissions || [])
+          .map((permission) => permission.name),
+      );
+
+      if (
+        userPermissions.has(sectionPermission.required) ||
+        userPermissions.has(sectionPermission.legacy)
+      ) {
+        return true;
+      }
+
+      throw new HttpException(
+        "У вашей роли нет доступа к этому разделу",
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     if (roles.some((role) => userRoleNames.includes(role))) return true;
 

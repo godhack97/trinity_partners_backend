@@ -1,6 +1,8 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RoleTypes } from '@app/types/RoleTypes';
+import { getAdminSectionPermission } from "@app/access/admin-section-permissions";
+import { getPartnerPortalPermission } from "@app/access/partner-portal-permissions";
 
 const BUSINESS_ROLE_NAMES = [
   RoleTypes.CompanyAdmin,
@@ -18,15 +20,25 @@ export class PermissionsGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredPermissions || requiredPermissions.length === 0) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Нет доступа к ресурсу');
+      return !requiredPermissions || requiredPermissions.length === 0;
+    }
+
+    const portalPermission = this.hasBusinessRole(user)
+      ? getPartnerPortalPermission(
+          request.originalUrl || request.url || "",
+          request.method,
+        )
+      : undefined;
+
+    if (
+      (!requiredPermissions || requiredPermissions.length === 0) &&
+      !portalPermission
+    ) {
+      return true;
     }
 
     // Суперадмин имеет все права
@@ -36,16 +48,33 @@ export class PermissionsGuard implements CanActivate {
 
     // Собираем все permissions из всех ролей пользователя
     const userPermissions = this.getAllUserPermissions(user);
-
-    const hasPermission = requiredPermissions.every(permission =>
-      userPermissions.includes(permission)
+    const requestPath = request.originalUrl || request.url || "";
+    const sectionPermission = getAdminSectionPermission(
+      requestPath,
+      request.method,
     );
+
+    const hasPermission =
+      (portalPermission && userPermissions.includes(portalPermission)) ||
+      (sectionPermission &&
+        (userPermissions.includes(sectionPermission.required) ||
+          userPermissions.includes(sectionPermission.legacy))) ||
+      (!!requiredPermissions?.length &&
+        requiredPermissions.every(permission =>
+          userPermissions.includes(permission)
+        ));
 
     if (!hasPermission) {
       throw new ForbiddenException('Недостаточно прав для выполнения операции');
     }
 
     return true;
+  }
+
+  private hasBusinessRole(user: any): boolean {
+    return [user.role, ...(user.roles || [])].some((role) =>
+      BUSINESS_ROLE_NAMES.includes(role?.name),
+    );
   }
 
   private isSuperAdmin(user: any): boolean {
