@@ -6,6 +6,7 @@ import { SYSTEM_ROLE_NAMES } from "./system-role-names";
 const role = (overrides: Record<string, unknown> = {}) => ({
   id: 10,
   name: "custom_reviewer",
+  display_name: "Проверяющий",
   users: [],
   user_roles: [],
   permissions: [],
@@ -40,6 +41,20 @@ describe("RoleService lifecycle", () => {
       BadRequestException,
     );
     expect(repository.softRemove).not.toHaveBeenCalled();
+  });
+
+  it("allows changing the visible title of a system role without changing its code", async () => {
+    const systemRole = role({ name: RoleTypes.PartnerManager });
+    repository.findOne.mockResolvedValue(systemRole);
+
+    await service.update(10, { display_name: "Менеджер партнёров" });
+
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: RoleTypes.PartnerManager,
+        display_name: "Менеджер партнёров",
+      }),
+    );
   });
 
   it("checks both primary and secondary assignments before deletion", async () => {
@@ -82,8 +97,27 @@ describe("RoleService lifecycle", () => {
 
     await expect(service.create({
       name: "custom_reviewer",
+      display_name: "Проверяющий",
       description: "Reviewer",
     })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("copies a role with its permissions and a unique custom code", async () => {
+    const permission = { id: 5, name: "api.portal-news.read" };
+    repository.findOne
+      .mockResolvedValueOnce(role({ permissions: [permission] }))
+      .mockResolvedValueOnce(null);
+
+    await service.copy(10);
+
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "custom_reviewer_copy",
+        display_name: "Проверяющий (копия)",
+        permissions: [permission],
+      }),
+    );
+    expect(repository.save).toHaveBeenCalled();
   });
 
   it("reports unique users across primary and secondary assignments", async () => {

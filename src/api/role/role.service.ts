@@ -36,6 +36,7 @@ export class RoleService {
       // Создаем новую роль
       const role = this.roleRepository.create({
         name: createRoleDto.name,
+        display_name: createRoleDto.display_name || createRoleDto.name,
         description: createRoleDto.description,
       });
 
@@ -109,6 +110,19 @@ export class RoleService {
     return await this.roleRepository.save(role);
   }
 
+  async copy(id: number): Promise<RoleEntity> {
+    const source = await this.findOne(id);
+    const name = await this.getAvailableCopyName(source.name);
+    const copiedRole = this.roleRepository.create({
+      name,
+      display_name: `${source.display_name || source.name} (копия)`,
+      description: source.description,
+      permissions: [...(source.permissions || [])],
+    });
+
+    return this.roleRepository.save(copiedRole);
+  }
+
   async remove(id: number): Promise<void> {
     const role = await this.findOne(id);
 
@@ -174,6 +188,7 @@ export class RoleService {
     return roles.map(role => ({
       id: role.id,
       name: role.name,
+      display_name: role.display_name || role.name,
       description: role.description,
       created_at: role.created_at,
       updated_at: role.updated_at,
@@ -224,5 +239,19 @@ export class RoleService {
       ...(role?.users || []).map(user => user.id),
       ...(role?.user_roles || []).map(userRole => userRole.user_id),
     ]);
+  }
+
+  private async getAvailableCopyName(sourceName: string): Promise<string> {
+    const base = `${sourceName}_copy`.slice(0, 50);
+    for (let index = 1; index <= 999; index += 1) {
+      const suffix = index === 1 ? "" : `_${index}`;
+      const candidate = `${base.slice(0, 50 - suffix.length)}${suffix}`;
+      const existingRole = await this.roleRepository.findOne({
+        where: { name: candidate },
+        withDeleted: true,
+      });
+      if (!existingRole) return candidate;
+    }
+    throw new ConflictException("Не удалось подобрать свободный код для копии роли");
   }
 }

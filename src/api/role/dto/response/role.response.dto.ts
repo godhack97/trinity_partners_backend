@@ -6,4 +6,8 @@ export class RoleResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   name: string;
+
+  @ApiProperty()
+  @Expose()
+  display_name?: string;
 }

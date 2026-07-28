@@ -83,13 +83,21 @@ export class RoleController {
     return this.roleService.update(id, updateRoleDto);
   }
 
+  @Post(':id/copy')
+  @RequirePermissions('api.roles.write')
+  @ApiOperation({ summary: 'Копировать роль вместе с правами' })
+  @ApiResponse({ status: 201, description: 'Копия роли создана' })
+  copy(@Param('id', ParseIntPipe) id: number) {
+    return this.roleService.copy(id);
+  }
+
   @Delete(':id')
   @RequirePermissions('api.roles.remove')
-  @ApiOperation({ summary: 'Удалить роль' })
-  @ApiResponse({ status: 200, description: 'Роль удалена' })
+  @ApiOperation({ summary: 'Архивировать роль' })
+  @ApiResponse({ status: 200, description: 'Роль архивирована' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.roleService.remove(id);
-    return { message: 'Роль успешно удалена' };
+    return { message: 'Роль успешно архивирована' };
   }
 
   @Post(':id/restore')

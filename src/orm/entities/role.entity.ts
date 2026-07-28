@@ -11,6 +11,9 @@ export class RoleEntity {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  display_name?: string;
+
   @Column({ type: 'text', nullable: true })
   description?: string;
 
