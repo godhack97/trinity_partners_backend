@@ -24,14 +24,37 @@ const role = (name: string, permissions: string[] = []) => ({
 
 describe("RoleGuard configurable admin sections", () => {
   const reflector = {
-    getAllAndOverride: jest.fn().mockReturnValue([RoleTypes.SuperAdmin]),
+    getAllAndOverride: jest.fn((key) =>
+      key === "accepted_roles" ? [RoleTypes.SuperAdmin] : undefined,
+    ),
   };
   const userRepository = {
     findByIdWithPermissions: jest.fn(),
   };
   const guard = new RoleGuard(userRepository as any, reflector as any);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    reflector.getAllAndOverride.mockImplementation((key) =>
+      key === "accepted_roles" ? [RoleTypes.SuperAdmin] : undefined,
+    );
+  });
+
+  it("does not let configurable permissions bypass a strict super-admin endpoint", async () => {
+    reflector.getAllAndOverride.mockImplementation((key) =>
+      key === "accepted_roles" || key === "strict_roles"
+        ? [RoleTypes.SuperAdmin]
+        : undefined,
+    );
+    userRepository.findByIdWithPermissions.mockResolvedValue({
+      role: role(RoleTypes.EmployeeAdmin, ["system.admin-employees.write"]),
+      roles: [],
+    });
+
+    await expect(
+      guard.canActivate(makeContext("/api/admin/user/all/12", "PATCH")),
+    ).rejects.toBeInstanceOf(HttpException);
+  });
 
   it("allows an internal role when the section permission is assigned", async () => {
     userRepository.findByIdWithPermissions.mockResolvedValue({

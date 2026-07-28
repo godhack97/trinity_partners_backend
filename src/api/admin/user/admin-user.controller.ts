@@ -15,6 +15,10 @@ import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { UpdateCompanyEmployeeRequestDto } from "./dto/request/update-company-employee.request.dto";
+import { AllUserFilterRequestDto } from "./dto/request/all-user-filter.request.dto";
+import { UpdateAnyUserRequestDto } from "./dto/request/update-any-user.request.dto";
+import { LogAction } from "@app/logs/log-action.decorator";
+import { StrictRoles } from "@decorators/StrictRoles";
 
 @ApiTags("user")
 @ApiBearerAuth()
@@ -27,6 +31,29 @@ export class AdminUserController {
   @ApiResponse({ type: PaginationResponseDto })
   findAll(@Query() filters: UserFilterRequestDto) {
     return this.adminUserRequest.find(filters);
+  }
+
+  @Get("all")
+  @StrictRoles([RoleTypes.SuperAdmin])
+  findAllUsers(@Query() filters: AllUserFilterRequestDto) {
+    return this.adminUserRequest.findAllUsers(filters);
+  }
+
+  @Patch("all/:id")
+  @StrictRoles([RoleTypes.SuperAdmin])
+  @LogAction("admin_user_update", "users")
+  updateAnyUser(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: UpdateAnyUserRequestDto,
+  ) {
+    return this.adminUserRequest.updateAnyUser(id, body);
+  }
+
+  @Post("all/:id/reset-password")
+  @StrictRoles([RoleTypes.SuperAdmin])
+  @LogAction("admin_user_password_reset", "users")
+  resetPassword(@Param("id", ParseIntPipe) id: number) {
+    return this.adminUserRequest.resetPassword(id);
   }
 
   @Patch(":id")

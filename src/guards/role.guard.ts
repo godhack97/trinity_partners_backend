@@ -10,6 +10,7 @@ import { UserRepository } from "src/orm/repositories/user.repository";
 import { ACCEPTED_ROLES } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { getAdminSectionPermission } from "@app/access/admin-section-permissions";
+import { STRICT_ROLES } from "@decorators/StrictRoles";
 
 @Injectable()
 export class RoleGuard implements CanActivate {
@@ -23,8 +24,12 @@ export class RoleGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+    const strictRoles = this.reflector.getAllAndOverride<string[]>(STRICT_ROLES, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
-    if (!roles || roles.length == 0) return true;
+    if ((!roles || roles.length == 0) && !strictRoles?.length) return true;
 
     const request = context.switchToHttp().getRequest();
 
@@ -38,6 +43,14 @@ export class RoleGuard implements CanActivate {
     ].filter(Boolean);
 
     if (userRoleNames.includes(RoleTypes.SuperAdmin)) return true;
+
+    if (strictRoles?.length) {
+      if (strictRoles.some((role) => userRoleNames.includes(role))) return true;
+      throw new HttpException(
+        "Эта операция доступна только супер-администратору",
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     const sectionPermission = getAdminSectionPermission(
       request.originalUrl || request.url || "",

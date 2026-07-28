@@ -76,9 +76,15 @@ export default class AdminPartnerService {
       "validator.id = cmp.validated_by_manager_id",
     );
   
-    qb.andWhere("usr.email_confirmed = 1");
+    if (!filters?.partnership_type) {
+      qb.andWhere("usr.email_confirmed = 1");
+    }
   
     filters?.status && qb.andWhere("cmp.status = :s", { s: filters.status });
+    filters?.partnership_type &&
+      qb.andWhere("cmp.partnership_type = :partnershipType", {
+        partnershipType: filters.partnership_type,
+      });
   
     const companies = await qb.getMany();
   

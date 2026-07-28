@@ -32,10 +32,14 @@ describe("AdminUserService", () => {
     findCompanyEmployeeByEmployeeId: jest.fn(),
     update: jest.fn(),
   };
+  const dataSource = {
+    transaction: jest.fn(),
+  };
 
   const service = new AdminUserService(
     userRepository as any,
     companyEmployeeRepository as any,
+    dataSource as any,
   );
 
   beforeEach(() => {
