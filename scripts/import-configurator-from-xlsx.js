@@ -220,10 +220,6 @@ function platformMode(code) {
   return code === "ER225HTR-M8" ? "ocp_only" : "standard";
 }
 
-function platformActive(code) {
-  return code !== "ER225HTR-M8";
-}
-
 function frontAllowedDriveTypes(code) {
   if (code.includes("ER225HR")) return ["NVME"];
   if (code.includes("ER225HTR")) return ["SATA"];
@@ -534,7 +530,7 @@ async function importDataset(connection, dataset) {
       base_power_w: platform.basePowerW,
       direct_sata_limit: platform.code.includes("ER225HTR") ? 2 : platform.code.includes("ER220") ? generationMeta.directSataLimit : 0,
       internal_m2_bays: platform.m2,
-      is_active: platformActive(platform.code),
+      is_active: true,
     });
 
     await insertPlatformBays(connection, profileId, platform);
