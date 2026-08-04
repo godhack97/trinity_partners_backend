@@ -4,6 +4,7 @@ import { CompanyEntity, CustomerEntity, DistributorEntity, UserEntity } from "."
 import { DeleteDateColumn } from "typeorm";
 
 export enum DealStatus {
+  Draft = "draft",
   Registered = "registered",
   Canceled = "canceled",
   Moderation = "moderation",
@@ -12,6 +13,7 @@ export enum DealStatus {
 }
 
 export const DealStatusRu = {
+  draft: "черновик",
   registered: "зарегистрирована",
   canceled: "не зарегистрирована",
   moderation: "на рассмотрении",
@@ -178,7 +180,7 @@ export class DealEntity extends BasisEntity {
   @Column({
     type: "enum",
     enum: DealStatus,
-    default: DealStatus.Moderation,
+    default: DealStatus.Draft,
   })
   status: DealStatus;
 

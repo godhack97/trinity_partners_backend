@@ -8,6 +8,10 @@ export class DealStatisticsResponseDto {
 
   @ApiProperty()
   @Expose()
+  draft: number;
+
+  @ApiProperty()
+  @Expose()
   registered: number;
 
   @ApiProperty()

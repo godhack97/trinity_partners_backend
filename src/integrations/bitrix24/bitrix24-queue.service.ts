@@ -7,7 +7,7 @@ import {
   UserRepository,
   CustomerRepository,
 } from "@orm/repositories";
-import { Bitrix24SyncStatus } from "@orm/entities";
+import { Bitrix24SyncStatus, DealStatus } from "@orm/entities";
 import { IsNull, Not } from "typeorm";
 import { UserActionsService } from "../../logs/user-actions.service";
 
@@ -36,14 +36,17 @@ export class Bitrix24QueueService {
     try {
       const pendingDeals = await this.dealRepository.findBy({
         bitrix24_sync_status: Bitrix24SyncStatus.PENDING,
+        status: Not(DealStatus.Draft),
       });
 
       const failedDeals = await this.dealRepository.findBy({
         bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
+        status: Not(DealStatus.Draft),
       });
 
       const nullDeals = await this.dealRepository.findBy({
         bitrix24_sync_status: IsNull(),
+        status: Not(DealStatus.Draft),
       });
 
       const allDealsToSync = [...pendingDeals, ...failedDeals, ...nullDeals];
@@ -67,6 +70,11 @@ export class Bitrix24QueueService {
    * Синхронизация одного лида
    */
   private async syncSingleLead(deal: any): Promise<boolean> {
+    if (deal.status === DealStatus.Draft) {
+      this.logger.warn(`Черновик сделки ${deal.id} не отправлен в Bitrix24`);
+      return false;
+    }
+
     try {
       this.logger.log(`Синхронизируем лид для сделки ID: ${deal.id}`);
 
@@ -220,6 +228,11 @@ export class Bitrix24QueueService {
       const deal = await this.dealRepository.findOneBy({ id: dealId });
       if (!deal) {
         this.logger.error(`Сделка ${dealId} не найдена`);
+        return false;
+      }
+
+      if (deal.status === DealStatus.Draft) {
+        this.logger.warn(`Черновик сделки ${dealId} нельзя синхронизировать`);
         return false;
       }
 
@@ -413,6 +426,7 @@ export class Bitrix24QueueService {
     try {
       const failedDeals = await this.dealRepository.findBy({
         bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
+        status: Not(DealStatus.Draft),
       });
 
       this.logger.log(
@@ -452,18 +466,23 @@ export class Bitrix24QueueService {
    */
   async getSyncStatistics(): Promise<any> {
     try {
-      const totalDeals = await this.dealRepository.count();
+      const totalDeals = await this.dealRepository.countBy({
+        status: Not(DealStatus.Draft),
+      });
 
       const syncedLeads = await this.dealRepository.countBy({
         bitrix24_sync_status: Bitrix24SyncStatus.SYNCED,
+        status: Not(DealStatus.Draft),
       });
 
       const pendingLeads = await this.dealRepository.countBy({
         bitrix24_sync_status: Bitrix24SyncStatus.PENDING,
+        status: Not(DealStatus.Draft),
       });
 
       const failedLeads = await this.dealRepository.countBy({
         bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
+        status: Not(DealStatus.Draft),
       });
 
       const convertedLeads = await this.dealRepository
@@ -507,6 +526,9 @@ export class Bitrix24QueueService {
         .createQueryBuilder("deal")
         .where("deal.bitrix24_sync_status = :status", {
           status: Bitrix24SyncStatus.FAILED,
+        })
+        .andWhere("deal.status != :draftStatus", {
+          draftStatus: DealStatus.Draft,
         })
         .andWhere(
           "deal.bitrix24_synced_at < :date OR deal.bitrix24_synced_at IS NULL",
@@ -563,6 +585,9 @@ export class Bitrix24QueueService {
         .createQueryBuilder("deal")
         .where("deal.bitrix24_sync_status = :status", {
           status: Bitrix24SyncStatus.SYNCED,
+        })
+        .andWhere("deal.status != :draftStatus", {
+          draftStatus: DealStatus.Draft,
         })
         .andWhere("deal.bitrix24_deal_id IS NOT NULL")
         .getMany();

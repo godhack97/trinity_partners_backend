@@ -177,4 +177,10 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   can_update_fields: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю отправить черновик сделки",
+  })
+  @Expose()
+  can_submit: boolean;
 }

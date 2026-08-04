@@ -1,4 +1,4 @@
-import { Bitrix24SyncStatus } from "@orm/entities";
+import { Bitrix24SyncStatus, DealStatus } from "@orm/entities";
 import { Bitrix24QueueService } from "./bitrix24-queue.service";
 
 describe("Bitrix24QueueService manual sync results", () => {
@@ -91,6 +91,19 @@ describe("Bitrix24QueueService manual sync results", () => {
       bitrix24_sync_status: Bitrix24SyncStatus.FAILED,
     });
     expect(bitrix24Service.createLead).not.toHaveBeenCalled();
+  });
+
+  it("never force-syncs a draft deal", async () => {
+    dealRepository.findOneBy.mockResolvedValue({
+      ...deal(41),
+      status: DealStatus.Draft,
+    });
+
+    await expect(service.forceSyncLead(41)).resolves.toBe(false);
+
+    expect(userRepository.findOneBy).not.toHaveBeenCalled();
+    expect(bitrix24Service.createLead).not.toHaveBeenCalled();
+    expect(dealRepository.update).not.toHaveBeenCalled();
   });
 
   it("reports mixed force-all outcomes instead of counting every call as success", async () => {

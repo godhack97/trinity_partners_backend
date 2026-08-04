@@ -100,6 +100,17 @@ export class DealController {
     return this.dealService.create(auth_user, createDealDto);
   }
 
+  @Post(":id/submit")
+  @RequirePermissions('api.deals.write')
+  @LogAction("deal_submit", "deals")
+  @ApiResponse({ type: DealResponseDto })
+  submit(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.submit(+id, auth_user);
+  }
+
   // Тестирование интеграции Bitrix24
   @Get("bitrix24/test")
   @RequirePermissions('system.integrations.write')

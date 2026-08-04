@@ -212,12 +212,6 @@ export class DealService {
       );
     }
 
-    const bitrix24IntegratorContactId =
-      await this.bitrix24Service.findOrCreateIntegratorContact({
-        name: integratorName,
-        inn: integratorInn,
-      });
-
     if (!customer) {
       throw new HttpException(
         "Произошла ошибка при создании заказчика",
@@ -254,7 +248,7 @@ export class DealService {
       integrator_company_id: integratorCompany?.id || null,
       integrator_name: integratorName,
       integrator_inn: integratorInn,
-      bitrix24_integrator_contact_id: bitrix24IntegratorContactId,
+      status: DealStatus.Draft,
       deal_type: this.isTrinityStaffDealCreator(auth_user)
         ? DealType.TrinityStaff
         : DealType.Partner,
@@ -275,23 +269,85 @@ export class DealService {
       auth_user.id,
     );
 
-    this.sendLeadToBitrix24(savedDeal, customer, distributor, auth_user).catch(
+    return savedDeal;
+  }
+
+  async submit(dealId: number, auth_user: UserEntity) {
+    const deal = await this.findOne(dealId, auth_user);
+
+    if (deal.creator_id !== auth_user.id) {
+      throw new HttpException(
+        "Отправить сделку может только её создатель",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (deal.status !== DealStatus.Draft) {
+      throw new HttpException(
+        "Отправить можно только черновик сделки",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const customer =
+      deal.customer || (await this.customerRepository.findById(deal.customer_id));
+    const distributor =
+      deal.distributor ||
+      (await this.distributorRepository.findById(deal.distributor_id));
+    const integratorCompany = deal.integrator_company_id
+      ? await this.companyRepository.findById(deal.integrator_company_id)
+      : null;
+    const integratorName = integratorCompany?.name || deal.integrator_name;
+    const integratorInn = integratorCompany?.inn || deal.integrator_inn;
+
+    if (!customer || !distributor || !integratorName || !integratorInn) {
+      throw new HttpException(
+        "Заполните заказчика, дистрибьютора и интегратора перед отправкой",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const bitrix24IntegratorContactId =
+      await this.bitrix24Service.findOrCreateIntegratorContact({
+        name: integratorName,
+        inn: integratorInn,
+      });
+
+    const submitPatch = {
+      status: DealStatus.Moderation,
+      integrator_company_id: integratorCompany?.id || null,
+      integrator_name: integratorName,
+      integrator_inn: integratorInn,
+      bitrix24_integrator_contact_id: bitrix24IntegratorContactId,
+      bitrix24_sync_status: Bitrix24SyncStatus.PENDING,
+    };
+    const updatedDeal = await this.dealRepository.update(dealId, submitPatch);
+
+    if (updatedDeal.affected === 0) {
+      throw new HttpException(
+        "Не удалось отправить сделку",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    Object.assign(deal, submitPatch);
+    const authUserCompany = await this.getUserCompany(auth_user);
+    const duplicateInnDeal = deal.duplicate_of_deal_id
+      ? await this.dealRepository.findById(deal.duplicate_of_deal_id)
+      : null;
+
+    this.sendLeadToBitrix24(deal, customer, distributor, auth_user).catch(
       (error) => {
         this.logger.error(
-          `Ошибка отправки лида для сделки ${savedDeal.id} в Bitrix24:`,
+          `Ошибка отправки лида для сделки ${deal.id} в Bitrix24:`,
           error,
         );
       },
     );
 
-    await this.notifyAdminsAboutNewDeal(
-      savedDeal,
-      customer,
-      distributor,
-      auth_user,
-    );
+    await this.notifyAdminsAboutNewDeal(deal, customer, distributor, auth_user);
     await this.notifyCounterpartyAdminsAboutNewDeal(
-      savedDeal,
+      deal,
       authUserCompany,
       distributor,
       integratorCompany,
@@ -299,12 +355,12 @@ export class DealService {
       integratorInn,
     );
     await this.notifyManagerAboutDuplicateCustomerInn(
-      savedDeal,
+      deal,
       duplicateInnDeal,
       auth_user,
     );
 
-    return savedDeal;
+    return this.findOne(dealId, auth_user);
   }
 
   private async linkConfiguratorDraftsToDeal(
@@ -768,6 +824,8 @@ export class DealService {
           deal,
           auth_user,
         ),
+        can_submit:
+          deal.status === DealStatus.Draft && deal.creator_id === auth_user.id,
       });
     }
 
@@ -776,6 +834,7 @@ export class DealService {
         can_update_status: false,
         can_update_fields: false,
         can_update_configurations: false,
+        can_submit: false,
       });
     }
 
@@ -804,6 +863,7 @@ export class DealService {
           can_update_status: false,
           can_update_fields: false,
           can_update_configurations: false,
+          can_submit: false,
         });
       }
 
@@ -841,6 +901,8 @@ export class DealService {
             deal,
             auth_user,
           ),
+          can_submit:
+            deal.status === DealStatus.Draft && deal.creator_id === auth_user.id,
         });
       }
 
@@ -864,6 +926,8 @@ export class DealService {
             deal,
             auth_user,
           ),
+          can_submit:
+            deal.status === DealStatus.Draft && deal.creator_id === auth_user.id,
         });
       }
       throw new HttpException(
@@ -882,6 +946,7 @@ export class DealService {
     const dealsData = await this.findAll(auth_user);
     const statistic: DealStatisticsResponseDto = {
       allCount: dealsData.length,
+      draft: dealsData.filter((el) => el.status === DealStatus.Draft).length,
       canceled: dealsData.filter((el) => el.status === DealStatus.Canceled)
         .length,
       registered: dealsData.filter((el) => el.status === DealStatus.Registered)
@@ -1134,6 +1199,13 @@ export class DealService {
   ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
 
+    if (deal.status === DealStatus.Draft || status === DealStatus.Draft) {
+      throw new HttpException(
+        "Черновик можно отправить только кнопкой «Отправить»",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     if (!(await this.canUpdateDealStatus(deal, auth_user))) {
       throw new HttpException(
         "У вас недостаточно прав для изменения этапа сделки",
@@ -1330,7 +1402,10 @@ export class DealService {
       );
     }
 
-    if (dealPatch.integrator_inn || dealPatch.integrator_name) {
+    if (
+      deal.status !== DealStatus.Draft &&
+      (dealPatch.integrator_inn || dealPatch.integrator_name)
+    ) {
       dealPatch.bitrix24_integrator_contact_id =
         await this.bitrix24Service.findOrCreateIntegratorContact({
           name: nextIntegratorName || "",
@@ -1343,10 +1418,7 @@ export class DealService {
     }
 
     if (hasChanges) {
-      dealPatch.status =
-        deal.status === DealStatus.Moderation
-          ? deal.status
-          : DealStatus.Moderation;
+      dealPatch.status = this.getStatusAfterContentChange(deal.status);
 
       const updatedDeal = await this.dealRepository.update(dealId, dealPatch);
 
@@ -1421,10 +1493,7 @@ export class DealService {
         ...currentConfigurations,
         ...incomingConfigurations,
       ] as unknown[],
-      status:
-        deal.status === DealStatus.Moderation
-          ? deal.status
-          : DealStatus.Moderation,
+      status: this.getStatusAfterContentChange(deal.status),
     });
 
     if (updatedDeal.affected === 0) {
@@ -1468,10 +1537,7 @@ export class DealService {
 
     const updatedDeal = await this.dealRepository.update(dealId, {
       configurations: nextConfigurations as unknown[],
-      status:
-        deal.status === DealStatus.Moderation
-          ? deal.status
-          : DealStatus.Moderation,
+      status: this.getStatusAfterContentChange(deal.status),
     });
 
     if (updatedDeal.affected === 0) {
@@ -1530,10 +1596,7 @@ export class DealService {
 
     const updatedDeal = await this.dealRepository.update(dealId, {
       configurations: nextConfigurations as unknown[],
-      status:
-        deal.status === DealStatus.Moderation
-          ? deal.status
-          : DealStatus.Moderation,
+      status: this.getStatusAfterContentChange(deal.status),
     });
 
     if (updatedDeal.affected === 0) {
@@ -1852,6 +1915,8 @@ export class DealService {
     attachment: any,
     actor: UserEntity,
   ) {
+    if (deal.status === DealStatus.Draft) return;
+
     const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
     const actorName = this.getActorName(actor);
 
@@ -1881,6 +1946,8 @@ export class DealService {
     text: string,
     actor: UserEntity,
   ) {
+    if (deal.status === DealStatus.Draft) return;
+
     const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
 
     await Promise.all(
@@ -1987,6 +2054,14 @@ export class DealService {
     }
 
     return false;
+  }
+
+  private getStatusAfterContentChange(status: DealStatus) {
+    if (status === DealStatus.Draft || status === DealStatus.Moderation) {
+      return status;
+    }
+
+    return DealStatus.Moderation;
   }
 
   private canUpdateDealConfigurations(deal: any, auth_user: UserEntity) {
@@ -2130,6 +2205,12 @@ export class DealService {
     auth_user: UserEntity,
   ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
+    if (deal.status === DealStatus.Draft) {
+      throw new HttpException(
+        "Сначала отправьте черновик сделки",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const customer = await this.customerRepository.findById(deal.customer_id);
     const distributor = await this.distributorRepository.findById(
       deal.distributor_id,
