@@ -28,7 +28,7 @@ export class SearchController {
       ? Math.max(parsedPage, 1)
       : 1;
 
-    if (!q || q.trim().length < 3) {
+    if (!q || q.trim().length < 1) {
       return {
         deals: [],
         configurations: [],
