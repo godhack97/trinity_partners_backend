@@ -7,7 +7,7 @@ import {
 } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsOptional } from "class-validator";
+import { IsArray, IsOptional, IsString } from "class-validator";
 import { ValidateNested } from "class-validator";
 import { DealConfigurationDto } from "./deal-configuration.dto";
 import { AddDealAttachmentDto } from "./add-deal-attachment.dto";
@@ -17,6 +17,11 @@ export class CreateDealDto {
   @IsOptional()
   @IsNumberRu()
   distributor_id?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumberRu()
+  distributor_company_id?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -39,6 +44,8 @@ export class CreateDealDto {
   customer: CreateCustomerDto;
 
   @ApiProperty()
+  @IsOptional()
+  @IsString()
   title?: string;
 
   @ApiProperty()
@@ -47,6 +54,8 @@ export class CreateDealDto {
   deal_sum: number;
 
   @ApiProperty()
+  @IsOptional()
+  @IsString()
   competition_link?: string;
 
   @ApiProperty({ required: false })
@@ -68,6 +77,8 @@ export class CreateDealDto {
   purchase_date: Date;
 
   @ApiProperty()
+  @IsOptional()
+  @IsString()
   comment?: string;
 
   @ApiProperty({ required: false, type: () => [AddDealAttachmentDto] })

@@ -14,6 +14,9 @@ export class CustomerEntity extends BasisEntity {
   @Column()
   inn: string;
 
+  @Column({ type: "varchar", length: 12, nullable: true })
+  inn_normalized?: string | null;
+
   @Column()
   company_name: string;
 

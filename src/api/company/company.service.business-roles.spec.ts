@@ -24,6 +24,18 @@ const makeService = (overrides: Record<string, any> = {}) => {
   const companyEmployeeRepository = {
     findAllCompanyEmployeesWithUsersAndInfo: jest.fn().mockResolvedValue([]),
     findCompanyEmployeesByCompanyId: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockImplementation(async ({ where }: any) =>
+      where.company_id === 10 &&
+      where.employee_id === 20 &&
+      where.status === CompanyEmployeeStatus.Accept
+        ? {
+            id: 30,
+            company_id: 10,
+            employee_id: 20,
+            status: CompanyEmployeeStatus.Accept,
+          }
+        : null,
+    ),
     findCompanyEmployeeByEmployeeId: jest
       .fn()
       .mockResolvedValue({ company_id: 10 }),
@@ -52,12 +64,6 @@ const makeService = (overrides: Record<string, any> = {}) => {
     save: jest.fn().mockResolvedValue({}),
     ...overrides.userRoleRepository,
   };
-  const dealRepository = {
-    find: jest.fn().mockResolvedValue([]),
-    update: jest.fn().mockResolvedValue({ affected: 0 }),
-    ...overrides.dealRepository,
-  };
-
   return {
     service: new CompanyService(
       userRepository as any,
@@ -69,7 +75,6 @@ const makeService = (overrides: Record<string, any> = {}) => {
       emailConfirmerService as any,
       notificationService as any,
       userRoleRepository as any,
-      dealRepository as any,
     ),
     mocks: {
       userRepository,
@@ -77,6 +82,8 @@ const makeService = (overrides: Record<string, any> = {}) => {
       companyEmployeeRepository,
       roleRepository,
       userRoleRepository,
+      emailConfirmerService,
+      notificationService,
     },
   };
 };
@@ -84,9 +91,10 @@ const makeService = (overrides: Record<string, any> = {}) => {
 const employee = (roles: RoleTypes[] = [RoleTypes.SalesManager]) =>
   ({
     id: 20,
+    email: "employee@example.test",
     role: { name: RoleTypes.Employee },
     roles: roles.map((name) => ({ name })),
-    company_employee: { id: 30 },
+    company_employee: { id: 30, company_id: 10 },
   }) as any;
 
 describe("CompanyService business roles", () => {
@@ -219,5 +227,100 @@ describe("CompanyService business roles", () => {
     await expect(service.removeEmployee({} as any, 20)).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it("запрещает менять роль сотрудника из другой компании по прямому id", async () => {
+    const { service, mocks } = makeService({
+      userRepository: {
+        findByIdWithCompanyEmployees: jest.fn().mockResolvedValue(employee()),
+      },
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockResolvedValue(null),
+      },
+    });
+
+    await expect(
+      service.changeStatusEmployeeAdmin({} as any, 20, {
+        isEmployeeAdmin: true,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(
+      mocks.userRepository.findByIdWithCompanyEmployees,
+    ).not.toHaveBeenCalled();
+    expect(mocks.userRepository.update).not.toHaveBeenCalled();
+  });
+
+  it("запрещает удалять заблокированного участника даже из своей компании", async () => {
+    const { service, mocks } = makeService({
+      userRepository: {
+        findByIdWithCompanyEmployees: jest.fn().mockResolvedValue(employee()),
+      },
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockResolvedValue(null),
+      },
+    });
+
+    await expect(service.removeEmployee({} as any, 20)).rejects.toMatchObject({
+      status: 403,
+    });
+
+    expect(mocks.userRepository.update).not.toHaveBeenCalled();
+    expect(mocks.companyEmployeeRepository.update).not.toHaveBeenCalled();
+  });
+
+  it("запрещает удалять сотрудника другой компании по прямому id", async () => {
+    const { service, mocks } = makeService({
+      userRepository: {
+        findByIdWithCompanyEmployees: jest.fn().mockResolvedValue(employee()),
+      },
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockImplementation(async ({ where }: any) =>
+          where.company_id === 11
+            ? {
+                id: 31,
+                company_id: 11,
+                employee_id: 20,
+                status: CompanyEmployeeStatus.Accept,
+              }
+            : null,
+        ),
+      },
+    });
+
+    await expect(service.removeEmployee({} as any, 20)).rejects.toMatchObject({
+      status: 403,
+    });
+
+    expect(
+      mocks.userRepository.findByIdWithCompanyEmployees,
+    ).not.toHaveBeenCalled();
+    expect(mocks.companyEmployeeRepository.update).not.toHaveBeenCalled();
+    expect(mocks.emailConfirmerService.emailSend).not.toHaveBeenCalled();
+  });
+
+  it("блокирует сотрудника без переназначения авторства его сделок", async () => {
+    const { service, mocks } = makeService({
+      userRepository: {
+        findByIdWithCompanyEmployees: jest.fn().mockResolvedValue(employee()),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
+      },
+      companyRepository: {
+        findOne: jest.fn().mockResolvedValue(null),
+      },
+    });
+
+    await expect(service.removeEmployee({} as any, 20)).resolves.toEqual({
+      message: "Cотрудник c 20 был успешно удален",
+      succes: true,
+    });
+
+    expect(mocks.userRepository.update).toHaveBeenCalledWith(20, {
+      role: expect.objectContaining({ name: RoleTypes.Employee }),
+    });
+    expect(mocks.companyEmployeeRepository.update).toHaveBeenCalledWith(30, {
+      status: CompanyEmployeeStatus.Blocked,
+    });
+    expect(mocks.notificationService.send).not.toHaveBeenCalled();
   });
 });

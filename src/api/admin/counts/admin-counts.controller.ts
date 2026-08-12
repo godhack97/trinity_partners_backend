@@ -57,7 +57,7 @@ export class AdminCountsController {
     const sections: Promise<void>[] = [];
 
     if (isSuperAdmin) {
-      sections.push(this.loadSuperAdminCounts(response));
+      sections.push(this.loadSuperAdminCounts(response, authUser));
     }
     if (isSuperAdmin) {
       sections.push(this.loadPartnerCounts(response, isSuperAdmin));
@@ -103,7 +103,10 @@ export class AdminCountsController {
     };
   }
 
-  private async loadSuperAdminCounts(response: AdminCountsResponseDto) {
+  private async loadSuperAdminCounts(
+    response: AdminCountsResponseDto,
+    authUser: UserEntity,
+  ) {
     const [
       adminCount,
       rolesCounts,
@@ -136,12 +139,12 @@ export class AdminCountsController {
       this.configuratorService.getComponentsCount(),
       this.configuratorService.componentstypesCount(),
       this.distributorService.getCount(),
-      this.dealService.getCount(),
-      this.dealService.getModerationCount(),
-      this.dealService.getRegisteredCount(),
-      this.dealService.getCanceledCount(),
-      this.dealService.getWinCount(),
-      this.dealService.getLooseCount(),
+      this.dealService.getCount(authUser),
+      this.dealService.getModerationCount(authUser),
+      this.dealService.getRegisteredCount(authUser),
+      this.dealService.getCanceledCount(authUser),
+      this.dealService.getWinCount(authUser),
+      this.dealService.getLooseCount(authUser),
       this.dealService.getRequestDeletedCount(),
       this.userActionsService.getCount(),
     ]);

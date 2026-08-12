@@ -21,4 +21,31 @@ describe("ReviewDealDuplicateDto", () => {
     );
     expect(errors.some(({ property }) => property === "status")).toBe(true);
   });
+
+  it("accepts an optional review comment up to 1000 characters", async () => {
+    const withoutComment = plainToInstance(ReviewDealDuplicateDto, {
+      status: DealDuplicateReviewStatus.NotDuplicate,
+    });
+    const atLimit = plainToInstance(ReviewDealDuplicateDto, {
+      status: DealDuplicateReviewStatus.Duplicate,
+      comment: "x".repeat(1000),
+    });
+
+    expect(await validate(withoutComment)).toHaveLength(0);
+    expect(await validate(atLimit)).toHaveLength(0);
+  });
+
+  it.each(["x".repeat(1001), 123])(
+    "rejects invalid review comment %s",
+    async (comment) => {
+      const errors = await validate(
+        plainToInstance(ReviewDealDuplicateDto, {
+          status: DealDuplicateReviewStatus.Duplicate,
+          comment,
+        }),
+      );
+
+      expect(errors.some(({ property }) => property === "comment")).toBe(true);
+    },
+  );
 });

@@ -17,6 +17,8 @@
     "test:admin-access": "npm run build:dev && node scripts/admin-access-smoke.js",
     "test:admin-access:update": "npm run build:dev && node scripts/admin-access-smoke.js --update",
     "test:partner-transition-persistence": "npm run build:dev && node scripts/partner-transition-persistence-smoke.js",
+    "audit:deal-distributors": "node scripts/deal-distributor-company-audit.js",
+    "provision:deal-distributors": "node scripts/distributor-company-provisioning.js",
     "audit:legacy-data": "node scripts/legacy-data-audit.js",
     "backfill:ticket-assignees": "node scripts/ticket-assignee-backfill.js",
     "verify:audit": "npm test -- --runInBand && npm run test:admin-access && npm run test:partner-transition-persistence",

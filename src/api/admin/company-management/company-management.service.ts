@@ -831,14 +831,12 @@ export class CompanyManagementService {
         { acceptedEmployee: CompanyEmployeeStatus.Accept },
       )
       .leftJoin(
-        "distributors",
-        "stats_distributor",
-        "LOWER(stats_distributor.name) = LOWER(stats_company.name) AND stats_distributor.deleted_at IS NULL",
-      )
-      .leftJoin(
         "deals",
         "stats_deal",
-        "(stats_deal.creator_id = stats_employee.employee_id OR stats_deal.integrator_company_id = stats_company.id OR stats_deal.distributor_id = stats_distributor.id) AND stats_deal.deleted_at IS NULL",
+        `(stats_deal.creator_company_id = stats_company.id
+          OR stats_deal.integrator_company_id = stats_company.id
+          OR stats_deal.distributor_company_id = stats_company.id)
+          AND stats_deal.deleted_at IS NULL`,
       )
       .select("stats_company.id", "company_id")
       .addSelect("COUNT(DISTINCT stats_deal.id)", "total")

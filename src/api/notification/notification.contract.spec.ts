@@ -179,4 +179,29 @@ describe("notification contract", () => {
       }),
     ).resolves.toBe(existing);
   });
+
+  it("forwards a delivery key from the public send operation to the web channel", async () => {
+    const service = new NotificationService(
+      { findById: jest.fn().mockResolvedValue({ id: 42, email: "u@test.ru" }) } as any,
+      { findBy: jest.fn().mockResolvedValue([]) } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    const sendWeb = jest.spyOn(service, "sendWeb").mockResolvedValue({} as any);
+
+    await service.send({
+      user_id: 42,
+      title: "Дубль",
+      text: "Найдено похожее обращение",
+      delivery_key: "deal-duplicate:7:42:detected",
+      webOnly: true,
+    });
+
+    expect(sendWeb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delivery_key: "deal-duplicate:7:42:detected",
+      }),
+    );
+  });
 });

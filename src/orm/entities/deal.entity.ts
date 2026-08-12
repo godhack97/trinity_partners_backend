@@ -23,6 +23,7 @@ export const DealStatusRu = {
 
 export enum Bitrix24SyncStatus {
   PENDING = "pending",
+  PROCESSING = "processing",
   SYNCED = "synced",
   FAILED = "failed",
 }
@@ -67,6 +68,25 @@ export class DealEntity extends BasisEntity {
   bitrix24_sync_status: Bitrix24SyncStatus;
 
   @Column({
+    name: "bitrix24_sync_started_at",
+    type: "datetime",
+    precision: 6,
+    nullable: true,
+    comment: "Начало текущей аренды синхронизации с Bitrix24",
+  })
+  bitrix24_sync_started_at?: Date | null;
+
+  @Column({
+    name: "bitrix24_sync_token",
+    type: "varchar",
+    length: 36,
+    nullable: true,
+    select: false,
+    comment: "Токен владельца текущей аренды синхронизации с Bitrix24",
+  })
+  bitrix24_sync_token?: string | null;
+
+  @Column({
     name: "bitrix24_synced_at",
     type: "timestamp",
     nullable: true,
@@ -74,16 +94,27 @@ export class DealEntity extends BasisEntity {
   })
   bitrix24_synced_at?: Date;
 
-  @Column()
-  distributor_id: number;
+  @Column({ type: "int", nullable: true })
+  distributor_id?: number | null;
 
   @ManyToOne(
     () => DistributorEntity,
     (distributor: DistributorEntity) => distributor.id,
-    { eager: true },
+    { eager: true, nullable: true },
   )
   @JoinColumn({ name: "distributor_id" })
-  distributor: DistributorEntity;
+  distributor?: DistributorEntity | null;
+
+  @Column({ type: "int", unsigned: true, nullable: true })
+  distributor_company_id?: number | null;
+
+  @ManyToOne(() => CompanyEntity, (company: CompanyEntity) => company.id, {
+    eager: true,
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "distributor_company_id" })
+  distributor_company?: CompanyEntity | null;
 
   @Column({ nullable: true })
   integrator_company_id?: number;
@@ -121,6 +152,16 @@ export class DealEntity extends BasisEntity {
   @Column()
   creator_id: number;
 
+  @Column({ type: "int", unsigned: true, nullable: true })
+  creator_company_id?: number | null;
+
+  @ManyToOne(() => CompanyEntity, (company: CompanyEntity) => company.id, {
+    nullable: true,
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn({ name: "creator_company_id" })
+  creator_company?: CompanyEntity | null;
+
   @Column({
     type: "enum",
     enum: DealType,
@@ -131,6 +172,16 @@ export class DealEntity extends BasisEntity {
   @ManyToOne(() => UserEntity, (user: UserEntity) => user.id, { eager: true })
   @JoinColumn({ name: "creator_id" })
   partner: UserEntity;
+
+  @Column({ type: "int", unsigned: true, nullable: true })
+  responsible_manager_id?: number | null;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "responsible_manager_id" })
+  responsible_manager?: UserEntity | null;
 
   @Column({ nullable: true })
   title?: string;
@@ -184,8 +235,15 @@ export class DealEntity extends BasisEntity {
   })
   status: DealStatus;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   duplicate_of_deal_id?: number | null;
+
+  @ManyToOne(() => DealEntity, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "duplicate_of_deal_id" })
+  duplicate_of_deal?: DealEntity | null;
 
   @Column({
     type: "enum",
@@ -193,6 +251,22 @@ export class DealEntity extends BasisEntity {
     nullable: true,
   })
   duplicate_review_status?: DealDuplicateReviewStatus | null;
+
+  @Column({ type: "int", unsigned: true, nullable: true })
+  duplicate_reviewed_by_user_id?: number | null;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "duplicate_reviewed_by_user_id" })
+  duplicate_reviewed_by_user?: UserEntity | null;
+
+  @Column({ type: "datetime", nullable: true })
+  duplicate_reviewed_at?: Date | null;
+
+  @Column({ type: "varchar", length: 1000, nullable: true })
+  duplicate_review_comment?: string | null;
 
   @Column({ nullable: true, type: "varchar" })
   special_discount: string | null;

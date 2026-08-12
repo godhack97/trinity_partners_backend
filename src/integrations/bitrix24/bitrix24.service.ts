@@ -11,6 +11,7 @@ import {
   CompanyEntity,
 } from "@orm/entities";
 import { CompanyRepository, CustomerRepository } from "@orm/repositories";
+import { EntityManager } from "typeorm";
 
 export interface Bitrix24LeadData {
   TITLE: string;
@@ -61,6 +62,7 @@ export const DealStatusRu = {
 };
 
 const BITRIX24_CONTACT_PARTNER_INN_FIELD = "UF_CRM_68500D3603B21";
+const BITRIX24_CUSTOMER_COMPANY_INN_FIELD = "UF_CRM_68500D3660B6A";
 
 @Injectable()
 export class Bitrix24Service {
@@ -139,9 +141,14 @@ export class Bitrix24Service {
       return null;
     }
 
-    console.log("userData", userData);
-
     try {
+      // Do not reuse an arbitrary employee contact by the shared company INN:
+      // multiple users may legitimately belong to that company. Until the
+      // integration has a proven stable per-user remote key, the database
+      // lease is the local concurrency boundary and add remains single-shot.
+      const partnerCompany =
+        userData?.owner_company ||
+        (await this.companyRepository.findUniqueAcceptedByUserId(userData.id));
       const contactData = {
         NAME: userData?.info?.first_name || "",
         LAST_NAME: userData?.info?.last_name || "",
@@ -151,11 +158,7 @@ export class Bitrix24Service {
           ? [{ VALUE: userData?.info?.phone, VALUE_TYPE: "WORK" }]
           : undefined,
         [BITRIX24_CONTACT_PARTNER_INN_FIELD]:
-          (
-            await this.companyRepository.findOne({
-              where: { owner_id: userData.id },
-            })
-          )?.inn || "",
+          partnerCompany?.inn || "",
 
         EMAIL: userData?.email
           ? [{ VALUE: userData?.email, VALUE_TYPE: "WORK" }]
@@ -172,12 +175,13 @@ export class Bitrix24Service {
         }
       });
 
-      const response = await this.httpRequestWithRetry(() =>
-        firstValueFrom(
-          this.httpService.post(`${this.webhookUrl}/crm.contact.add.json`, {
-            fields: contactData,
-          }),
-        ),
+      // crm.contact.add is non-idempotent. An uncertain response must not be
+      // retried blindly in-process. Follow-up: introduce a dedicated stable
+      // external-user field in Bitrix24, then recover via exact lookup here.
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.contact.add.json`, {
+          fields: contactData,
+        }),
       );
 
       if (response.data?.result) {
@@ -264,28 +268,31 @@ export class Bitrix24Service {
     const normalizedInn = `${inn || ""}`.trim();
     if (!normalizedInn || !this.webhookUrl) return null;
 
-    try {
-      const response = await this.httpRequestWithRetry(() =>
-        firstValueFrom(
-          this.httpService.post(`${this.webhookUrl}/crm.contact.list.json`, {
-            filter: {
-              [BITRIX24_CONTACT_PARTNER_INN_FIELD]: normalizedInn,
-            },
-            select: ["ID", "NAME", "LAST_NAME", "COMPANY_TITLE"],
-          }),
-        ),
-      );
+    // A lookup failure is not the same as "not found". Let it propagate so
+    // callers never create a second contact after an uncertain search.
+    const response = await this.httpRequestWithRetry(() =>
+      firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.contact.list.json`, {
+          filter: {
+            [`=${BITRIX24_CONTACT_PARTNER_INN_FIELD}`]: normalizedInn,
+          },
+          select: [
+            "ID",
+            "NAME",
+            "LAST_NAME",
+            "COMPANY_TITLE",
+            BITRIX24_CONTACT_PARTNER_INN_FIELD,
+          ],
+          order: { ID: "ASC" },
+        }),
+      ),
+    );
 
-      const result = response.data?.result;
-      const contactId = Array.isArray(result) ? Number(result[0]?.ID) : null;
-      return Number.isInteger(contactId) && contactId > 0 ? contactId : null;
-    } catch (error) {
-      this.logger.error(
-        `Ошибка поиска контакта Bitrix24 по ИНН ${normalizedInn}:`,
-        error.message,
-      );
-      return null;
-    }
+    const result = response.data?.result;
+    const contactId = Array.isArray(result) ? Number(result[0]?.ID) : null;
+    return Number.isSafeInteger(contactId) && contactId > 0
+      ? contactId
+      : null;
   }
 
   async findOrCreateIntegratorContact(input: {
@@ -309,12 +316,13 @@ export class Bitrix24Service {
         [BITRIX24_CONTACT_PARTNER_INN_FIELD]: inn,
       };
 
-      const response = await this.httpRequestWithRetry(() =>
-        firstValueFrom(
-          this.httpService.post(`${this.webhookUrl}/crm.contact.add.json`, {
-            fields: contactData,
-          }),
-        ),
+      // Do not retry a non-idempotent add in-process: a timeout may happen
+      // after Bitrix24 committed the contact. A later attempt must look up by
+      // INN first and reuse the remote record.
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.contact.add.json`, {
+          fields: contactData,
+        }),
       );
 
       if (response.data?.result) {
@@ -356,6 +364,85 @@ export class Bitrix24Service {
       return customerData?.bitrix24_company_id;
     }
 
+    if (customerData?.inn_normalized) {
+      return this.customerRepository.withNormalizedInnRegistryLock(
+        customerData.inn_normalized,
+        async (manager) => {
+          const knownCompany =
+            await this.customerRepository.findBitrixCompanyIdByNormalizedInn(
+              customerData.inn_normalized,
+              manager,
+            );
+          const bitrixCompanyId = Number(
+            knownCompany?.bitrix24_company_id || 0,
+          );
+          if (
+            Number.isSafeInteger(bitrixCompanyId) &&
+            bitrixCompanyId > 0
+          ) {
+            await this.customerRepository.assignBitrixCompanyIdToNormalizedInn(
+              customerData.inn_normalized,
+              bitrixCompanyId,
+              manager,
+            );
+            return bitrixCompanyId;
+          }
+
+          // The authoritative Bitrix lookup is performed while the normalized
+          // INN registry row is locked. This closes the crash window where a
+          // previous leased attempt created the company remotely but failed
+          // before persisting its ID locally.
+          const remoteCompanyId = await this.findCustomerCompanyIdByInn(
+            customerData.inn_normalized,
+          );
+          if (remoteCompanyId) {
+            await this.persistCustomerCompanyId(
+              customerData,
+              remoteCompanyId,
+              manager,
+            );
+            return remoteCompanyId;
+          }
+
+          // The registry row remains locked across the remote add. Other
+          // local workers with this INN wait, then reuse the persisted ID.
+          return this.addCustomerCompany(customerData, manager);
+        },
+      );
+    }
+
+    return this.addCustomerCompany(customerData);
+  }
+
+  /**
+   * Finds a customer company using the exact custom INN field. Lookup errors
+   * intentionally propagate: adding after an uncertain lookup can duplicate a
+   * remote company.
+   */
+  async findCustomerCompanyIdByInn(inn: string): Promise<number | null> {
+    const normalizedInn = `${inn || ""}`.trim();
+    if (!normalizedInn || !this.webhookUrl) return null;
+
+    const response = await this.httpRequestWithRetry(() =>
+      firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.company.list.json`, {
+          filter: {
+            [`=${BITRIX24_CUSTOMER_COMPANY_INN_FIELD}`]: normalizedInn,
+          },
+          select: ["ID", BITRIX24_CUSTOMER_COMPANY_INN_FIELD],
+          order: { ID: "ASC" },
+        }),
+      ),
+    );
+
+    const companyId = Number(response?.data?.result?.[0]?.ID || 0);
+    return Number.isSafeInteger(companyId) && companyId > 0 ? companyId : null;
+  }
+
+  private async addCustomerCompany(
+    customerData: CustomerEntity,
+    persistenceManager?: EntityManager,
+  ): Promise<number | null> {
     try {
       const companyData = {
         TITLE:
@@ -372,7 +459,8 @@ export class Bitrix24Service {
         COMMENTS: `Компания заказчика. ИНН: ${customerData?.inn || "не указан"}`,
         UF_CRM_68500D3655754: customerData?.first_name,
         UF_CRM_68500D365A5DC: customerData?.last_name,
-        UF_CRM_68500D3660B6A: customerData?.inn,
+        [BITRIX24_CUSTOMER_COMPANY_INN_FIELD]:
+          customerData?.inn_normalized || customerData?.inn,
       };
 
       Object.keys(companyData).forEach((key) => {
@@ -381,57 +469,42 @@ export class Bitrix24Service {
         }
       });
 
-      const response = await this.httpRequestWithRetry(() =>
-        firstValueFrom(
-          this.httpService.post(`${this.webhookUrl}/crm.company.add.json`, {
-            fields: companyData,
-          }),
-        ),
+      // crm.company.add is not idempotent. Do not blindly retry an uncertain
+      // request; the next leased attempt will recover via the exact INN lookup
+      // in createCustomerCompany.
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.company.add.json`, {
+          fields: companyData,
+        }),
       );
 
       if (response.data?.result) {
-        const bitrixCompanyId = response.data.result;
+        const bitrixCompanyId = Number(response.data.result);
+        if (!Number.isSafeInteger(bitrixCompanyId) || bitrixCompanyId <= 0) {
+          this.logger.error(
+            "Bitrix24 вернул некорректный ID компании заказчика",
+            response.data.result,
+          );
+          return null;
+        }
         this.logger.log(
           `Компания заказчика создана в Bitrix24 с ID: ${bitrixCompanyId}`,
         );
 
-        // ДОБАВЛЕННЫЕ ЛОГИ ПЕРЕД ОБНОВЛЕНИЕМ
-        console.log("About to update customer with ID:", customerData.id);
-        console.log("Setting bitrix24_company_id to:", bitrixCompanyId);
-
         try {
-          const updateResult = await this.customerRepository.update(
-            customerData.id,
-            {
-              bitrix24_company_id: bitrixCompanyId,
-            },
+          await this.persistCustomerCompanyId(
+            customerData,
+            bitrixCompanyId,
+            persistenceManager,
           );
-
-          console.log("Update result:", updateResult);
-
-          const updatedCustomer = await this.customerRepository.findOne({
-            where: { id: customerData.id },
-          });
-
-          console.log("Updated customer from DB:", {
-            id: updatedCustomer?.id,
-            bitrix24_company_id: updatedCustomer?.bitrix24_company_id,
-          });
-
-          if (!updatedCustomer?.bitrix24_company_id) {
-            this.logger.error(
-              "КРИТИЧЕСКАЯ ОШИБКА: bitrix24_company_id не сохранился в БД!",
-            );
-          }
         } catch (updateError) {
           this.logger.error(
             "Ошибка при обновлении customer в БД:",
             updateError,
           );
-          console.log("Update error details:", updateError);
+          return null;
         }
 
-        console.log("=== END CREATE CUSTOMER COMPANY DEBUG ===");
         return bitrixCompanyId;
       }
 
@@ -445,8 +518,38 @@ export class Bitrix24Service {
         "Ошибка при создании компании заказчика в Bitrix24:",
         error.message,
       );
-      console.log("Full error:", error);
       return null;
+    }
+  }
+
+  private async persistCustomerCompanyId(
+    customerData: CustomerEntity,
+    bitrixCompanyId: number,
+    persistenceManager?: EntityManager,
+  ): Promise<void> {
+    if (customerData.inn_normalized) {
+      const updateResult =
+        await this.customerRepository.assignBitrixCompanyIdToNormalizedInn(
+          customerData.inn_normalized,
+          bitrixCompanyId,
+          persistenceManager,
+        );
+      if (!updateResult.affected) {
+        throw new Error(
+          "Не найдены customer-записи для сохранения Bitrix24 company ID",
+        );
+      }
+      return;
+    }
+
+    const persistenceRepository = persistenceManager
+      ? persistenceManager.getRepository(CustomerEntity)
+      : this.customerRepository;
+    const updateResult = await persistenceRepository.update(customerData.id, {
+      bitrix24_company_id: bitrixCompanyId,
+    });
+    if (!updateResult.affected) {
+      throw new Error("Не найдена customer-запись для сохранения Bitrix24 ID");
     }
   }
 
@@ -462,6 +565,30 @@ export class Bitrix24Service {
     }
 
     try {
+      if (dealData.bitrix24_deal_id) {
+        const updated = await this.updateLead(
+          dealData.bitrix24_deal_id,
+          dealData,
+          distributorName,
+          creatorContactId,
+        );
+        return updated ? dealData.bitrix24_deal_id : null;
+      }
+
+      // The database lease prevents concurrent local workers. This lookup is
+      // the second idempotency boundary for the crash window where Bitrix24
+      // created a lead but the local process died before persisting its ID.
+      const existingLeadId = await this.findLeadIdByExternalDealId(dealData.id);
+      if (existingLeadId) {
+        const updated = await this.updateLead(
+          existingLeadId,
+          dealData,
+          distributorName,
+          creatorContactId,
+        );
+        return updated ? existingLeadId : null;
+      }
+
       const creatorInfo = dealData.partner?.user_info;
       const creatorUser = dealData.partner;
 
@@ -521,7 +648,7 @@ export class Bitrix24Service {
         ASSIGNED_BY_ID: dealData.creator_id,
         CREATED_BY_ID: dealData.creator_id,
 
-        CONTACT_ID: creatorUser?.bitrix24_contact_id ?? creatorContactId,
+        CONTACT_ID: contactId,
         COMPANY_ID: companyId,
         COMMENTS: this.formatLeadComments(dealData),
 
@@ -540,12 +667,14 @@ export class Bitrix24Service {
         }
       });
 
-      const response = await this.httpRequestWithRetry(() =>
-        firstValueFrom(
-          this.httpService.post(`${this.webhookUrl}/crm.lead.add.json`, {
-            fields: bitrixLeadData,
-          }),
-        ),
+      // Do not retry crm.lead.add in-process. A transport timeout can happen
+      // after Bitrix24 committed the lead; an immediate blind retry would make
+      // a duplicate. The leased queue will retry later and the stable-ID
+      // lookup above will recover the already-created lead.
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.lead.add.json`, {
+          fields: bitrixLeadData,
+        }),
       );
 
       if (response.data?.result) {
@@ -560,6 +689,26 @@ export class Bitrix24Service {
       this.logger.error("Ошибка при создании лида в Bitrix24:", error.message);
       return null;
     }
+  }
+
+  /**
+   * Finds the lead created for an internal deal using the stable custom field.
+   * Errors intentionally propagate: adding after an uncertain lookup could
+   * create a second remote lead.
+   */
+  async findLeadIdByExternalDealId(dealId: number): Promise<number | null> {
+    const response = await this.httpRequestWithRetry(() =>
+      firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/crm.lead.list.json`, {
+          filter: { "=UF_CRM_1749553924": dealId },
+          select: ["ID", "UF_CRM_1749553924"],
+          order: { ID: "ASC" },
+        }),
+      ),
+    );
+
+    const leadId = Number(response?.data?.result?.[0]?.ID || 0);
+    return Number.isSafeInteger(leadId) && leadId > 0 ? leadId : null;
   }
 
   /**

@@ -1,23 +1,36 @@
-import { IsEmailRu, IsNotEmptyRu, MinLengthRu } from "@decorators/validate";
+import { IsEmailRu, MinLengthRu } from "@decorators/validate";
+import { IsRussianInn } from "@decorators/validate/is-russian-inn";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsOptional } from "class-validator";
+import { Exclude, Transform } from "class-transformer";
+import { IsOptional, IsString } from "class-validator";
+import { normalizeLegacyRussianInn } from "@app/utils/russian-inn";
 
 export class CreateCustomerDto {
   @ApiProperty()
+  @IsString()
   @MinLengthRu(2)
   first_name: string;
 
   @ApiProperty()
+  @IsString()
   @MinLengthRu(2)
   last_name: string;
 
-  @ApiProperty()
-  @MinLengthRu(10, {
-    message: "ИНН должен быть длиннее или равен $constraint1 символам",
+  @ApiProperty({
+    description: "ИНН юридического лица или индивидуального предпринимателя",
+    example: "7707083893",
   })
+  @Transform(({ value }) => normalizeLegacyRussianInn(value) ?? value)
+  @IsRussianInn()
   inn: string;
 
+  // The canonical value is computed by server code and never trusted from the
+  // request body, even when the global ValidationPipe is not in whitelist mode.
+  @Exclude({ toClassOnly: true })
+  inn_normalized?: never;
+
   @ApiProperty()
+  @IsString()
   @MinLengthRu(2)
   company_name: string;
 
@@ -27,5 +40,6 @@ export class CreateCustomerDto {
 
   @ApiProperty()
   @IsOptional()
+  @IsString()
   phone: string;
 }

@@ -62,11 +62,12 @@ function createController() {
 
 describe("AdminCountsController", () => {
   it("returns the complete scoped response to super_admin", async () => {
-    const { controller } = createController();
+    const { controller, services } = createController();
 
-    const response = await controller.getAllCounts({
+    const actor = {
       role: { name: RoleTypes.SuperAdmin },
-    } as any);
+    } as any;
+    const response = await controller.getAllCounts(actor);
 
     expect(response).toMatchObject({
       news: 1,
@@ -77,6 +78,8 @@ describe("AdminCountsController", () => {
       tools: { logs: 22 },
       importantAlerts: 23,
     });
+    expect(services.deals.getCount).toHaveBeenCalledWith(actor);
+    expect(services.deals.getRegisteredCount).toHaveBeenCalledWith(actor);
   });
 
   it("does not expose unscoped legacy company counts to partner_manager", async () => {

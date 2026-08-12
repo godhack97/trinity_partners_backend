@@ -13,8 +13,6 @@ import { InternalServerErrorException } from "@nestjs/common/exceptions/internal
 import {
   CompanyEmployeeStatus,
   CompanyStatus,
-  DealEntity,
-  DealStatus,
   NotificationCategory,
   UserEntity,
 } from "@orm/entities";
@@ -30,7 +28,7 @@ import { AddEmployeeAdminRequestDto } from "./dto/request/add-employee-admin-req
 import { AddEmployeeRequestDto } from "./dto/request/add-employee.request.dto";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Not, Repository } from "typeorm";
+import { Repository } from "typeorm";
 
 @Injectable()
 export class CompanyService {
@@ -45,8 +43,6 @@ export class CompanyService {
     private readonly notificationService: NotificationService,
     @InjectRepository(UserRoleEntity)
     private readonly userRoleRepository: Repository<UserRoleEntity>,
-    @InjectRepository(DealEntity)
-    private readonly dealRepository: Repository<DealEntity>,
   ) {}
 
   async findByPartnershipType(partnershipType: PartnershipType) {
@@ -322,10 +318,13 @@ export class CompanyService {
     id: number,
     body: AddEmployeeAdminRequestDto,
   ) {
-    const { user } = await this.checkUserPermissions(request, id);
+    const { user, companyEmployee } = await this.checkUserPermissions(
+      request,
+      id,
+    );
 
     if (!body.isEmployeeAdmin) {
-      await this.assertNotLastCompanyAdmin(user);
+      await this.assertNotLastCompanyAdmin(user, companyEmployee);
     }
 
     const newRoleName = body.isEmployeeAdmin
@@ -341,10 +340,11 @@ export class CompanyService {
   }
 
   async transferAdminRights(request: Request, id: number) {
-    const { user: targetUser, role } = await this.checkUserPermissions(
-      request,
-      id,
-    );
+    const {
+      user: targetUser,
+      role,
+      companyEmployee: targetEmployee,
+    } = await this.checkUserPermissions(request, id);
 
     if (targetUser.id === role.userId) {
       throw new BadRequestException(
@@ -352,36 +352,11 @@ export class CompanyService {
       );
     }
 
-    const targetEmployee =
-      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
-        targetUser.id,
-      );
-    const currentEmployee =
-      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
-        role.userId,
-      );
-
-    if (
-      !targetEmployee ||
-      !currentEmployee ||
-      targetEmployee.company_id !== currentEmployee.company_id
-    ) {
-      throw new ForbiddenException(
-        "Права администратора можно передать только сотруднику своей компании",
-      );
-    }
-
-    if (targetEmployee.status !== CompanyEmployeeStatus.Accept) {
-      throw new BadRequestException(
-        "Права администратора можно передать только активному сотруднику",
-      );
-    }
-
     await this.setUserRole(targetUser.id, RoleTypes.CompanyAdmin);
     await this.setUserRole(role.userId, RoleTypes.SalesManager);
 
     const company = await this.companyRepository.findOneBy({
-      id: currentEmployee.company_id,
+      id: targetEmployee.company_id,
     });
 
     if (company?.owner_id === role.userId) {
@@ -397,9 +372,11 @@ export class CompanyService {
   }
 
   async removeEmployee(request: Request, id: number) {
-    const { user } = await this.checkUserPermissions(request, id);
-    await this.assertNotLastCompanyAdmin(user);
-    const reassignment = await this.reassignActiveDealsToFirstCompanyAdmin(user);
+    const { user, companyEmployee } = await this.checkUserPermissions(
+      request,
+      id,
+    );
+    await this.assertNotLastCompanyAdmin(user, companyEmployee);
     const role = await this.roleRepository.findByRole(RoleTypes.Employee);
     const updateResult = await this.userRepository.update(user.id, {
       role,
@@ -418,7 +395,7 @@ export class CompanyService {
     }
 
     const updateStatusResult = await this.companyEmployeeRepository.update(
-      user.company_employee.id,
+      companyEmployee.id,
       { status: CompanyEmployeeStatus.Blocked },
     );
 
@@ -433,7 +410,7 @@ export class CompanyService {
       context: {
         reason: "Сотрудник удален из компании",
         companyAdmins: await this.getCompanyAdminsText(
-          user.company_employee.company_id,
+          companyEmployee.company_id,
           user.id,
         ),
       },
@@ -441,8 +418,6 @@ export class CompanyService {
 
     return {
       message: `Cотрудник c ${user.id} был успешно удален`,
-      reassigned_deals_count: reassignment.reassignedDealsCount,
-      reassigned_to_user_id: reassignment.adminUserId,
       succes: true,
     };
   }
@@ -461,6 +436,32 @@ export class CompanyService {
     ) {
       throw new HttpException(
         "У вас нет прав для данного действия",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const actorCompanyId = Number(role.companyId);
+    if (!Number.isInteger(actorCompanyId) || actorCompanyId <= 0) {
+      throw new HttpException(
+        "Компания администратора не определена",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Never trust a direct user id as proof of company ownership. The target
+    // must still be an accepted member of the exact company carried by the
+    // authenticated actor's token.
+    const companyEmployee = await this.companyEmployeeRepository.findOne({
+      where: {
+        employee_id: id,
+        company_id: actorCompanyId,
+        status: CompanyEmployeeStatus.Accept,
+      },
+    });
+
+    if (!companyEmployee) {
+      throw new HttpException(
+        "Сотрудник не принадлежит вашей компании или не активен",
         HttpStatus.FORBIDDEN,
       );
     }
@@ -491,7 +492,7 @@ export class CompanyService {
       );
     }
 
-    return { user, role };
+    return { user, role, companyEmployee };
   }
 
   private hasAnyRole(userRoleNames: string[], roleNames: RoleTypes[]) {
@@ -569,109 +570,10 @@ export class CompanyService {
     }
   }
 
-  private async reassignActiveDealsToFirstCompanyAdmin(user: UserEntity) {
-    const companyEmployee =
-      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
-        user.id,
-      );
-
-    if (!companyEmployee) {
-      return { reassignedDealsCount: 0, adminUserId: null };
-    }
-
-    const activeDeals = await this.dealRepository.find({
-      where: {
-        creator_id: user.id,
-        status: Not(In([DealStatus.Win, DealStatus.Lose])),
-      },
-    });
-
-    if (!activeDeals.length) {
-      return { reassignedDealsCount: 0, adminUserId: null };
-    }
-
-    const admin = await this.findFirstActiveCompanyAdmin(
-      companyEmployee.company_id,
-      user.id,
-    );
-
-    if (!admin) {
-      throw new BadRequestException(
-        "Не найден активный администратор компании для переназначения сделок",
-      );
-    }
-
-    await this.dealRepository.update(
-      { id: In(activeDeals.map((deal) => deal.id)) },
-      { creator_id: admin.employee_id },
-    );
-
-    await this.notificationService.send({
-      user_id: admin.employee_id,
-      title: "Вам переназначены сделки сотрудника",
-      text: `После блокировки сотрудника ${this.getUserDisplayName(user)} вам переназначены активные сделки: ${activeDeals.length}. Завершённые сделки остались за прежним сотрудником.`,
-      category: NotificationCategory.Deal,
-      actions: [
-        {
-          label: "Открыть сделки",
-          url: "/deals.management",
-        },
-      ],
-    });
-
-    return {
-      reassignedDealsCount: activeDeals.length,
-      adminUserId: admin.employee_id,
-    };
-  }
-
-  private async findFirstActiveCompanyAdmin(
-    companyId: number,
-    excludedUserId: number,
+  private async assertNotLastCompanyAdmin(
+    user: UserEntity,
+    verifiedCompanyEmployee?: { company_id: number },
   ) {
-    const employees =
-      await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
-        companyId,
-      );
-
-    return employees
-      .filter((employee) => {
-        const roleNames = [
-          employee.employee?.role?.name,
-          ...(employee.employee?.roles || []).map((role) => role.name),
-        ].filter(Boolean);
-
-        return (
-          employee.status === CompanyEmployeeStatus.Accept &&
-          employee.employee_id !== excludedUserId &&
-          this.hasAnyRole(roleNames, [
-            RoleTypes.CompanyAdmin,
-            RoleTypes.Partner,
-            RoleTypes.EmployeeAdmin,
-          ])
-        );
-      })
-      .sort((a, b) => {
-        const aTime = new Date(
-          (a.employee?.created_at as unknown as string) || 0,
-        ).getTime();
-        const bTime = new Date(
-          (b.employee?.created_at as unknown as string) || 0,
-        ).getTime();
-
-        return aTime - bTime || a.employee_id - b.employee_id;
-      })[0];
-  }
-
-  private getUserDisplayName(user: UserEntity) {
-    return (
-      [user.user_info?.first_name, user.user_info?.last_name]
-        .filter(Boolean)
-        .join(" ") || user.email
-    );
-  }
-
-  private async assertNotLastCompanyAdmin(user: UserEntity) {
     const userRoles = user.roles?.map((role) => role.name) || [];
 
     if (
@@ -685,9 +587,10 @@ export class CompanyService {
     }
 
     const companyEmployee =
-      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
+      verifiedCompanyEmployee ||
+      (await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
         user.id,
-      );
+      ));
 
     if (!companyEmployee) return;
 

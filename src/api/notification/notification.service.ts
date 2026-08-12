@@ -24,6 +24,7 @@ type NotificationSendDto = {
   actions?: { label: string; url: string }[] | null;
   ticket_id?: number | null;
   webOnly?: boolean;
+  delivery_key?: string | null;
 };
 
 const NotificationSettingsTypes = [
@@ -70,6 +71,7 @@ export class NotificationService {
       actions,
       ticket_id,
       webOnly,
+      delivery_key,
     } = data;
 
     if (!user_id) {
@@ -104,6 +106,7 @@ export class NotificationService {
         type: NotificationType.Site,
         actions: actions ?? null,
         ticket_id: ticket_id ?? null,
+        delivery_key: delivery_key ?? null,
       });
     }
 

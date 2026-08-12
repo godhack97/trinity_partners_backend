@@ -12,6 +12,7 @@ import {
   UploadedFile,
   BadRequestException,
   Put,
+  ValidationPipe,
 } from "@nestjs/common";
 import { UserEntity } from "@orm/entities";
 import { DealService } from "./deal.service";
@@ -38,6 +39,12 @@ import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
 
+const strictDealBodyValidation = new ValidationPipe({
+  transform: true,
+  whitelist: true,
+  forbidNonWhitelisted: true,
+});
+
 @ApiTags("deal")
 @ApiBearerAuth()
 @UseGuards(CheckUserOrCompanyStatusGuard, AuthGuard, PermissionsGuard)
@@ -49,43 +56,43 @@ export class DealController {
   @Get("/count")
   @ApiResponse({ type: Number })
   async getCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getCount();
+    return this.dealService.getCount(auth_user);
   }
 
   @Get("/count/all")
   @ApiResponse({ type: Number })
   async getAllCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getAllCount();
+    return this.dealService.getAllCount(auth_user);
   }
 
   @Get("/count/moderation")
   @ApiResponse({ type: Number })
   async getModerationCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getModerationCount();
+    return this.dealService.getModerationCount(auth_user);
   }
 
   @Get("/count/registered")
   @ApiResponse({ type: Number })
   async getRegisteredCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getRegisteredCount();
+    return this.dealService.getRegisteredCount(auth_user);
   }
 
   @Get("/count/canceled")
   @ApiResponse({ type: Number })
   async getCanceledCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getCanceledCount();
+    return this.dealService.getCanceledCount(auth_user);
   }
 
   @Get("/count/win")
   @ApiResponse({ type: Number })
   async getWinCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getWinCount();
+    return this.dealService.getWinCount(auth_user);
   }
 
   @Get("/count/loose")
   @ApiResponse({ type: Number })
   async getLooseCount(@AuthUser() auth_user: UserEntity) {
-    return this.dealService.getLooseCount();
+    return this.dealService.getLooseCount(auth_user);
   }
 
   // Создание сделки - требует права на создание
@@ -95,7 +102,7 @@ export class DealController {
   @ApiBody({ type: () => CreateDealDto })
   create(
     @AuthUser() auth_user: UserEntity,
-    @Body() createDealDto: CreateDealDto,
+    @Body(strictDealBodyValidation) createDealDto: CreateDealDto,
   ) {
     return this.dealService.create(auth_user, createDealDto);
   }
@@ -103,6 +110,7 @@ export class DealController {
   @Post(":id/submit")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_submit", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto })
   submit(
     @Param("id") id: string,
@@ -238,18 +246,20 @@ export class DealController {
   @Put(":id")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_update", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiBody({ type: UpdateDealDto })
   @ApiResponse({ type: DealResponseDto })
   async update(
     @Param("id") id: string,
     @AuthUser() auth_user: UserEntity,
-    @Body() updateDealDto: UpdateDealDto,
+    @Body(strictDealBodyValidation) updateDealDto: UpdateDealDto,
   ) {
     return this.dealService.update(+id, auth_user, updateDealDto);
   }
 
   @Put(":id/status")
   @LogAction("deal_update", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiBody({ type: UpdateDealStatusDto })
   @ApiResponse({ type: DealResponseDto })
   async updateStatus(
@@ -267,6 +277,7 @@ export class DealController {
   @Put(":id/configurations")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_update", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiBody({ type: AddDealConfigurationsDto })
   @ApiResponse({ type: DealResponseDto })
   async addConfigurations(
@@ -284,6 +295,7 @@ export class DealController {
   @Delete(":id/configurations/:configurationId")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_update", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiResponse({ type: DealResponseDto })
   async removeConfiguration(
     @Param("id") id: string,
@@ -300,6 +312,7 @@ export class DealController {
   @Put(":id/configurations/:configurationId")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_update", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiBody({ type: AddDealConfigurationsDto })
   @ApiResponse({ type: DealResponseDto })
   async updateConfiguration(
@@ -319,6 +332,7 @@ export class DealController {
   @Put(":id/attachments")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_update", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiBody({ type: AddDealAttachmentDto })
   @ApiResponse({ type: DealResponseDto })
   async addAttachment(
@@ -336,6 +350,7 @@ export class DealController {
   @Put(":id/comments")
   @RequirePermissions('api.deals.write')
   @LogAction("deal_comment_add", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
   @ApiBody({ type: AddDealCommentDto })
   @ApiResponse({ type: DealResponseDto })
   async addComment(

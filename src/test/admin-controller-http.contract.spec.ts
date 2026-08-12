@@ -176,7 +176,11 @@ describe("Admin controller HTTP contracts", () => {
         .send({ status })
         .expect(200)
         .expect({ id: 44, status });
-      expect(dealService.reviewDuplicate).toHaveBeenCalledWith(44, status);
+      expect(dealService.reviewDuplicate).toHaveBeenCalledWith(
+        44,
+        { status },
+        undefined,
+      );
 
       dealService.reviewDuplicate.mockRejectedValueOnce(
         new NotFoundException("Сделка не найдена"),

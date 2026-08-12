@@ -12,10 +12,13 @@ import { CustomerService } from "./customer.service";
 import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { CustomerResponseDto } from "./dto/response/customer.response.dto";
 import { TransformResponse } from "@interceptors/transform-response.interceptor";
+import { Roles } from "@decorators/Roles";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 @ApiTags("customer")
 @ApiBearerAuth()
 @Controller("customer")
+@Roles([RoleTypes.SuperAdmin])
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 

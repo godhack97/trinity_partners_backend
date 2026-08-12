@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   ValidationPipe,
   Query,
+  ParseEnumPipe,
 } from "@nestjs/common";
 import { UserEntity } from "@orm/entities";
 import { CompanyService } from "./company.service";
@@ -29,6 +30,7 @@ import {
   CompanyDetailResponseDto,
 } from "@api/admin/company-management/dto/company-management.response.dto";
 import { AllowRestrictedCompanyAccess } from "@decorators/AllowRestrictedCompanyAccess";
+import { CompanyPartnerOptionResponseDto } from "./dto/response/company-partner-option-response.dto";
 
 @ApiTags("company")
 @ApiBearerAuth()
@@ -73,8 +75,22 @@ export class CompanyController {
   }
 
   @Get("partners/:partnershipType")
-  @Roles([RoleTypes.Partner, RoleTypes.EmployeeAdmin, RoleTypes.SuperAdmin])
-  findByPartnershipType(@Param("partnershipType") partnershipType: PartnershipType) {
+  @Roles([
+    RoleTypes.Partner,
+    RoleTypes.EmployeeAdmin,
+    RoleTypes.CompanyAdmin,
+    RoleTypes.SalesManager,
+    RoleTypes.PartnerManager,
+    RoleTypes.SuperAdmin,
+  ])
+  @UseInterceptors(
+    new TransformResponse(CompanyPartnerOptionResponseDto, true),
+  )
+  @ApiResponse({ type: CompanyPartnerOptionResponseDto, isArray: true })
+  findByPartnershipType(
+    @Param("partnershipType", new ParseEnumPipe(PartnershipType))
+    partnershipType: PartnershipType,
+  ) {
     return this.companyService.findByPartnershipType(partnershipType);
   }
 

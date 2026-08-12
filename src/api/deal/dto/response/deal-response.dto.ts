@@ -1,6 +1,5 @@
 import { CustomerResponseDto } from "@api/customer/dto/response/customer.response.dto";
 import { DistributorResponseDto } from "@api/distributor/dto/response/distributor.response.dto";
-import { UserResponseDto } from "@api/user/dto/response/user.response.dto";
 import { WithIdDto } from "@app/dto/with-id.dto";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
@@ -8,13 +7,87 @@ import {
   DealDuplicateReviewStatus,
   DealStatus,
   DealType,
+  PartnershipType,
 } from "@orm/entities";
 import { Expose, Transform, Type } from "class-transformer";
 
-export class DealResponseDto extends WithIdDto {
+export class DealParticipantCompanyDto extends WithIdDto {
   @ApiProperty()
   @Expose()
-  distributor_id: number;
+  name: string;
+
+  @ApiProperty()
+  @Expose()
+  inn: string;
+
+  @ApiProperty({ enum: PartnershipType })
+  @Expose()
+  partnership_type: PartnershipType;
+}
+
+class DealCreatorInfoDto {
+  @ApiPropertyOptional()
+  @Expose()
+  first_name?: string;
+
+  @ApiPropertyOptional()
+  @Expose()
+  last_name?: string;
+
+  @ApiPropertyOptional()
+  @Expose()
+  job_title?: string;
+
+  @ApiPropertyOptional()
+  @Expose()
+  phone?: string;
+}
+
+class DealCreatorResponseDto extends WithIdDto {
+  @ApiProperty()
+  @Expose()
+  email: string;
+
+  @ApiPropertyOptional({ type: () => DealCreatorInfoDto })
+  @Expose()
+  @Type(() => DealCreatorInfoDto)
+  user_info?: DealCreatorInfoDto;
+
+  @ApiPropertyOptional({ type: () => DealParticipantCompanyDto })
+  @Expose()
+  @Type(() => DealParticipantCompanyDto)
+  owner_company?: DealParticipantCompanyDto;
+}
+
+class DealResponsibleManagerInfoDto {
+  @ApiPropertyOptional()
+  @Expose()
+  first_name?: string;
+
+  @ApiPropertyOptional()
+  @Expose()
+  last_name?: string;
+}
+
+class DealResponsibleManagerResponseDto extends WithIdDto {
+  @ApiProperty()
+  @Expose()
+  email: string;
+
+  @ApiPropertyOptional({ type: () => DealResponsibleManagerInfoDto })
+  @Expose()
+  @Type(() => DealResponsibleManagerInfoDto)
+  user_info?: DealResponsibleManagerInfoDto;
+}
+
+export class DealResponseDto extends WithIdDto {
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  distributor_id?: number | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  distributor_company_id?: number | null;
 
   @ApiProperty({ required: false })
   @Expose()
@@ -51,6 +124,18 @@ export class DealResponseDto extends WithIdDto {
   @ApiProperty()
   @Expose()
   creator_id: number;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  responsible_manager_id?: number | null;
+
+  @ApiPropertyOptional({
+    type: () => DealResponsibleManagerResponseDto,
+    nullable: true,
+  })
+  @Expose()
+  @Type(() => DealResponsibleManagerResponseDto)
+  responsible_manager?: DealResponsibleManagerResponseDto | null;
 
   @ApiProperty({ enum: DealType })
   @Expose()
@@ -123,25 +208,48 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   duplicate_review_status?: DealDuplicateReviewStatus | null;
 
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  duplicate_reviewed_by_user_id?: number | null;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  @Expose()
+  duplicate_reviewed_at?: Date | string | null;
+
+  @ApiPropertyOptional({ type: String, maxLength: 1000, nullable: true })
+  @Expose()
+  duplicate_review_comment?: string | null;
+
   @ApiProperty()
   @Expose()
-  @Type(() => UserResponseDto)
-  partner: UserResponseDto;
+  @Type(() => DealCreatorResponseDto)
+  partner: DealCreatorResponseDto;
 
   @ApiProperty()
   @Expose()
   @Type(() => CustomerResponseDto)
   customer: CustomerResponseDto;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ nullable: true })
   @Expose()
   @Type(() => DistributorResponseDto)
-  distributor: DistributorResponseDto;
+  distributor?: DistributorResponseDto | null;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional({
+    type: () => DealParticipantCompanyDto,
+    nullable: true,
+  })
   @Expose()
-  @Transform(({ obj }) => obj.integrator_company, { toClassOnly: true })
-  integrator_company?: unknown;
+  @Type(() => DealParticipantCompanyDto)
+  distributor_company?: DealParticipantCompanyDto | null;
+
+  @ApiPropertyOptional({
+    type: () => DealParticipantCompanyDto,
+    nullable: true,
+  })
+  @Expose()
+  @Type(() => DealParticipantCompanyDto)
+  integrator_company?: DealParticipantCompanyDto | null;
 
   @ApiProperty()
   @Expose()
@@ -183,4 +291,34 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   can_submit: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю назначать стороны сделки",
+  })
+  @Expose()
+  can_assign_participants: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю запросить удаление сделки",
+  })
+  @Expose()
+  can_request_deletion: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю добавлять комментарии",
+  })
+  @Expose()
+  can_comment: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю просматривать конфигурацию",
+  })
+  @Expose()
+  can_view_configuration: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю принимать решение по сделке",
+  })
+  @Expose()
+  can_decide: boolean;
 }

@@ -1,6 +1,6 @@
 import { IsDateRu, IsEnumRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { DealStatus } from "@orm/entities";
+import { DealDuplicateReviewStatus, DealStatus } from "@orm/entities";
 import { Type } from "class-transformer";
 import { IsEnum, IsNumber, IsOptional } from "class-validator";
 
@@ -25,6 +25,11 @@ export class SearchDealDto {
   @ApiPropertyOptional({ enum: DealStatus })
   status?: DealStatus;
 
+  @IsEnum(DealDuplicateReviewStatus)
+  @IsOptional()
+  @ApiPropertyOptional({ enum: DealDuplicateReviewStatus })
+  duplicateReviewStatus?: DealDuplicateReviewStatus;
+
   @ApiProperty()
   @IsOptional()
   @ApiPropertyOptional()
@@ -36,6 +41,15 @@ export class SearchDealDto {
   @Type(() => Number)
   @ApiPropertyOptional()
   distributorId?: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @ApiPropertyOptional({
+    description: "Фильтр по каноническому ID компании-дистрибьютора",
+  })
+  distributorCompanyId?: number;
 
   @ApiProperty()
   @IsNumber()
