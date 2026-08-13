@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
 } from "@nestjs/common";
 import {
   DealDuplicateReviewStatus,
@@ -92,7 +91,7 @@ describe("AdminDealService status state machine", () => {
     expect(deps.dealRepository.update).not.toHaveBeenCalled();
   });
 
-  it("blocks moderation -> registered while duplicate review is pending", async () => {
+  it("allows moderation -> registered regardless of historical duplicate metadata", async () => {
     const deps = makeService(DealStatus.Moderation, {
       duplicateReviewStatus: DealDuplicateReviewStatus.Pending,
     });
@@ -103,8 +102,8 @@ describe("AdminDealService status state machine", () => {
         { status: DealStatus.Registered },
         superAdmin,
       ),
-    ).rejects.toBeInstanceOf(ConflictException);
-    expect(deps.dealRepository.update).not.toHaveBeenCalled();
+    ).resolves.toEqual(expect.objectContaining({ success: true }));
+    expect(deps.dealRepository.update).toHaveBeenCalled();
   });
 
   it("reports a CAS miss as conflict and emits no notifications", async () => {

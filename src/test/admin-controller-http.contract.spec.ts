@@ -14,7 +14,6 @@ import { AdminDealService } from "@api/admin/deal/admin-deal.service";
 import { AdminConfiguratorComponentController } from "@api/admin/configurator/component/admin-configurator-component.controller";
 import { AdminConfiguratorComponentService } from "@api/admin/configurator/component/admin-configurator-component.service";
 import { XlsxService } from "@api/admin/configurator/component/xlsx.service";
-import { DealDuplicateReviewStatus } from "@orm/entities";
 
 describe("Admin controller HTTP contracts", () => {
   let app: INestApplication;
@@ -28,7 +27,6 @@ describe("Admin controller HTTP contracts", () => {
   };
   const dealService = {
     update: jest.fn(),
-    reviewDuplicate: jest.fn(),
   };
   const componentService = {
     getComponentProfiles: jest.fn(),
@@ -161,43 +159,6 @@ describe("Admin controller HTTP contracts", () => {
       );
       await request(app.getHttpServer())
         .post("/api/admin/user/999/restore-employee")
-        .expect(404);
-    });
-  });
-
-  describe("deal duplicate review", () => {
-    const endpoint = "/api/admin/deals/44/duplicate-review";
-
-    it("rejects a non-final status before calling the service", async () => {
-      await request(app.getHttpServer())
-        .patch(endpoint)
-        .send({ status: "pending" })
-        .expect(400);
-
-      expect(dealService.reviewDuplicate).not.toHaveBeenCalled();
-    });
-
-    it("returns success and service-level 404", async () => {
-      const status = DealDuplicateReviewStatus.NotDuplicate;
-      dealService.reviewDuplicate.mockResolvedValueOnce({ id: 44, status });
-
-      await request(app.getHttpServer())
-        .patch(endpoint)
-        .send({ status })
-        .expect(200)
-        .expect({ id: 44, status });
-      expect(dealService.reviewDuplicate).toHaveBeenCalledWith(
-        44,
-        { status },
-        undefined,
-      );
-
-      dealService.reviewDuplicate.mockRejectedValueOnce(
-        new NotFoundException("Сделка не найдена"),
-      );
-      await request(app.getHttpServer())
-        .patch("/api/admin/deals/999/duplicate-review")
-        .send({ status })
         .expect(404);
     });
   });

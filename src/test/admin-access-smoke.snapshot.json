@@ -1314,24 +1314,6 @@
       }
     },
     {
-      "signature": "PATCH /api/admin/deals/{id}/duplicate-review",
-      "scope": "admin",
-      "operationId": "AdminDeal_reviewDuplicate",
-      "requiredRoles": [
-        "super_admin"
-      ],
-      "requiredPermissions": [],
-      "statuses": {
-        "anonymous": 401,
-        "super_admin": 200,
-        "employee_admin": 403,
-        "content_manager": 403,
-        "partner_manager": 403,
-        "technical_specialist": 403,
-        "partner": 403
-      }
-    },
-    {
       "signature": "PATCH /api/admin/forbidden-inns/{id}",
       "scope": "admin",
       "operationId": "ForbiddenInn_update",

@@ -2,7 +2,7 @@ import { DealRepository } from "./deal.repository";
 import { DealEntity } from "@orm/entities";
 import { DealDeletionStatus } from "@orm/entities/deal-deletion-request.entity";
 
-describe("DealRepository atomic deletion guard", () => {
+describe("DealRepository atomic deletion", () => {
   const makeRepository = (options: {
     pendingReference?: boolean;
     requestStatus?: DealDeletionStatus;
@@ -57,60 +57,6 @@ describe("DealRepository atomic deletion guard", () => {
 
     return { repository, state, events, query, softDelete, transaction };
   };
-
-  it("blocks direct deletion while a pending deal references the canonical deal", async () => {
-    const deps = makeRepository({ pendingReference: true });
-
-    await expect(
-      DealRepository.prototype.softDeleteWithDuplicateGuard.call(
-        deps.repository,
-        101,
-        "7707083893",
-      ),
-    ).resolves.toBe(false);
-
-    expect(deps.softDelete).not.toHaveBeenCalled();
-    expect(deps.state.deleted).toBe(false);
-  });
-
-  it("also blocks deletion after the child duplicate review is final", async () => {
-    const deps = makeRepository({ pendingReference: true });
-
-    await expect(
-      DealRepository.prototype.softDeleteWithDuplicateGuard.call(
-        deps.repository,
-        101,
-        "7707083893",
-      ),
-    ).resolves.toBe(false);
-
-    const referenceQuery = deps.query.mock.calls.find(([sql]) =>
-      sql.includes("duplicate_of_deal_id"),
-    )?.[0];
-    expect(referenceQuery).not.toContain("duplicate_review_status");
-    expect(deps.softDelete).not.toHaveBeenCalled();
-  });
-
-  it("blocks approved-request deletion without changing the pending request", async () => {
-    const deps = makeRepository({ pendingReference: true });
-
-    await expect(
-      DealRepository.prototype.approveDeletionRequestAndSoftDelete.call(
-        deps.repository,
-        41,
-        101,
-        1,
-        "7707083893",
-      ),
-    ).resolves.toBe("blocked");
-
-    expect(deps.state.requestStatus).toBe(DealDeletionStatus.PENDING);
-    expect(deps.query).not.toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE deal_deletion_requests"),
-      expect.anything(),
-    );
-    expect(deps.softDelete).not.toHaveBeenCalled();
-  });
 
   it("approves the request and soft-deletes the deal in one transaction", async () => {
     const deps = makeRepository();

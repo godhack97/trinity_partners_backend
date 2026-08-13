@@ -31,10 +31,7 @@ describe("DealService draft submission", () => {
       findById: jest.fn(),
       claimBitrix24Sync: jest.fn(),
       finishBitrix24Sync: jest.fn().mockResolvedValue(true),
-      claimCustomerInnOnSubmit: jest.fn().mockResolvedValue({
-        canonicalDealId: null,
-        matchingDealIds: [],
-      }),
+      submitDraft: jest.fn().mockResolvedValue(true),
     };
     const companyRepository = {
       findByOwnerId: jest.fn(),
@@ -734,16 +731,12 @@ describe("DealService draft submission", () => {
     jest
       .spyOn(deps.service as any, "notifyCounterpartyAdminsAboutNewDeal")
       .mockResolvedValue(undefined);
-    jest
-      .spyOn(deps.service as any, "notifyManagerAboutDuplicateCustomerInn")
-      .mockResolvedValue(undefined);
     await deps.service.submit(deal.id, creator);
 
     expect(
-      deps.dealRepository.claimCustomerInnOnSubmit,
+      deps.dealRepository.submitDraft,
     ).toHaveBeenCalledWith(
       deal.id,
-      "7707083893",
       expect.objectContaining({
         status: DealStatus.Moderation,
       }),
@@ -782,58 +775,7 @@ describe("DealService draft submission", () => {
       status: 400,
     });
     expect(
-      deps.dealRepository.claimCustomerInnOnSubmit,
+      deps.dealRepository.submitDraft,
     ).not.toHaveBeenCalled();
-  });
-
-  it("notifies the active snapshot manager about an INN duplicate idempotently", async () => {
-    const deps = makeService();
-    deps.userRepository.findByIdWithPermissions.mockResolvedValue({
-      id: 55,
-      is_activated: true,
-      role: { name: RoleTypes.PartnerManager },
-      roles: [],
-    });
-
-    await (deps.service as any).notifyManagerAboutDuplicateCustomerInn(
-      { id: 40, deal_num: "7-2026/09/01-1", responsible_manager_id: 55 },
-      { id: 12, deal_num: "2-2026/08/01-1" },
-    );
-
-    expect(deps.notificationService.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: 55,
-        delivery_key: "deal-duplicate:40:55:detected",
-        text: expect.stringContaining("сделке 12"),
-        actions: [
-          expect.objectContaining({
-            url: "/deals/40?duplicateOf=12",
-          }),
-        ],
-      }),
-    );
-  });
-
-  it("keeps duplicate review pending when its notification cannot be delivered", async () => {
-    const deps = makeService();
-    deps.userRepository.findByIdWithPermissions.mockResolvedValue({
-      id: 55,
-      is_activated: true,
-      role: { name: RoleTypes.PartnerManager },
-      roles: [],
-    });
-    deps.notificationService.send.mockRejectedValueOnce(
-      new Error("notification unavailable"),
-    );
-    jest
-      .spyOn((deps.service as any).logger, "error")
-      .mockImplementation(() => undefined);
-
-    await expect(
-      (deps.service as any).notifyManagerAboutDuplicateCustomerInn(
-        { id: 40, deal_num: "D-40", responsible_manager_id: 55 },
-        { id: 12, deal_num: "D-12" },
-      ),
-    ).resolves.toBeUndefined();
   });
 });

@@ -14,7 +14,6 @@ import { RoleTypes } from "@app/types/RoleTypes";
 import {
   CompanyEmployeeStatus,
   CompanyStatus,
-  DealDuplicateReviewStatus,
   DealStatus,
   DealStatusRu,
   DealType,
@@ -376,10 +375,6 @@ export class DealService {
     const integratorName = integratorCompany.name;
     const integratorInn = integratorCompany.inn;
 
-    const normalizedCustomerInn =
-      customer.inn_normalized ||
-      this.normalizeCustomerInn(customer.inn);
-
     const submitPatch = {
       status: DealStatus.Moderation,
       integrator_company_id: integratorCompany?.id || null,
@@ -387,9 +382,8 @@ export class DealService {
       integrator_inn: integratorInn,
       bitrix24_sync_status: Bitrix24SyncStatus.PENDING,
     };
-    const duplicateClaim = await this.dealRepository.claimCustomerInnOnSubmit(
+    const submitted = await this.dealRepository.submitDraft(
       dealId,
-      normalizedCustomerInn,
       submitPatch,
       {
         distributorId: deal.distributor_id,
@@ -399,28 +393,14 @@ export class DealService {
         integratorInn: deal.integrator_inn,
       },
     );
-    if (!duplicateClaim) {
+    if (!submitted) {
       throw new HttpException(
         "Сделка уже была отправлена или изменена",
         HttpStatus.CONFLICT,
       );
     }
-    const duplicateInnDeal =
-      duplicateClaim.canonicalDealId &&
-      duplicateClaim.canonicalDealId !== dealId
-        ? await this.dealRepository.findById(duplicateClaim.canonicalDealId)
-        : null;
-    const duplicatePatch = duplicateInnDeal
-      ? {
-          duplicate_of_deal_id: duplicateInnDeal.id,
-          duplicate_review_status: DealDuplicateReviewStatus.Pending,
-        }
-      : {
-          duplicate_of_deal_id: null,
-          duplicate_review_status: null,
-        };
 
-    Object.assign(deal, submitPatch, duplicatePatch);
+    Object.assign(deal, submitPatch);
     const authUserCompany = await this.getDealCreatorCompany(deal);
 
     this.sendLeadToBitrix24(deal, customer, distributorParty, auth_user).catch(
@@ -446,11 +426,6 @@ export class DealService {
       integratorName,
       integratorInn,
     );
-    await this.notifyManagerAboutDuplicateCustomerInn(
-      deal,
-      duplicateInnDeal,
-    );
-
     return this.findOne(dealId, auth_user);
   }
 
@@ -495,69 +470,6 @@ export class DealService {
       }
       throw error;
     }
-  }
-
-  private async notifyManagerAboutDuplicateCustomerInn(
-    newDeal: any,
-    similarDeal: any,
-  ) {
-    if (!similarDeal || similarDeal.id === newDeal.id) return;
-
-    try {
-      const recipientIds = await this.getDuplicateReviewRecipientIds(newDeal);
-      const results = await Promise.allSettled(
-        recipientIds.map((managerId) =>
-          this.notificationService.send({
-            user_id: managerId,
-            title: "Найдена сделка с совпадающим ИНН заказчика",
-            text: `Найдено похожее обращение в сделке ${similarDeal.id} (${similarDeal.deal_num}). Проверьте сделку ${newDeal.deal_num}, чтобы определить статус дубля.`,
-            category: NotificationCategory.Deal,
-            delivery_key: `deal-duplicate:${newDeal.id}:${managerId}:detected`,
-            webOnly: true,
-            actions: [
-              {
-                label: "Подробнее",
-                url: `/deals/${newDeal.id}?duplicateOf=${similarDeal.id}`,
-              },
-            ],
-          }),
-        ),
-      );
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          this.logger.error(
-            `Не удалось отправить уведомление о дубле сделки ${newDeal.id} пользователю ${recipientIds[index]}`,
-            result.reason,
-          );
-        }
-      });
-    } catch (error) {
-      // The durable pending review is authoritative; notification delivery is
-      // best effort and must not turn an already submitted deal into an API 500.
-      this.logger.error(
-        `Не удалось определить получателей уведомления о дубле сделки ${newDeal.id}`,
-        error,
-      );
-    }
-  }
-
-  private async getDuplicateReviewRecipientIds(deal: any) {
-    if (deal.responsible_manager_id) {
-      const manager = await this.userRepository.findByIdWithPermissions(
-        deal.responsible_manager_id,
-      );
-      if (
-        manager?.is_activated &&
-        this.hasAnyRole(manager, [
-          RoleTypes.SuperAdmin,
-          RoleTypes.PartnerManager,
-        ])
-      ) {
-        return [manager.id];
-      }
-    }
-
-    return this.findTrinityDealAdminIds([RoleTypes.SuperAdmin]);
   }
 
   private async notifyAdminsAboutNewDeal(
@@ -1588,15 +1500,6 @@ export class DealService {
       );
     }
 
-    if (
-      next === DealStatus.Registered &&
-      deal.duplicate_review_status === DealDuplicateReviewStatus.Pending
-    ) {
-      throw new HttpException(
-        "Завершите ручную проверку совпадения ИНН до регистрации сделки",
-        HttpStatus.CONFLICT,
-      );
-    }
   }
 
   async update(

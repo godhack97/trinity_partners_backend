@@ -20,11 +20,6 @@ import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity
 
 class StaleDeletionApprovalError extends Error {}
 class StaleDealContentUpdateError extends Error {}
-class CustomerInnChangedDuringSubmitError extends Error {
-  constructor(public readonly normalizedInn: string) {
-    super("Customer INN changed while the deal was being submitted");
-  }
-}
 
 export const BITRIX24_SYNC_LEASE_MS = 10 * 60 * 1000;
 
@@ -259,106 +254,32 @@ export class DealRepository extends Repository<DealEntity> {
       .getMany();
   }
 
-  public async findDuplicateCandidatesByNormalizedInn(
-    normalizedInn: string,
-    excludeDealId?: number,
-  ): Promise<DealEntity[]> {
-    const query = this.createQueryBuilder("deal")
-      .innerJoinAndSelect("deal.customer", "customer")
-      .where("customer.inn_normalized = :normalizedInn", { normalizedInn })
-      .andWhere("deal.status != :draftStatus", {
-        draftStatus: "draft",
-      })
-      .orderBy("deal.created_at", "ASC")
-      .addOrderBy("deal.id", "ASC");
-
-    if (excludeDealId) {
-      query.andWhere("deal.id != :excludeDealId", { excludeDealId });
-    }
-
-    return query.getMany();
-  }
-
   /**
-   * Serializes submissions with the same normalized customer INN. The registry
-   * row is the lock and stores the first submitted deal as the canonical anchor.
-   * Draft creation remains non-blocking; this authoritative refresh happens at
-   * submit time so two concurrent drafts cannot both miss the duplicate marker.
+   * Atomically submits one draft while verifying that its participants did not
+   * change between validation and persistence. Customer INN is intentionally
+   * not compared with other deals: multiple deals for one customer are valid.
    */
-  public async claimCustomerInnOnSubmit(
+  public async submitDraft(
     dealId: number,
-    normalizedInn: string,
     submitPatch: QueryDeepPartialEntity<DealEntity>,
     expectedParticipants?: DealSubmitExpectedParticipants,
-  ): Promise<{
-    canonicalDealId: number | null;
-    matchingDealIds: number[];
-  } | null> {
-    let innToClaim = normalizedInn;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        return await this.claimCustomerInnOnSubmitAttempt(
-          dealId,
-          innToClaim,
-          submitPatch,
-          expectedParticipants,
-        );
-      } catch (error) {
-        if (!(error instanceof CustomerInnChangedDuringSubmitError)) {
-          throw error;
-        }
-        innToClaim = error.normalizedInn;
-      }
-    }
-
-    return null;
-  }
-
-  private async claimCustomerInnOnSubmitAttempt(
-    dealId: number,
-    normalizedInn: string,
-    submitPatch: QueryDeepPartialEntity<DealEntity>,
-    expectedParticipants?: DealSubmitExpectedParticipants,
-  ): Promise<{
-    canonicalDealId: number | null;
-    matchingDealIds: number[];
-  } | null> {
+  ): Promise<boolean> {
     return this.manager.transaction(async (manager) => {
-      await manager.query(
-        `INSERT INTO deal_customer_inn_registry
-          (inn_normalized, canonical_deal_id, created_at, updated_at)
-         VALUES (?, NULL, NOW(), NOW())
-         ON DUPLICATE KEY UPDATE updated_at = updated_at`,
-        [normalizedInn],
-      );
-
-      const registryRows = await manager.query(
-        `SELECT canonical_deal_id
-         FROM deal_customer_inn_registry
-         WHERE inn_normalized = ?
-         FOR UPDATE`,
-        [normalizedInn],
-      );
-
-      // Acquire the INN lock before the deal row. A draft INN edit uses the
-      // same order. If that edit committed while this request was waiting on
-      // the old registry row, retry against the authoritative current INN.
       const lockedDeals = await manager.query(
         `SELECT deal.status,
                 deal.distributor_id,
                 deal.distributor_company_id,
                 deal.integrator_company_id,
                 deal.integrator_name,
-                deal.integrator_inn,
-                customer.inn_normalized
+                deal.integrator_inn
          FROM deals deal
-         INNER JOIN customers customer ON customer.id = deal.customer_id
          WHERE deal.id = ? AND deal.deleted_at IS NULL
          FOR UPDATE`,
         [dealId],
       );
       const lockedDeal = lockedDeals?.[0];
-      if (!lockedDeal || lockedDeal.status !== DealStatus.Draft) return null;
+      if (!lockedDeal || lockedDeal.status !== DealStatus.Draft) return false;
+
       if (
         expectedParticipants &&
         (Number(lockedDeal.distributor_id || 0) !==
@@ -372,75 +293,14 @@ export class DealRepository extends Repository<DealEntity> {
           `${lockedDeal.integrator_inn || ""}`.trim() !==
             `${expectedParticipants.integratorInn || ""}`.trim())
       ) {
-        return null;
-      }
-      const currentNormalizedInn = `${
-        lockedDeal.inn_normalized || ""
-      }`.trim();
-      if (
-        currentNormalizedInn &&
-        currentNormalizedInn !== normalizedInn
-      ) {
-        throw new CustomerInnChangedDuringSubmitError(currentNormalizedInn);
+        return false;
       }
 
-      const submitResult = await manager.getRepository(DealEntity).update(
+      const result = await manager.getRepository(DealEntity).update(
         { id: dealId, status: DealStatus.Draft },
         submitPatch,
       );
-      if (!submitResult.affected) return null;
-
-      const matchingRows = await manager.query(
-        `SELECT deal.id
-         FROM deals deal
-         INNER JOIN customers customer ON customer.id = deal.customer_id
-         WHERE customer.inn_normalized = ?
-           AND deal.deleted_at IS NULL
-           AND deal.status != 'draft'
-         ORDER BY deal.created_at ASC, deal.id ASC
-         FOR UPDATE`,
-        [normalizedInn],
-      );
-      const matchingDealIds = matchingRows.map(({ id }) => Number(id));
-      const storedCanonicalId = Number(
-        registryRows?.[0]?.canonical_deal_id || 0,
-      );
-      const canonicalDealId = matchingDealIds.includes(storedCanonicalId)
-        ? storedCanonicalId
-        : matchingDealIds[0] || null;
-
-      await manager.query(
-        `UPDATE deal_customer_inn_registry
-         SET canonical_deal_id = ?, updated_at = NOW()
-         WHERE inn_normalized = ?`,
-        [canonicalDealId, normalizedInn],
-      );
-
-      if (canonicalDealId && canonicalDealId !== dealId) {
-        await manager.query(
-          `UPDATE deals
-           SET duplicate_of_deal_id = ?,
-               duplicate_review_status = 'pending',
-               duplicate_reviewed_by_user_id = NULL,
-               duplicate_reviewed_at = NULL,
-               duplicate_review_comment = NULL
-           WHERE id = ?`,
-          [canonicalDealId, dealId],
-        );
-      } else {
-        await manager.query(
-          `UPDATE deals
-           SET duplicate_of_deal_id = NULL,
-               duplicate_review_status = NULL,
-               duplicate_reviewed_by_user_id = NULL,
-               duplicate_reviewed_at = NULL,
-               duplicate_review_comment = NULL
-           WHERE id = ?`,
-          [dealId],
-        );
-      }
-
-      return { canonicalDealId, matchingDealIds };
+      return Boolean(result.affected);
     });
   }
 
@@ -637,12 +497,6 @@ export class DealRepository extends Repository<DealEntity> {
     });
   }
 
-  public async hasDuplicateReferences(dealId: number) {
-    return this.createQueryBuilder("deal")
-      .where("deal.duplicate_of_deal_id = :dealId", { dealId })
-      .getExists();
-  }
-
   private async lockDuplicateRegistry(manager: any, normalizedInn?: string | null) {
     if (!normalizedInn) return;
     await manager.query(
@@ -661,41 +515,22 @@ export class DealRepository extends Repository<DealEntity> {
     );
   }
 
-  private async hasLockedDuplicateReferences(manager: any, dealId: number) {
-    const rows = await manager.query(
-      `SELECT id
-       FROM deals
-       WHERE duplicate_of_deal_id = ?
-         AND deleted_at IS NULL
-       FOR UPDATE`,
-      [dealId],
-    );
-    return Array.isArray(rows) && rows.length > 0;
-  }
-
   public async softDeleteWithDuplicateGuard(
     dealId: number,
-    normalizedInn?: string | null,
+    _normalizedInn?: string | null,
   ) {
-    return this.manager.transaction(async (manager) => {
-      await this.lockDuplicateRegistry(manager, normalizedInn);
-      if (await this.hasLockedDuplicateReferences(manager, dealId)) {
-        return false;
-      }
-      const result = await manager.getRepository(DealEntity).softDelete(dealId);
-      return Boolean(result.affected);
-    });
+    const result = await this.softDelete(dealId);
+    return Boolean(result.affected);
   }
 
   public async approveDeletionRequestAndSoftDelete(
     requestId: number,
     dealId: number,
     processedById: number,
-    normalizedInn?: string | null,
+    _normalizedInn?: string | null,
   ): Promise<"deleted" | "blocked" | "stale"> {
     try {
       return await this.manager.transaction(async (manager) => {
-        await this.lockDuplicateRegistry(manager, normalizedInn);
         const requests = await manager.query(
           `SELECT id, status
            FROM deal_deletion_requests
@@ -704,10 +539,6 @@ export class DealRepository extends Repository<DealEntity> {
           [requestId, dealId],
         );
         if (requests?.[0]?.status !== DealDeletionStatus.PENDING) return "stale";
-        if (await this.hasLockedDuplicateReferences(manager, dealId)) {
-          return "blocked";
-        }
-
         await manager.query(
           `UPDATE deal_deletion_requests
            SET status = ?, processed_by_id = ?, processed_at = NOW()

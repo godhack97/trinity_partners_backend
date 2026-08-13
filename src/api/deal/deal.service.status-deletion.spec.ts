@@ -110,15 +110,15 @@ describe("DealService status state machine and deletion orchestration", () => {
     expect(deps.dealRepository.update).not.toHaveBeenCalled();
   });
 
-  it("blocks moderation -> registered while duplicate review is pending", async () => {
+  it("allows moderation -> registered regardless of historical duplicate metadata", async () => {
     const deps = prepareStatusUpdate(DealStatus.Moderation, {
       duplicateReviewStatus: DealDuplicateReviewStatus.Pending,
     });
 
     await expect(
       deps.service.updateDealStatus(81, DealStatus.Registered, superAdmin),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(deps.dealRepository.update).not.toHaveBeenCalled();
+    ).resolves.toBeDefined();
+    expect(deps.dealRepository.update).toHaveBeenCalled();
   });
 
   it("reports a status CAS miss as conflict and skips side effects", async () => {
@@ -131,20 +131,18 @@ describe("DealService status state machine and deletion orchestration", () => {
     expect(deps.service.notifyDistributorAboutApprovedDeal).not.toHaveBeenCalled();
   });
 
-  it("blocks direct deletion when the atomic repository guard finds pending references", async () => {
+  it("deletes a deal regardless of historical duplicate references", async () => {
     const deps = makeService({
       dealRepository: {
         findById: jest.fn().mockResolvedValue({
           id: 91,
           customer: { inn_normalized: "7707083893" },
         }),
-        softDeleteWithDuplicateGuard: jest.fn().mockResolvedValue(false),
+        softDeleteWithDuplicateGuard: jest.fn().mockResolvedValue(true),
       },
     });
 
-    await expect(deps.service.remove(91, superAdmin)).rejects.toMatchObject({
-      status: 409,
-    });
+    await expect(deps.service.remove(91, superAdmin)).resolves.toBeUndefined();
     expect(deps.dealRepository.softDeleteWithDuplicateGuard).toHaveBeenCalledWith(
       91,
       "7707083893",
