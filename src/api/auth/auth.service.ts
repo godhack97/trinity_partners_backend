@@ -392,11 +392,13 @@ export class AuthService {
 
     if (!isIncomplete) return;
 
-    await this.notificationService.sendOnceUnread({
+    await this.notificationService.sendOnce({
       user_id: user.id,
       title: "Заполните профиль компании",
       text: "В профиле компании не заполнены обязательные сведения. Заполните профиль, чтобы данные компании были актуальны для сотрудников и сделок.",
       category: NotificationCategory.Company,
+      webOnly: true,
+      delivery_key: `company-profile-incomplete:${user.id}`,
       actions: [
         {
           label: "Открыть профиль",

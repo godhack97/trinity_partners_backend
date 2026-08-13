@@ -5,7 +5,7 @@ import { NotificationsReadDto } from "./dto/notifications-read.dto";
 import { NotificationsResponseDto } from "./dto/notifications.response.dto";
 import { NotificationController } from "./notification.controller";
 import { NotificationService } from "./notification.service";
-import { NotificationType } from "@orm/entities";
+import { NotificationCategory, NotificationType } from "@orm/entities";
 
 describe("notification contract", () => {
   it("accepts unique positive integer ids and rejects unsafe read payloads", async () => {
@@ -203,5 +203,43 @@ describe("notification contract", () => {
         delivery_key: "deal-duplicate:7:42:detected",
       }),
     );
+  });
+
+  it("does not resend a one-time notification after it has been read", async () => {
+    const existing = {
+      id: 13,
+      user_id: 42,
+      title: "Заполните профиль компании",
+      category: "company",
+      is_read: true,
+    };
+    const notificationRepository: any = {
+      findOne: jest.fn().mockResolvedValue(existing),
+    };
+    const service = new NotificationService(
+      {} as any,
+      {} as any,
+      notificationRepository,
+      {} as any,
+      {} as any,
+    );
+    const send = jest.spyOn(service, "send");
+
+    await expect(
+      service.sendOnce({
+        user_id: 42,
+        title: "Заполните профиль компании",
+        text: "Заполните обязательные сведения",
+        category: NotificationCategory.Company,
+      }),
+    ).resolves.toBe(existing);
+    expect(send).not.toHaveBeenCalled();
+    expect(notificationRepository.findOne).toHaveBeenCalledWith({
+      where: {
+        user_id: 42,
+        title: "Заполните профиль компании",
+        category: "company",
+      },
+    });
   });
 });

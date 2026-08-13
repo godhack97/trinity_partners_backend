@@ -202,6 +202,20 @@ export class NotificationService {
     return this.send(data);
   }
 
+  async sendOnce(data: NotificationSendDto & { email?: string }) {
+    const existing = await this.notificationRepository.findOne({
+      where: {
+        user_id: data.user_id,
+        title: data.title,
+        category: data.category ?? NotificationCategory.System,
+      },
+    });
+
+    if (existing) return existing;
+
+    return this.send(data);
+  }
+
   async getAll(id: number) {
     const notifications = await this.notificationRepository.findBy({
       user_id: id,

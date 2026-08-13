@@ -49,4 +49,46 @@ describe("AuthService role response", () => {
       expect.objectContaining({ name: RoleTypes.PartnerManager }),
     ]);
   });
+
+  it("uses a stable delivery key for the one-time incomplete-company alert", async () => {
+    const company = { id: 7, name: "Компания" };
+    const user = Object.assign(new UserEntity(), {
+      id: 23,
+      email: "partner@example.test",
+      role: { id: 3, name: RoleTypes.Partner },
+      user_roles: [],
+      owner_company: company,
+      lazy_owner_company: Promise.resolve(company),
+      company_employee: null,
+    });
+    const userRepository = {
+      findByIdWithPermissions: jest.fn().mockResolvedValue(user),
+    };
+    const notificationService = {
+      sendOnce: jest.fn().mockResolvedValue({ id: 1 }),
+      check: jest.fn().mockResolvedValue([]),
+      countUnread: jest.fn().mockResolvedValue(1),
+      getSettings: jest.fn().mockResolvedValue({}),
+    };
+    const service = new AuthService(
+      userRepository as any,
+      {} as any,
+      {} as any,
+      { getActive: jest.fn().mockResolvedValue([]) } as any,
+      notificationService as any,
+      { check: jest.fn().mockResolvedValue([]) } as any,
+      { findOneBy: jest.fn().mockResolvedValue({ user_id: user.id }) } as any,
+    );
+
+    await service.check("Bearer test-token", "test-client");
+
+    expect(notificationService.sendOnce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 23,
+        title: "Заполните профиль компании",
+        webOnly: true,
+        delivery_key: "company-profile-incomplete:23",
+      }),
+    );
+  });
 });
