@@ -20,6 +20,7 @@ export enum CompanyStatus {
 export enum PartnershipType {
   Integrator = "integrator",
   Distributor = "distributor",
+  Vendor = "vendor",
 }
 
 export enum PartnerLevel {

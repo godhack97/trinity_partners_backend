@@ -6,7 +6,12 @@ import {
   MinLengthRu,
 } from "@decorators/validate";
 import { PartnershipType } from "@orm/entities/company.entity";
-import { IsBoolean, IsEnum } from "class-validator";
+import { IsBoolean, IsIn } from "class-validator";
+
+const PUBLIC_PARTNERSHIP_TYPES = [
+  PartnershipType.Integrator,
+  PartnershipType.Distributor,
+] as const;
 
 export class RegistrationCompanyRequestDto {
   @ApiProperty()
@@ -35,8 +40,8 @@ export class RegistrationCompanyRequestDto {
   @ApiProperty()
   company_business_line: string; //направления деятельности
 
-  @ApiProperty({ enum: PartnershipType })
-  @IsEnum(PartnershipType)
+  @ApiProperty({ enum: PUBLIC_PARTNERSHIP_TYPES })
+  @IsIn(PUBLIC_PARTNERSHIP_TYPES)
   partnership_type: PartnershipType;
 
   @ApiProperty()

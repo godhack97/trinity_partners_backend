@@ -25,6 +25,7 @@ import { CompanyEmployeeRepository } from "@orm/repositories";
 import {
   CompanyEmployeeStatus,
   CompanyStatus,
+  PartnershipType,
   NotificationCategory,
   UserNotificationType,
   UserSettingType,
@@ -99,7 +100,9 @@ export class UserService {
 
     const roleEmployee = await this.roleRepository.getEmployee();
     const businessRoleName =
-      registrationEmployeeDto.business_role || RoleTypes.SalesManager;
+      company.partnership_type === PartnershipType.Vendor
+        ? RoleTypes.SalesManager
+        : registrationEmployeeDto.business_role || RoleTypes.SalesManager;
     const businessRole = await this.roleRepository.findByRole(businessRoleName);
     const { email, password: _password } = registrationEmployeeDto;
     const { salt, password } = await createCredentials(_password);

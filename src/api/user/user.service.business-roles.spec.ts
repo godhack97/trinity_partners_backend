@@ -1,5 +1,6 @@
 import { UserService } from "./user.service";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { PartnershipType } from "@orm/entities";
 
 const makeService = (overrides: Record<string, any> = {}) => {
   const forbiddenInnRepository = {
@@ -150,6 +151,24 @@ describe("UserService business roles", () => {
     });
   });
 
+  it("не создаёт повторную компанию на ИНН вендора", async () => {
+    const { service, mocks } = makeService({
+      companyRepository: {
+        findOneBy: jest.fn().mockResolvedValue({
+          id: 11,
+          inn: companyDto.inn,
+          partnership_type: PartnershipType.Vendor,
+        }),
+      },
+    });
+
+    await expect(service.createCompany(companyDto as any)).rejects.toThrow(
+      "Пользователь с таким ИНН уже существует",
+    );
+    expect(mocks.userRepository.save).not.toHaveBeenCalled();
+    expect(mocks.companyRepository.save).not.toHaveBeenCalled();
+  });
+
   it("по умолчанию регистрирует сотрудника как sales_manager поверх базовой роли employee", async () => {
     const { service, mocks } = makeService({
       companyRepository: {
@@ -193,6 +212,36 @@ describe("UserService business roles", () => {
       expect.objectContaining({ job_title: "Специалист по закупкам" }),
     );
     expect(mocks.userRoleRepository.save).toHaveBeenCalledWith({
+      user_id: 101,
+      role_id: 9,
+    });
+  });
+
+  it("всегда назначает сотруднику вендора роль sales_manager", async () => {
+    const { service, mocks } = makeService({
+      companyRepository: {
+        findOneBy: jest.fn().mockResolvedValue({
+          id: 11,
+          name: "Vendor LLC",
+          partnership_type: PartnershipType.Vendor,
+        }),
+      },
+    });
+
+    await service.createEmployee({
+      ...employeeDto,
+      job_title: "Специалист по закупкам",
+      business_role: RoleTypes.Staff,
+    } as any);
+
+    expect(mocks.roleRepository.findByRole).toHaveBeenCalledWith(
+      RoleTypes.SalesManager,
+    );
+    expect(mocks.userRoleRepository.save).toHaveBeenCalledWith({
+      user_id: 101,
+      role_id: 7,
+    });
+    expect(mocks.userRoleRepository.save).not.toHaveBeenCalledWith({
       user_id: 101,
       role_id: 9,
     });

@@ -62,4 +62,10 @@ describe("UpdatePartnerBusinessFieldsRequestDto", () => {
       ]),
     );
   });
+
+  it("accepts vendor as an admin-only partnership type", async () => {
+    await expect(
+      validateDto({ partnership_type: "vendor" }),
+    ).resolves.toHaveLength(0);
+  });
 });
