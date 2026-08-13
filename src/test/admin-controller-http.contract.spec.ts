@@ -72,13 +72,23 @@ describe("Admin controller HTTP contracts", () => {
   describe("partner business fields", () => {
     const endpoint = "/api/admin/partner/21";
 
-    it("returns 410 because legacy wide company editing is closed", async () => {
+    it("updates validated company fields for the admin company editor", async () => {
+      partnerService.updateBusinessFields.mockResolvedValueOnce({
+        id: 21,
+        name: "Acme Systems",
+        employees_count: 12,
+      });
+
       await request(app.getHttpServer())
         .patch(endpoint)
         .send({ name: "Acme Systems", employees_count: "12" })
-        .expect(410);
+        .expect(200)
+        .expect({ id: 21, name: "Acme Systems", employees_count: 12 });
 
-      expect(partnerService.updateBusinessFields).not.toHaveBeenCalled();
+      expect(partnerService.updateBusinessFields).toHaveBeenCalledWith(
+        21,
+        expect.objectContaining({ name: "Acme Systems", employees_count: 12 }),
+      );
     });
 
     it("rejects malformed ids and non-whitelisted lifecycle fields", async () => {

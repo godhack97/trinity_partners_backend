@@ -88,9 +88,7 @@ export class AdminPartnerController {
     }))
     data: UpdatePartnerBusinessFieldsRequestDto,
   ) {
-    throw new GoneException(
-      "Редактирование компаний перенесено в раздел «Компании» партнёрского портала",
-    );
+    return this.adminPartnerService.updateBusinessFields(id, data);
   }
 
   @Post(":id/accept")

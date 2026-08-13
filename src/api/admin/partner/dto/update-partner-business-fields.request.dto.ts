@@ -1,6 +1,7 @@
 import { Transform, Type } from "class-transformer";
 import {
   IsDateString,
+  IsEmail,
   IsEnum,
   IsInt,
   IsOptional,
@@ -17,6 +18,13 @@ const emptyToNull = ({ value }: { value: unknown }) =>
   typeof value === "string" && value.trim() === "" ? null : value;
 
 export class UpdatePartnerBusinessFieldsRequestDto {
+  @ApiPropertyOptional({ minLength: 5, maxLength: 32 })
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  @MaxLength(32)
+  inn?: string;
+
   @ApiPropertyOptional({ minLength: 2, maxLength: 255 })
   @IsOptional()
   @IsString()
@@ -47,6 +55,28 @@ export class UpdatePartnerBusinessFieldsRequestDto {
   @IsString()
   @MaxLength(255)
   email_domain?: string | null;
+
+  @ApiPropertyOptional({ maxLength: 255, nullable: true })
+  @Transform(emptyToNull)
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(255)
+  contact_email?: string | null;
+
+  @ApiPropertyOptional({ maxLength: 64, nullable: true })
+  @Transform(emptyToNull)
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  contact_phone?: string | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Transform(emptyToNull)
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  responsible_manager_id?: number | null;
 
   @ApiPropertyOptional({ maxLength: 2000 })
   @IsOptional()

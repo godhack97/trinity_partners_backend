@@ -4,6 +4,7 @@ import { RoleTypes } from "@app/types/RoleTypes";
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { InternalServerErrorException } from "@nestjs/common/exceptions/internal-server-error.exception";
 import {
+  CompanyEntity,
   CompanyEmployeeStatus,
   CompanyStatus,
   NotificationCategory,
@@ -52,9 +53,9 @@ export default class AdminPartnerService {
 
   async getAll(filters: PartnerFilterRequestDto) {
     const qb = this.companyRepository.createQueryBuilder("cmp");
-  
+
     qb.leftJoinAndMapOne("cmp.owner", "users", "usr", "usr.id = cmp.owner_id");
-  
+
     qb.leftJoinAndMapOne(
       "usr.info",
       "users_info",
@@ -68,6 +69,12 @@ export default class AdminPartnerService {
       "mgr",
       "mgr.id = usr.manager_id",
     );
+    qb.leftJoinAndMapOne(
+      "mgr.info",
+      "users_info",
+      "mgr_info",
+      "mgr_info.user_id = mgr.id",
+    );
 
     qb.leftJoinAndMapOne(
       "cmp.validated_by_manager",
@@ -75,62 +82,158 @@ export default class AdminPartnerService {
       "validator",
       "validator.id = cmp.validated_by_manager_id",
     );
-  
-    if (!filters?.partnership_type) {
-      qb.andWhere("usr.email_confirmed = 1");
-    }
-  
+    qb.leftJoinAndMapOne(
+      "cmp.responsible_manager",
+      "users",
+      "responsible_manager",
+      "responsible_manager.id = cmp.responsible_manager_id",
+    );
+    qb.leftJoinAndMapOne(
+      "cmp.approved_by_user",
+      "users",
+      "approved_by_user",
+      "approved_by_user.id = cmp.approved_by_user_id",
+    );
+    qb.leftJoinAndMapOne(
+      "cmp.review_locked_by_user",
+      "users",
+      "review_locked_by_user",
+      "review_locked_by_user.id = cmp.review_locked_by_user_id",
+    );
+    qb.leftJoinAndMapOne(
+      "cmp.suspended_by_user",
+      "users",
+      "suspended_by_user",
+      "suspended_by_user.id = cmp.suspended_by_user_id",
+    );
+
     filters?.status && qb.andWhere("cmp.status = :s", { s: filters.status });
     filters?.partnership_type &&
       qb.andWhere("cmp.partnership_type = :partnershipType", {
         partnershipType: filters.partnership_type,
       });
-  
+
+    qb.orderBy("cmp.created_at", "DESC").addOrderBy("cmp.id", "DESC");
     const companies = await qb.getMany();
-  
-    // Получаем ID пользователей и компаний для агрегации
-    const userIds = companies.map((c) => c.owner.id);
+
+    const userIds = companies.map((company) => company.owner_id);
     const companyIds = companies.map((c) => c.id);
-  
-    // Подсчет сделок по создателям
-    const dealsCount =
-      userIds.length > 0
-        ? await this.dealRepository
-            .createQueryBuilder("deals")
-            .select("deals.creator_id", "creator_id")
-            .addSelect("COUNT(deals.id)", "count")
-            .where("deals.creator_id IN (:...userIds)", { userIds })
-            .groupBy("deals.creator_id")
-            .getRawMany()
-        : [];
-  
-    // Подсчет активных сотрудников по компаниям
-    const employeesCount =
-      companyIds.length > 0
-        ? await this.companyEmployeeRepository
-            .createQueryBuilder("ce")
-            .select("ce.company_id", "company_id")
-            .addSelect("COUNT(ce.id)", "count")
-            .where("ce.company_id IN (:...companyIds)", { companyIds })
-            .andWhere("ce.status = :status", { status: "accept" })
-            .groupBy("ce.company_id")
-            .getRawMany()
-        : [];
-  
-    // Создаем карты для быстрого поиска
-    const dealsMap = new Map(
-      dealsCount.map((d) => [d.creator_id, parseInt(d.count)]),
+
+    const memberships = companyIds.length
+      ? await this.companyEmployeeRepository.findCompanyEmployeesByCompanyIds(
+          companyIds,
+        )
+      : [];
+    const deals = companyIds.length
+      ? await this.dealRepository
+          .createQueryBuilder("deal")
+          .select("deal.id", "id")
+          .addSelect("deal.deal_num", "deal_num")
+          .addSelect("deal.title", "title")
+          .addSelect("deal.status", "status")
+          .addSelect("deal.deal_sum", "deal_sum")
+          .addSelect("deal.creator_id", "creator_id")
+          .addSelect("deal.creator_company_id", "creator_company_id")
+          .addSelect("deal.distributor_company_id", "distributor_company_id")
+          .addSelect("deal.integrator_company_id", "integrator_company_id")
+          .addSelect("deal.created_at", "created_at")
+          .where(
+            `(deal.creator_company_id IN (:...companyIds)
+              OR deal.distributor_company_id IN (:...companyIds)
+              OR deal.integrator_company_id IN (:...companyIds)
+              OR (deal.creator_company_id IS NULL AND deal.creator_id IN (:...userIds)))`,
+            { companyIds, userIds },
+          )
+          .orderBy("deal.created_at", "DESC")
+          .getRawMany()
+      : [];
+
+    const membershipsByCompany = new Map<number, any[]>();
+    memberships.forEach((membership) => {
+      const current = membershipsByCompany.get(membership.company_id) || [];
+      current.push({
+        id: membership.id,
+        status: membership.status,
+        created_at: membership.created_at,
+        updated_at: membership.updated_at,
+        employee: this.toSafeUser(membership.employee),
+      });
+      membershipsByCompany.set(membership.company_id, current);
+    });
+
+    const ownerCompanyById = new Map(
+      companies.map((company) => [company.owner_id, company.id]),
     );
-    const employeesMap = new Map(
-      employeesCount.map((e) => [e.company_id, parseInt(e.count)]),
-    );
-  
-    // Добавляем данные к компаниям
-    return companies.map((company) => ({
-      ...company,
-      dealsCount: dealsMap.get(company.owner.id) || 0,
-      employeesCount: employeesMap.get(company.id) || 0,
-    }));
+    const dealsByCompany = new Map<number, any[]>();
+    deals.forEach((deal) => {
+      const relatedCompanyIds = new Set<number>([
+        Number(deal.creator_company_id) || ownerCompanyById.get(Number(deal.creator_id)),
+        Number(deal.distributor_company_id),
+        Number(deal.integrator_company_id),
+      ].filter(Boolean));
+      relatedCompanyIds.forEach((companyId) => {
+        const roles = [
+          Number(deal.creator_company_id) === companyId ||
+          (!deal.creator_company_id && ownerCompanyById.get(Number(deal.creator_id)) === companyId)
+            ? "creator"
+            : null,
+          Number(deal.distributor_company_id) === companyId ? "distributor" : null,
+          Number(deal.integrator_company_id) === companyId ? "integrator" : null,
+        ].filter(Boolean);
+        const current = dealsByCompany.get(companyId) || [];
+        current.push({ ...deal, company_roles: roles });
+        dealsByCompany.set(companyId, current);
+      });
+    });
+
+    return companies.map((company) => {
+      const companyDeals = dealsByCompany.get(company.id) || [];
+      const companyMemberships = membershipsByCompany.get(company.id) || [];
+      return {
+        id: company.id,
+        created_at: company.created_at,
+        updated_at: company.updated_at,
+        inn: company.inn,
+        owner_id: company.owner_id,
+        validated_by_manager_id: company.validated_by_manager_id || null,
+        validated_at: company.validated_at || null,
+        responsible_manager_id: company.responsible_manager_id || null,
+        approved_by_user_id: company.approved_by_user_id || null,
+        approved_at: company.approved_at || null,
+        contact_email: company.contact_email || null,
+        contact_phone: company.contact_phone || null,
+        review_locked_at: company.review_locked_at || null,
+        review_locked_by_user_id: company.review_locked_by_user_id || null,
+        review_lock_reason: company.review_lock_reason || null,
+        suspended_at: company.suspended_at || null,
+        suspended_by_user_id: company.suspended_by_user_id || null,
+        suspension_reason: company.suspension_reason || null,
+        name: company.name,
+        company_business_line: company.company_business_line,
+        employees_count: company.employees_count,
+        site_url: company.site_url,
+        promoted_products: company.promoted_products,
+        products_of_interest: company.products_of_interest,
+        main_customers: company.main_customers,
+        email_domain: company.email_domain || null,
+        partnership_type: company.partnership_type,
+        status: company.status,
+        partner_level: company.partner_level || null,
+        certificate_expiry: company.certificate_expiry || null,
+        owner: this.toSafeUser(company.owner),
+        validated_by_manager: this.toSafeUser(company.validated_by_manager),
+        responsible_manager: this.toSafeUser(company.responsible_manager),
+        approved_by_user: this.toSafeUser(company.approved_by_user),
+        review_locked_by_user: this.toSafeUser(company.review_locked_by_user),
+        suspended_by_user: this.toSafeUser(company.suspended_by_user),
+        employees: companyMemberships,
+        employeesCount: companyMemberships.filter(
+          ({ status }) => status === CompanyEmployeeStatus.Accept,
+        ).length,
+        deals: companyDeals,
+        dealsCount: companyDeals.length,
+      };
+    });
   }
 
   async updateBusinessFields(
@@ -142,8 +245,21 @@ export default class AdminPartnerService {
       throw new HttpException(`Компания не найдена: ${id}`, HttpStatus.NOT_FOUND);
     }
 
+    const { responsible_manager_id, ...businessFields } = data;
+    if (responsible_manager_id !== undefined && responsible_manager_id !== null) {
+      const manager = await this.userRepository.findByIdWithPermissions(
+        responsible_manager_id,
+      );
+      if (!manager || !this.hasRole(manager, RoleTypes.PartnerManager)) {
+        throw new HttpException(
+          "Ответственный менеджер не найден",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
     const patch = {
-      ...data,
+      ...businessFields,
       ...(data.certificate_expiry === undefined
         ? {}
         : {
@@ -155,14 +271,70 @@ export default class AdminPartnerService {
         ? {}
         : { email_domain: data.email_domain?.trim().toLowerCase() || null }),
       ...(data.name === undefined ? {} : { name: data.name.trim() }),
+      ...(data.inn === undefined ? {} : { inn: data.inn.trim() }),
+      ...(data.contact_email === undefined
+        ? {}
+        : { contact_email: data.contact_email?.trim().toLowerCase() || null }),
+      ...(data.contact_phone === undefined
+        ? {}
+        : { contact_phone: data.contact_phone?.trim() || null }),
+      ...(responsible_manager_id === undefined
+        ? {}
+        : { responsible_manager_id }),
     };
 
-    const result = await this.companyRepository.update(id, patch);
-    if (result.affected === 0) {
-      throw new InternalServerErrorException("Не удалось обновить компанию");
+    if (responsible_manager_id === undefined) {
+      const result = await this.companyRepository.update(id, patch);
+      if (result.affected === 0) {
+        throw new InternalServerErrorException("Не удалось обновить компанию");
+      }
+    } else {
+      await this.companyRepository.manager.transaction(async (manager) => {
+        const result = await manager.getRepository(CompanyEntity).update(id, patch);
+        if (result.affected === 0) {
+          throw new InternalServerErrorException("Не удалось обновить компанию");
+        }
+        await manager.getRepository(UserEntity).update(company.owner_id, {
+          manager_id: responsible_manager_id,
+        });
+      });
     }
 
     return { ...company, ...patch };
+  }
+
+  private toSafeUser(user?: UserEntity | null) {
+    if (!user) return null;
+    const value = user as UserEntity & { info?: Record<string, any> };
+    const info = value.user_info || value.info || null;
+    return {
+      id: value.id,
+      email: value.email,
+      is_activated: value.is_activated,
+      email_confirmed: value.email_confirmed,
+      manager_id: value.manager_id || null,
+      bitrix24_contact_id: value.bitrix24_contact_id || null,
+      bitrix24_sync_status: value.bitrix24_sync_status || null,
+      bitrix24_synced_at: value.bitrix24_synced_at || null,
+      lastActivity: value.lastActivity || null,
+      created_at: value.created_at,
+      updated_at: value.updated_at,
+      deleted_at: value.deleted_at || null,
+      info,
+      user_info: info,
+      role: value.role
+        ? {
+            id: value.role.id,
+            name: value.role.name,
+            display_name: value.role.display_name,
+          }
+        : null,
+      roles: (value.roles || []).map((role) => ({
+        id: role.id,
+        name: role.name,
+        display_name: role.display_name,
+      })),
+    };
   }
 
   async getEmployeeRequests(auth_user: UserEntity) {

@@ -12,6 +12,7 @@ describe("UpdatePartnerBusinessFieldsRequestDto", () => {
   it("accepts the reviewed company business fields and explicit nullable values", async () => {
     const dto = plainToInstance(UpdatePartnerBusinessFieldsRequestDto, {
       name: "Trinity Partner",
+      inn: "7700000000",
       partnership_type: "integrator",
       partner_level: "gold",
       certificate_expiry: "2027-12-31",
@@ -22,11 +23,15 @@ describe("UpdatePartnerBusinessFieldsRequestDto", () => {
       promoted_products: "Servers",
       products_of_interest: "Storage",
       main_customers: "Enterprise",
+      contact_email: "partner@example.com",
+      contact_phone: "+7 999 000-00-00",
+      responsible_manager_id: "7",
     });
 
     expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true }))
       .toHaveLength(0);
     expect(dto.employees_count).toBe(25);
+    expect(dto.responsible_manager_id).toBe(7);
 
     await expect(validateDto({
       partner_level: "",
@@ -38,7 +43,6 @@ describe("UpdatePartnerBusinessFieldsRequestDto", () => {
   it("rejects lifecycle/identity fields and malformed business values", async () => {
     const protectedErrors = await validateDto({
       status: "accept",
-      inn: "7700000000",
       validated_by_manager_id: 1,
     });
     const valueErrors = await validateDto({
@@ -48,7 +52,7 @@ describe("UpdatePartnerBusinessFieldsRequestDto", () => {
       employees_count: -1,
     });
 
-    expect(protectedErrors).toHaveLength(3);
+    expect(protectedErrors).toHaveLength(2);
     expect(valueErrors.map(({ property }) => property)).toEqual(
       expect.arrayContaining([
         "partnership_type",
