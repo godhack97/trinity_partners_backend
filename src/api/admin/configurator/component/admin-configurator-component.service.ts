@@ -114,6 +114,8 @@ const PROFILE_EXCEL_COLUMNS = {
     processor_generation_id: "profile.catalog.processor_generation_id",
     is_active: "profile.catalog.is_active",
     disabled_reason: "profile.catalog.disabled_reason",
+    warning_text: "profile.catalog.warning_text",
+    warning_color: "profile.catalog.warning_color",
     s4b_status: "profile.catalog.s4b_status",
   },
   resource: {

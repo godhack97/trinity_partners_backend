@@ -22,7 +22,12 @@ describe("configuration component mutation DTO", () => {
     server_generation_id: null,
     processor_generation_id: null,
     profiles: {
-      catalog: { component_type_key: "gpu", is_active: true },
+      catalog: {
+        component_type_key: "gpu",
+        is_active: true,
+        warning_text: "Требуется согласование",
+        warning_color: "#D97706",
+      },
       resource: { resource_kind: "gpu", pcie_lanes: 16 },
       price: { base_price: 1000 },
       gpu: { memory_gb: 48, power_w: 350 },
@@ -39,6 +44,8 @@ describe("configuration component mutation DTO", () => {
 
     expect(result).toBeInstanceOf(SaveConfigurationComponentRequestDto);
     expect(result.profiles.gpu?.memory_gb).toBe(48);
+    expect(result.profiles.catalog?.warning_text).toBe("Требуется согласование");
+    expect(result.profiles.catalog?.warning_color).toBe("#D97706");
     expect(result.profiles.drive).toBeNull();
   });
 
@@ -106,6 +113,16 @@ describe("configuration component mutation DTO", () => {
     await expect(pipe.transform(
       payload,
       metadata(SaveConfigurationComponentRequestDto),
+    )).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects an invalid component warning color", async () => {
+    const payload = validPayload();
+    payload.profiles.catalog.warning_color = "orange";
+
+    await expect(pipe.transform(
+      payload,
+      metadata(UpdateConfigurationComponentRequestDto),
     )).rejects.toBeInstanceOf(BadRequestException);
   });
 

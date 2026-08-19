@@ -38,6 +38,12 @@ export class CnfComponentCatalogProfileEntity extends BasisUUIDEntity {
   @Column({ type: "text", nullable: true })
   disabled_reason: string;
 
+  @Column({ type: "text", nullable: true })
+  warning_text: string;
+
+  @Column({ length: 20, nullable: true })
+  warning_color: string;
+
   @Column({ nullable: true })
   s4b_status: string;
 }

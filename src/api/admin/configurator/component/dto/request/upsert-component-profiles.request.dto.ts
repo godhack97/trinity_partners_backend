@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Matches, Min, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 
 export class ComponentCatalogProfileDto {
@@ -46,6 +46,19 @@ export class ComponentCatalogProfileDto {
   @IsOptional()
   @IsString()
   disabled_reason?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  warning_text?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: "#D97706" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9A-F]{6}$/i, {
+    message: "warning_color должен быть цветом в формате #RRGGBB",
+  })
+  warning_color?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()

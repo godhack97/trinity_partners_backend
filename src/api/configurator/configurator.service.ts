@@ -2882,6 +2882,10 @@ export class ConfiguratorService {
                   is_active: mappedComponent.catalog_profile.is_active,
                   disabled_reason:
                     mappedComponent.catalog_profile.disabled_reason,
+                  warning_text:
+                    mappedComponent.catalog_profile.warning_text,
+                  warning_color:
+                    mappedComponent.catalog_profile.warning_color,
                   s4b_status: mappedComponent.catalog_profile.s4b_status,
                 }
               : null,

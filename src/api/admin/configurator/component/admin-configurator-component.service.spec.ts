@@ -37,6 +37,8 @@ describe("AdminConfiguratorComponentService XLSX profile columns", () => {
     const profiles = service.extractProfilesFromExcelRow({
       "profile.catalog.component_type_key": "drive",
       "profile.catalog.is_active": "Да",
+      "profile.catalog.warning_text": "Проверьте совместимость",
+      "profile.catalog.warning_color": "#D97706",
       "profile.resource.resource_kind": "drive",
       "profile.resource.pcie_lanes": "4",
       "profile.resource.power_w": 12,
@@ -57,6 +59,8 @@ describe("AdminConfiguratorComponentService XLSX profile columns", () => {
       catalog: {
         component_type_key: "drive",
         is_active: true,
+        warning_text: "Проверьте совместимость",
+        warning_color: "#D97706",
       },
       resource: {
         resource_kind: "drive",
@@ -127,6 +131,8 @@ describe("AdminConfiguratorComponentService XLSX profile columns", () => {
       "Количество[5]",
       "Увеличение[5]",
       "profile.catalog.component_type_key",
+      "profile.catalog.warning_text",
+      "profile.catalog.warning_color",
       "profile.resource.resource_kind",
       "profile.price.base_price",
       "profile.cpu.ram_type",
