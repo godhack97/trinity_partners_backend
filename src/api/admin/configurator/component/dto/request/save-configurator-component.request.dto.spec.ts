@@ -66,6 +66,49 @@ describe("configuration component mutation DTO", () => {
     expect(result.profiles.controller?.m2_slot_count).toBe(2);
   });
 
+  it("accepts zero base price for percentage-based technical support", async () => {
+    const payload: any = validPayload();
+    payload.name = "Расширенная техническая поддержка";
+    payload.price = 0;
+    payload.type_id = "warranty-type-id";
+    payload.slots = [];
+    payload.profiles = {
+      catalog: { component_type_key: "service", is_active: true },
+      resource: { resource_kind: "service", uses_power: false },
+      price: {
+        base_price: null,
+        coefficient: 1,
+        price_mode: "component_price",
+        price_required: false,
+      },
+      service: {
+        service_level: "extended-1",
+        years: 1,
+        formula: "percent_of_equipment",
+        percent: 10,
+        fixed_price: null,
+      },
+    };
+
+    const result = await pipe.transform(
+      payload,
+      metadata(SaveConfigurationComponentRequestDto),
+    );
+
+    expect(result.price).toBe(0);
+    expect(result.profiles.service?.percent).toBe(10);
+  });
+
+  it("rejects a negative component price", async () => {
+    const payload = validPayload();
+    payload.price = -1;
+
+    await expect(pipe.transform(
+      payload,
+      metadata(SaveConfigurationComponentRequestDto),
+    )).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it("rejects a component mutation without profiles", async () => {
     const { profiles, ...payload } = validPayload();
 

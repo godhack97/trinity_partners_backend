@@ -85,6 +85,12 @@ export class AdminConfiguratorComponentController {
     return await this.adminConfiguratorComponentService.getBackups();
   }
 
+  @Get("/form-options")
+  @ApiOperation({ summary: "Получить варианты полей формы компонента из БД" })
+  getComponentFormOptions() {
+    return this.adminConfiguratorComponentService.getComponentFormOptions();
+  }
+
   @Post("/backup")
   @ApiOperation({ summary: 'Создать бекап компонент конфигуратора' })
   @LogAction("configurator_component_backup", "cnf_component_backups")

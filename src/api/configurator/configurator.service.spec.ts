@@ -344,7 +344,161 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(codes(result.errors)).not.toContain("REQUIRED_COMPONENT_MISSING");
     expect(result.price.is_visible).toBe(true);
-    expect(result.price.service_total).toBe(1);
+    expect(result.price.service_total).toBe(0);
+  });
+
+  it("берет выбранную техподдержку и ее цену из компонентного каталога", async () => {
+    const legacySupportComponent = component(
+      "support-standard-legacy",
+      "warranty-type-id",
+      "Legacy standard",
+      1,
+    );
+    const supportComponent = component(
+      "support-standard-1",
+      "warranty-type-id",
+      "Стандартная гарантия",
+      75,
+    );
+    const rows = baseRows();
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: legacySupportComponent.id,
+        component_type_key: "service",
+        is_active: false,
+      },
+      {
+        component_id: supportComponent.id,
+        component_type_key: "service",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: supportComponent.id,
+        resource_kind: "service",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        ocp_slots: 0,
+        power_w: null,
+        uses_power: false,
+      },
+    ]);
+    rows.set(CnfComponentPriceProfileEntity, [
+      {
+        component_id: legacySupportComponent.id,
+        base_price: 1,
+        coefficient: 1,
+        price_required: false,
+      },
+      {
+        component_id: supportComponent.id,
+        base_price: 125,
+        coefficient: 1,
+        price_required: false,
+      },
+    ]);
+    rows.set(CnfServiceProfileEntity, [
+      {
+        component_id: legacySupportComponent.id,
+        service_level: "standard",
+        years: 1,
+        formula: "fixed",
+        percent: null,
+        fixed_price: 1,
+      },
+      {
+        component_id: supportComponent.id,
+        service_level: "standard",
+        years: 3,
+        formula: "fixed",
+        percent: null,
+        fixed_price: null,
+      },
+    ]);
+    const { service } = makeService({
+      components: [
+        ...Object.values(baseComponents),
+        legacySupportComponent,
+        supportComponent,
+      ],
+      rows,
+    });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(result.price.service_total).toBe(125);
+    expect(result.normalized_configuration.items).toContainEqual(
+      expect.objectContaining({ component_id: supportComponent.id, qty: 1 }),
+    );
+  });
+
+  it("для Premium передает цену поддержки на ручной расчет", async () => {
+    const premiumSupport = component(
+      "support-premium-1",
+      "warranty-type-id",
+      "Премиум",
+      0,
+    );
+    const rows = baseRows();
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: premiumSupport.id,
+        component_type_key: "service",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: premiumSupport.id,
+        resource_kind: "service",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        ocp_slots: 0,
+        power_w: null,
+        uses_power: false,
+      },
+    ]);
+    rows.set(CnfServiceProfileEntity, [
+      {
+        component_id: premiumSupport.id,
+        service_level: "premium",
+        years: 1,
+        formula: "manual",
+        percent: null,
+        fixed_price: null,
+      },
+    ]);
+    const { service } = makeService({
+      components: [...Object.values(baseComponents), premiumSupport],
+      rows,
+    });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          ...baseDto().items,
+          { component_id: premiumSupport.id, qty: 1 },
+        ],
+        support: undefined,
+      }) as any,
+    );
+
+    expect(result.price.is_visible).toBe(false);
+    expect(result.price.equipment_subtotal).toBeNull();
+    expect(result.price.service_total).toBeNull();
+    expect(result.price.total).toBeNull();
+    expect(result.price.visibility_reason).toContain("ручного расчета");
+    expect(codes(result.warnings)).toContain("PREMIUM_SERVICE_MANAGER_REQUIRED");
+    expect(result.normalized_configuration.items).toContainEqual(
+      expect.objectContaining({ component_id: premiumSupport.id, qty: 1 }),
+    );
   });
 
   it("не считает legacy-компонент сервиса повторно при переданном support", async () => {
@@ -419,9 +573,9 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(legacyOnly.normalized_configuration.items).toContainEqual(
       expect.objectContaining({ component_id: legacyService.id }),
     );
-    expect(legacyOnly.price.service_total).toBe(
-      Number(legacyOnly.price.equipment_subtotal) * 0.1,
-    );
+    expect(legacyOnly.price.equipment_subtotal).toBe(1236);
+    expect(legacyOnly.price.service_total).toBe(123.6);
+    expect(legacyOnly.price.total).toBe(1359.6);
     expect(codes(legacyOnly.warnings)).toContain("SERVICE_PRICE_RECALCULATED");
   });
 

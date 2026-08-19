@@ -1,7 +1,7 @@
 import { AdminConfiguratorComponentService } from "./admin-configurator-component.service";
 
 describe("AdminConfiguratorComponentService XLSX profile columns", () => {
-  const makeService = () =>
+  const makeService = (dataSource: any = {}) =>
     new AdminConfiguratorComponentService(
       {} as any,
       {} as any,
@@ -10,8 +10,26 @@ describe("AdminConfiguratorComponentService XLSX profile columns", () => {
       {} as any,
       {} as any,
       {} as any,
-      {} as any,
+      dataSource,
     ) as any;
+
+  it("получает варианты полей формы из профильных таблиц", async () => {
+    const query = jest.fn(async () => [
+      { option_key: "currencies", value: "USD" },
+      { option_key: "service_formulas", value: "fixed" },
+      { option_key: "service_formulas", value: "percent_of_equipment" },
+    ]);
+    const service = makeService({ query });
+
+    const result = await service.getComponentFormOptions();
+
+    expect(result.currencies).toEqual(["USD"]);
+    expect(result.service_formulas).toEqual([
+      "fixed",
+      "percent_of_equipment",
+    ]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("service_formulas"));
+  });
 
   it("парсит profile.* колонки в payload нормализованных профилей", () => {
     const service = makeService();

@@ -37,8 +37,8 @@ export class CreateConfigurationComponentRequestDto {
   @IsNotEmptyRu()
   name: string;
 
-  @ApiProperty({ minimum: 1 })
-  @MinRu(1)
+  @ApiProperty({ minimum: 0 })
+  @MinRu(0)
   price: number;
 
   @ApiProperty()

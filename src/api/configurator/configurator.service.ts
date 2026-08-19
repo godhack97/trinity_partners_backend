@@ -93,7 +93,24 @@ export class ConfiguratorService {
       throw new NotFoundException("Платформа не найдена");
     }
 
-    const normalizedItems = (dto.items || [])
+    const resolvedSupportComponentId = await this.findSupportComponentId(
+      dto.support?.id,
+    );
+    const requestedItems = [...(dto.items || [])];
+    if (
+      resolvedSupportComponentId &&
+      !requestedItems.some(
+        (item) => item.component_id === resolvedSupportComponentId,
+      )
+    ) {
+      requestedItems.push({
+        component_id: resolvedSupportComponentId,
+        qty: 1,
+        source: "manual",
+      });
+    }
+
+    const normalizedItems = requestedItems
       .filter((item) => item?.component_id && item.qty > 0)
       .map((item) => ({
         component_id: item.component_id,
@@ -285,7 +302,9 @@ export class ConfiguratorService {
     const selectedPsu = [];
     const selectedServices = [];
     const ignoredLegacyServiceComponentIds = new Set<string>();
-    const virtualSupport = this.buildVirtualSupportService(dto.support);
+    const virtualSupport = resolvedSupportComponentId
+      ? null
+      : this.buildVirtualSupportService(dto.support);
 
     if (virtualSupport) {
       hasService = true;
@@ -660,9 +679,11 @@ export class ConfiguratorService {
         : hasPremiumServiceWithoutManualPrice
           ? "Premium-сервис требует ручного расчета ответственным менеджером"
           : "Для расчета стоимости выберите минимум: процессор — 1, модули памяти — 2, диск — 1 и сервис",
-      equipment_subtotal: priceIsVisible ? equipmentSubtotal : null,
-      service_total: priceIsVisible ? serviceTotal : null,
-      total: priceIsVisible ? equipmentSubtotal + serviceTotal : null,
+      equipment_subtotal: priceIsVisible ? this.roundMoney(equipmentSubtotal) : null,
+      service_total: priceIsVisible ? this.roundMoney(serviceTotal) : null,
+      total: priceIsVisible
+        ? this.roundMoney(equipmentSubtotal + serviceTotal)
+        : null,
       currency: "USD",
     };
 
@@ -1987,7 +2008,7 @@ export class ConfiguratorService {
         serviceTotal += equipmentSubtotal * (Number(serviceProfile.percent || 0) / 100) * qty;
         warnings.push({
           code: "SERVICE_PRICE_RECALCULATED",
-          message: "Стоимость сервиса пересчитана от стоимости оборудования",
+          message: "Стоимость сервиса пересчитана от текущей стоимости конфигурации",
           details: {
             component_id: component?.id || null,
             percent: Number(serviceProfile.percent || 0),
@@ -2007,7 +2028,11 @@ export class ConfiguratorService {
       serviceTotal += Number(componentPrice || 0) * qty;
     }
 
-    return serviceTotal;
+    return this.roundMoney(serviceTotal);
+  }
+
+  private roundMoney(value: number) {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
   }
 
   private buildVirtualSupportService(support: any) {
@@ -2015,7 +2040,13 @@ export class ConfiguratorService {
       return null;
     }
 
-    const profile = this.mapSupportToServiceProfile(support);
+    const profile = {
+      service_level: `${support.id}`,
+      years: support.years ?? 1,
+      formula: support.formula || "fixed",
+      percent: support.percent ?? null,
+      fixed_price: support.price ?? 0,
+    };
 
     return {
       component: {
@@ -2029,66 +2060,24 @@ export class ConfiguratorService {
     };
   }
 
-  private mapSupportToServiceProfile(support: any) {
-    const id = `${support.id}`;
+  private async findSupportComponentId(serviceLevel?: string) {
+    if (!serviceLevel) return null;
 
-    if (id === "standard") {
-      return {
-        service_level: "standard",
-        years: support.years ?? 3,
-        formula: "fixed",
-        percent: null,
-        fixed_price: Number(support.price || 0) > 0 ? Number(support.price) : 1,
-      };
-    }
+    const profiles = await this.safeFindMany(CnfServiceProfileEntity, {
+      service_level: serviceLevel,
+    });
+    if (!profiles.length) return null;
 
-    if (id === "extended-1") {
-      return {
-        service_level: "extended",
-        years: 1,
-        formula: "percent_of_equipment",
-        percent: 10,
-        fixed_price: null,
-      };
-    }
+    const catalogProfiles = await this.safeFindByComponentIds(
+      CnfComponentCatalogProfileEntity,
+      profiles.map((profile) => profile.component_id),
+    );
+    const activeProfile = profiles.find(
+      (profile) =>
+        catalogProfiles.get(profile.component_id)?.is_active !== false,
+    );
 
-    if (id === "extended-3") {
-      return {
-        service_level: "extended",
-        years: 3,
-        formula: "percent_of_equipment",
-        percent: 17,
-        fixed_price: null,
-      };
-    }
-
-    if (id === "extended-5") {
-      return {
-        service_level: "extended",
-        years: 5,
-        formula: "percent_of_equipment",
-        percent: 25,
-        fixed_price: null,
-      };
-    }
-
-    if (id === "premium") {
-      return {
-        service_level: "premium",
-        years: support.years ?? 1,
-        formula: "manual",
-        percent: null,
-        fixed_price: support.price ?? null,
-      };
-    }
-
-    return {
-      service_level: "manual",
-      years: support.years ?? 1,
-      formula: support.price != null ? "fixed" : "manual",
-      percent: null,
-      fixed_price: support.price ?? null,
-    };
+    return activeProfile?.component_id || profiles[0]?.component_id || null;
   }
 
   private cloneBays(platformBays: any[]) {

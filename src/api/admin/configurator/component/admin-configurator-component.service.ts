@@ -303,6 +303,61 @@ export class AdminConfiguratorComponentService {
 
   ) {}
 
+  async getComponentFormOptions() {
+    const optionColumns = {
+      client_display_modes: ["cnf_component_catalog_profiles", "client_display_mode"],
+      currencies: ["cnf_component_price_profiles", "currency"],
+      price_coefficients: ["cnf_component_price_profiles", "coefficient"],
+      price_modes: ["cnf_component_price_profiles", "price_mode"],
+      cpu_socket_profiles: ["cnf_cpu_profiles", "socket_profile"],
+      ram_types: ["cnf_ram_profiles", "ram_type"],
+      ram_form_factors: ["cnf_ram_profiles", "form_factor"],
+      drive_types: ["cnf_drive_profiles", "drive_type"],
+      drive_interfaces: ["cnf_drive_profiles", "interface_type"],
+      drive_m2_interfaces: ["cnf_drive_profiles", "m2_interface"],
+      drive_media_kinds: ["cnf_drive_profiles", "media_kind"],
+      drive_form_factors: ["cnf_drive_profiles", "form_factor"],
+      drive_speed_classes: ["cnf_drive_profiles", "speed_class"],
+      drive_workload_classes: ["cnf_drive_profiles", "workload_class"],
+      controller_types: ["cnf_controller_profiles", "controller_type"],
+      controller_m2_drive_types: ["cnf_controller_profiles", "m2_drive_type"],
+      network_kinds: ["cnf_network_profiles", "network_kind"],
+      network_port_types: ["cnf_network_profiles", "port_type"],
+      network_connector_types: ["cnf_network_profiles", "connector_type"],
+      network_port_speeds: ["cnf_network_profiles", "port_speed"],
+      network_port_speeds_gbps: ["cnf_network_profiles", "port_speed_gbps"],
+      network_supported_media: ["cnf_network_profiles", "supported_media"],
+      transceiver_interface_types: ["cnf_transceiver_profiles", "interface_type"],
+      transceiver_connector_types: ["cnf_transceiver_profiles", "connector_type"],
+      transceiver_speeds: ["cnf_transceiver_profiles", "speed"],
+      transceiver_speeds_gbps: ["cnf_transceiver_profiles", "speed_gbps"],
+      transceiver_media_types: ["cnf_transceiver_profiles", "media_type"],
+      transceiver_compatible_port_types: ["cnf_transceiver_profiles", "compatible_port_type"],
+      psu_efficiency_classes: ["cnf_psu_profiles", "efficiency_class"],
+      service_levels: ["cnf_service_profiles", "service_level"],
+      service_years: ["cnf_service_profiles", "years"],
+      service_formulas: ["cnf_service_profiles", "formula"],
+    } as const;
+
+    const query = Object.entries(optionColumns)
+      .map(([key, [table, column]]) => `
+        SELECT '${key}' AS option_key, CAST(\`${column}\` AS CHAR) AS value
+          FROM \`${table}\`
+         WHERE \`${column}\` IS NOT NULL
+           AND TRIM(CAST(\`${column}\` AS CHAR)) <> ''
+      `)
+      .join(" UNION ");
+    const rows = await this.dataSource.query(
+      `${query} ORDER BY option_key, value`,
+    );
+    const result = Object.fromEntries(
+      Object.keys(optionColumns).map((key) => [key, []]),
+    ) as Record<string, string[]>;
+
+    rows.forEach((row: any) => result[row.option_key].push(row.value));
+    return result;
+  }
+
   async getComponentProfiles(
     componentId: string,
     manager: EntityManager = this.dataSource.manager,

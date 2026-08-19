@@ -46,6 +46,16 @@ export class ValidateConfiguratorSupportDto {
   @IsOptional()
   @Min(0)
   price?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  formula?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Min(0)
+  percent?: number;
 }
 
 export class ValidateConfiguratorRequestDto {
