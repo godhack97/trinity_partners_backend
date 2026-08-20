@@ -27,6 +27,14 @@ export class DealConfigurationComponentDto {
   @ApiProperty()
   @IsNumber()
   amount: number;
+
+  @ApiPropertyOptional({
+    description: "How the configurator selected the component",
+    enum: ["manual", "auto_added", "suppressed"],
+  })
+  @IsOptional()
+  @IsString()
+  source?: string;
 }
 
 export class DealConfigurationSupportDto {
@@ -88,6 +96,14 @@ export class DealConfigurationDto {
   @IsOptional()
   @IsNumber()
   componentsPrice?: number;
+
+  @ApiPropertyOptional({
+    description: "Configurator-specific options stored with the deal snapshot",
+    type: Object,
+  })
+  @IsOptional()
+  @IsObject()
+  options?: Record<string, unknown>;
 
   @ApiPropertyOptional({ type: () => DealConfigurationSupportDto })
   @IsOptional()
