@@ -21,6 +21,74 @@ import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity
 class StaleDeletionApprovalError extends Error {}
 class StaleDealContentUpdateError extends Error {}
 
+function normalizeConfigurationAmount(amount: unknown) {
+  const parsedAmount = Number(amount);
+  return Number.isFinite(parsedAmount) && parsedAmount >= 1
+    ? Math.trunc(parsedAmount)
+    : 1;
+}
+
+function getConfigurationSourceKey(configuration: unknown) {
+  if (!configuration || typeof configuration !== "object") return null;
+
+  const meta = (configuration as { meta?: unknown }).meta;
+  if (!meta || typeof meta !== "object") return null;
+
+  const { draftId, draftConfigurationId } = meta as {
+    draftId?: unknown;
+    draftConfigurationId?: unknown;
+  };
+  if (
+    draftId === undefined ||
+    draftId === null ||
+    draftConfigurationId === undefined ||
+    draftConfigurationId === null
+  ) {
+    return null;
+  }
+
+  return `${String(draftId)}:${String(draftConfigurationId)}`;
+}
+
+function mergeConfigurationsBySource(
+  currentConfigurations: unknown[],
+  incomingConfigurations: unknown[],
+) {
+  const mergedConfigurations: unknown[] = [];
+  const configurationIndexes = new Map<string, number>();
+
+  for (const configuration of [
+    ...currentConfigurations,
+    ...incomingConfigurations,
+  ]) {
+    const sourceKey = getConfigurationSourceKey(configuration);
+    const existingIndex = sourceKey
+      ? configurationIndexes.get(sourceKey)
+      : undefined;
+
+    if (existingIndex === undefined) {
+      if (sourceKey) {
+        configurationIndexes.set(sourceKey, mergedConfigurations.length);
+      }
+      mergedConfigurations.push(configuration);
+      continue;
+    }
+
+    const existingConfiguration = mergedConfigurations[existingIndex] as
+      | Record<string, unknown>
+      | undefined;
+    const incomingConfiguration = configuration as Record<string, unknown>;
+    mergedConfigurations[existingIndex] = {
+      ...existingConfiguration,
+      amount:
+        normalizeConfigurationAmount(existingConfiguration?.amount) +
+        normalizeConfigurationAmount(incomingConfiguration.amount),
+    };
+  }
+
+  return mergedConfigurations;
+}
+
 export const BITRIX24_SYNC_LEASE_MS = 10 * 60 * 1000;
 
 export interface Bitrix24SyncClaim {
@@ -447,10 +515,10 @@ export class DealRepository extends Repository<DealEntity> {
 
       let nextConfigurations: unknown[];
       if (mutation.type === "append") {
-        nextConfigurations = [
-          ...currentConfigurations,
-          ...mutation.configurations,
-        ];
+        nextConfigurations = mergeConfigurationsBySource(
+          currentConfigurations,
+          mutation.configurations,
+        );
       } else {
         let matched = false;
         nextConfigurations = currentConfigurations.flatMap(

@@ -73,6 +73,56 @@ describe("DealRepository configuration mutations", () => {
     );
   });
 
+  it("increments amount instead of duplicating a saved configuration", async () => {
+    const { repository, update } = makeRepository({
+      id: 7,
+      status: DealStatus.Registered,
+      creator_id: 31,
+      configurations: [
+        {
+          id: "stored-id",
+          amount: 2,
+          components: [{ id: "memory", amount: 4 }],
+          meta: { draftId: 91, draftConfigurationId: "server-1" },
+        },
+      ],
+    });
+
+    await expect(
+      repository.mutateDealConfigurations(
+        7,
+        DealStatus.Registered,
+        { kind: "creator", userId: 31 },
+        {
+          type: "append",
+          configurations: [
+            {
+              id: "new-random-id",
+              amount: 3,
+              components: [{ id: "changed", amount: 1 }],
+              meta: { draftId: "91", draftConfigurationId: "server-1" },
+            },
+          ],
+        },
+      ),
+    ).resolves.toBe("updated");
+
+    expect(update).toHaveBeenCalledWith(
+      { id: 7, status: DealStatus.Registered, creator_id: 31 },
+      {
+        configurations: [
+          {
+            id: "stored-id",
+            amount: 5,
+            components: [{ id: "memory", amount: 4 }],
+            meta: { draftId: 91, draftConfigurationId: "server-1" },
+          },
+        ],
+        status: DealStatus.Moderation,
+      },
+    );
+  });
+
   it("removes a configuration from a JSON string returned by the driver", async () => {
     const { repository, update } = makeRepository({
       id: 7,
