@@ -9,8 +9,12 @@ import { ALLOW_RESTRICTED_COMPANY_ACCESS } from "@decorators/AllowRestrictedComp
 import { Reflector } from "@nestjs/core";
 import { UserRepository } from "src/orm/repositories/user.repository";
 import { UserToken } from "src/orm/entities/user-token.entity";
-import { Repository } from "typeorm";
+import { IsNull, MoreThan, Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
+import {
+  hashSessionToken,
+  normalizeSessionClientId,
+} from "src/utils/session-token";
 
 const ERROR_MSG = `Пользователь не прошел аутентификацию!`;
 
@@ -43,17 +47,22 @@ export class AuthGuard implements CanActivate {
     const _token: string = headers.authorization || "";
 
     // Собираем client_id
-    const clientId = headers["origin"];
+    const clientId = normalizeSessionClientId(
+      headers["origin"] || headers["client-id"],
+    );
 
     if (!_token || _token.length === 0)
       throw new UnauthorizedException(ERROR_MSG);
-    if (!clientId) throw new UnauthorizedException(`Client ID отсутствует!`);
-
     const token = _token.substring(7);
 
     // Ищем токен в таблице user_tokens по token + client_id
     const userToken = await this.userTokenRepository.findOne({
-      where: { token, client_id: clientId },
+      where: {
+        token: hashSessionToken(token),
+        client_id: clientId,
+        revoked_at: IsNull(),
+        expires_at: MoreThan(new Date()),
+      },
       relations: [
         "user",
         "user.role",

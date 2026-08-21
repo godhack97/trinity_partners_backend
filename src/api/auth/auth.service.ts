@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, MoreThan, Repository } from "typeorm";
 import { Request } from "express";
 import { ResetHashRepository } from "@orm/repositories/reset-hash.repository";
 import { UserRepository } from "src/orm/repositories/user.repository";
@@ -19,9 +19,14 @@ import { ResetHashEntity } from "src/orm/entities/reset-hash.entity";
 import {
   createCredentials,
   createPassword,
-  createToken,
   verifyPassword,
 } from "src/utils/password";
+import {
+  createSessionToken,
+  getSessionExpiresAt,
+  hashSessionToken,
+  normalizeSessionClientId,
+} from "src/utils/session-token";
 import { AuthLoginRequestDto } from "./dto/request/auth-login.request.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
@@ -68,30 +73,26 @@ export class AuthService {
     await this.resetFailedLoginAttempts(user);
     await this.assertPortalAccessAllowed(user);
 
+    const sessionClientId = normalizeSessionClientId(clientId);
     let userToken = await this.userTokenRepository.findOneBy({
       user_id: user.id,
-      client_id: clientId,
+      client_id: sessionClientId,
     });
 
-    if (userToken) {
-      if (req) {
-        await this.updateUserActivity(user.id, req);
-      }
+    const token = createSessionToken();
+    const sessionPatch = {
+      token: hashSessionToken(token),
+      client_id: sessionClientId,
+      expires_at: getSessionExpiresAt(),
+      revoked_at: null,
+    };
 
-      const token = userToken.token;
-      if (user.role.name === RoleTypes.Partner) {
-        user.owner_company = await user.lazy_owner_company;
-      }
-      return { token, user };
-    }
-
-    const token = await createToken(user.salt);
-
-    userToken = this.userTokenRepository.create({
-      user_id: user.id,
-      token,
-      client_id: clientId,
-    });
+    userToken = userToken
+      ? this.userTokenRepository.merge(userToken, sessionPatch)
+      : this.userTokenRepository.create({
+          user_id: user.id,
+          ...sessionPatch,
+        });
     await this.userTokenRepository.save(userToken);
 
     if (req) {
@@ -296,23 +297,18 @@ export class AuthService {
 
   async logout(authorization: string, clientId: string) {
     const token = authorization.substring(7);
-
-    const tokenEntity = await this.userTokenRepository.findOneBy({
-      token,
-      client_id: clientId,
-    });
+    const tokenEntity = await this.findActiveSession(token, clientId);
     if (!tokenEntity) throw new UnauthorizedException();
 
-    await this.userTokenRepository.delete({ token, client_id: clientId });
+    await this.userTokenRepository.update(tokenEntity.id, {
+      revoked_at: new Date(),
+    });
   }
 
   async check(authorization: string, clientId: string, req?: Request) {
     const token = authorization.substring(7);
 
-    const tokenEntity = await this.userTokenRepository.findOneBy({
-      token,
-      client_id: clientId,
-    });
+    const tokenEntity = await this.findActiveSession(token, clientId);
     if (!tokenEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findByIdWithPermissions(
@@ -453,10 +449,7 @@ export class AuthService {
   async getUserWithPermissionsByToken(authorization: string, clientId: string) {
     const token = authorization.substring(7);
 
-    const tokenEntity = await this.userTokenRepository.findOneBy({
-      token,
-      client_id: clientId,
-    });
+    const tokenEntity = await this.findActiveSession(token, clientId);
     if (!tokenEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findByIdWithPermissions(
@@ -475,10 +468,7 @@ export class AuthService {
   ) {
     const token = authorization.substring(7);
 
-    const tokenEntity = await this.userTokenRepository.findOneBy({
-      token,
-      client_id: clientId,
-    });
+    const tokenEntity = await this.findActiveSession(token, clientId);
     if (!tokenEntity) throw new UnauthorizedException();
 
     const user = await this.userRepository.findById(tokenEntity.user_id);
@@ -497,6 +487,7 @@ export class AuthService {
     });
 
     await this.userRepository.updateUser(user.id, { password: passwordHashed });
+    await this.revokeUserSessions(user.id);
   }
 
   async forgotPassword({ email }) {
@@ -531,6 +522,7 @@ export class AuthService {
       password: passwordHashed,
       salt,
     });
+    await this.revokeUserSessions(user.id);
 
     await this.emailConfirmerService.confirm({
       hash,
@@ -547,6 +539,22 @@ export class AuthService {
 
     await this.resetHashRepository.delete(resetHashEntity.id);
     throw new HttpException("Срок действия ссылки истек", HttpStatus.GONE);
+  }
+
+  private findActiveSession(token: string, clientId: string) {
+    return this.userTokenRepository.findOneBy({
+      token: hashSessionToken(token),
+      client_id: normalizeSessionClientId(clientId),
+      revoked_at: IsNull(),
+      expires_at: MoreThan(new Date()),
+    });
+  }
+
+  private async revokeUserSessions(userId: number) {
+    await this.userTokenRepository.update(
+      { user_id: userId, revoked_at: IsNull() },
+      { revoked_at: new Date() },
+    );
   }
 
   private async updateUserActivity(userId: number, req: Request) {

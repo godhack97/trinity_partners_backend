@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, MoreThan, Repository } from "typeorm";
 import { UserEntity } from "../entities/user.entity";
 import { UserToken } from "../entities/user-token.entity";
+import { hashSessionToken } from "../../utils/session-token";
 
 @Injectable()
 export class UserRepository {
@@ -128,7 +129,11 @@ export class UserRepository {
 
   public async findByToken(token: string): Promise<UserEntity> {
     const userToken = await this.userTokenRepository.findOne({
-      where: { token },
+      where: {
+        token: hashSessionToken(token),
+        revoked_at: IsNull(),
+        expires_at: MoreThan(new Date()),
+      },
       relations: ["user", 'user.manager'],
     });
     return userToken?.user || null;
@@ -150,7 +155,11 @@ export class UserRepository {
 
   public async findByTokenWithCompanyEmployees(token: string) {
     const userToken = await this.userTokenRepository.findOne({
-      where: { token },
+      where: {
+        token: hashSessionToken(token),
+        revoked_at: IsNull(),
+        expires_at: MoreThan(new Date()),
+      },
       relations: [
         "user",
         "user.role",
@@ -165,7 +174,11 @@ export class UserRepository {
 
   public async findByTokenWithCompany(token: string): Promise<UserEntity> {
     const userToken = await this.userTokenRepository.findOne({
-      where: { token },
+      where: {
+        token: hashSessionToken(token),
+        revoked_at: IsNull(),
+        expires_at: MoreThan(new Date()),
+      },
       relations: [
         "user",
         "user.role",
