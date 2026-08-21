@@ -6,6 +6,7 @@ import { DealService } from "./deal.service";
 const makeService = () => {
   const dealRepository = {
     mutateDealConfigurations: jest.fn().mockResolvedValue("updated"),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
   const service = new DealService(
     {} as any,
@@ -31,6 +32,9 @@ const makeService = () => {
   };
   jest.spyOn(service, "findOne").mockResolvedValue(deal as any);
   (service as any).notifyDealChanged = jest.fn().mockResolvedValue(undefined);
+  (service as any).notifyDealAttachmentAdded = jest
+    .fn()
+    .mockResolvedValue(undefined);
 
   return { service, dealRepository, deal };
 };
@@ -107,6 +111,46 @@ describe("DealService configuration mutation persistence", () => {
       { kind: "responsible_manager", userId: 44 },
       { type: "append", configurations: [{ id: "vendor" }] },
     );
+  });
+
+  it("treats a configuration file like a configuration edit", async () => {
+    const { service, dealRepository, deal } = makeService();
+    deal.status = DealStatus.Registered;
+    (deal as any).attachments = [];
+
+    await service.addAttachment(7, { id: 31 } as any, {
+      name: "configuration.xlsx",
+      url: "/public/files/configuration.xlsx",
+      category: "Дополнительные конфигурации",
+    });
+
+    expect(dealRepository.update).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        status: DealStatus.Moderation,
+        attachments: [
+          expect.objectContaining({
+            name: "configuration.xlsx",
+            category: "Дополнительные конфигурации",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("does not allow adding a configuration file to a completed deal", async () => {
+    const { service, dealRepository, deal } = makeService();
+    deal.status = DealStatus.Win;
+
+    await expect(
+      service.addAttachment(7, { id: 31 } as any, {
+        name: "configuration.xlsx",
+        url: "/public/files/configuration.xlsx",
+        category: "Дополнительные конфигурации",
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(dealRepository.update).not.toHaveBeenCalled();
   });
 
   it.each([

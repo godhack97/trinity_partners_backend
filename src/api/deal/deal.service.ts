@@ -2003,8 +2003,12 @@ export class DealService {
     addDealAttachmentDto: AddDealAttachmentDto,
   ) {
     const deal = await this.findOne(dealId, auth_user);
+    const isConfigurationFile =
+      addDealAttachmentDto.category === "Дополнительные конфигурации";
 
-    if (!(await this.canUpdateDealFields(deal, auth_user))) {
+    if (isConfigurationFile) {
+      this.assertCanUpdateDealConfigurations(deal, auth_user);
+    } else if (!(await this.canUpdateDealFields(deal, auth_user))) {
       throw new HttpException(
         "У вас недостаточно прав для добавления документов в сделку",
         HttpStatus.FORBIDDEN,
@@ -2026,6 +2030,9 @@ export class DealService {
 
     const updatedDeal = await this.dealRepository.update(dealId, {
       attachments: [...currentAttachments, attachment],
+      ...(isConfigurationFile
+        ? { status: this.getStatusAfterContentChange(deal.status) }
+        : {}),
     });
 
     if (updatedDeal.affected === 0) {
