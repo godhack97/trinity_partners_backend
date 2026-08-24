@@ -36,6 +36,30 @@ export class HardenUserSessions1780320000000 implements MigrationInterface {
       (index) => index.name === "uniq_user_client",
     );
     if (uniqueUserClientIndex) {
+      const userIdForeignKey = initialTable?.foreignKeys.find(
+        (foreignKey) =>
+          foreignKey.columnNames.length === 1 &&
+          foreignKey.columnNames[0] === "user_id",
+      );
+      const hasSeparateUserIdIndex = initialTable?.indices.some(
+        (index) =>
+          index.name !== uniqueUserClientIndex.name &&
+          index.columnNames[0] === "user_id",
+      );
+
+      // MySQL may use the unique (user_id, client_id) index to support the
+      // user_id foreign key. Give the FK its own index before replacing the
+      // unique index, otherwise DROP INDEX fails with ER_DROP_INDEX_FK.
+      if (userIdForeignKey && !hasSeparateUserIdIndex) {
+        await queryRunner.createIndex(
+          "user_tokens",
+          new TableIndex({
+            name: "idx_user_tokens_user_id",
+            columnNames: ["user_id"],
+          }),
+        );
+      }
+
       await queryRunner.dropIndex("user_tokens", uniqueUserClientIndex);
     }
 
