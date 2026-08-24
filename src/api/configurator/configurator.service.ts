@@ -1436,7 +1436,7 @@ export class ConfiguratorService {
     }
 
     for (const unplacedM2 of m2Placement.unplaced) {
-      errors.push({
+      warnings.push({
         code: "DRIVE_BAY_LIMIT_EXCEEDED",
         message: "Недостаточно native или adapter M.2 слотов для выбранных дисков",
         details: unplacedM2,

@@ -1884,7 +1884,8 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.resources.adapter_m2_slots).toEqual({ used: 0, limit: 0 });
     expect(result.resources.front_bays).toEqual({ used: 0, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("учитывает M.2 слоты RAID/HBA адаптера как отдельный pool", async () => {
@@ -2009,7 +2010,8 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.adapter_m2_slots).toEqual({ used: 0, limit: 2 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("размещает M.2 SATA и NVMe в SATA+NVMe M.2 адаптер", async () => {
@@ -2986,6 +2988,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(sataResult.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(m2Result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(m2Result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(m2Result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 });
