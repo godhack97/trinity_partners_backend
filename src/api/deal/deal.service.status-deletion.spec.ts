@@ -12,6 +12,12 @@ describe("DealService status state machine and deletion orchestration", () => {
     role: { name: "super_admin" },
     roles: [],
   } as any;
+  const partnerManager = {
+    id: 7,
+    email: "manager@example.test",
+    role: { name: "employee" },
+    roles: [{ name: "partner_manager" }],
+  } as any;
 
   const makeService = (overrides: Record<string, any> = {}) => {
     const dealRepository = {
@@ -80,6 +86,10 @@ describe("DealService status state machine and deletion orchestration", () => {
     [DealStatus.Moderation, DealStatus.Canceled],
     [DealStatus.Registered, DealStatus.Win],
     [DealStatus.Registered, DealStatus.Lose],
+    [DealStatus.Registered, DealStatus.Moderation],
+    [DealStatus.Canceled, DealStatus.Moderation],
+    [DealStatus.Win, DealStatus.Registered],
+    [DealStatus.Lose, DealStatus.Registered],
   ])("allows %s -> %s using a compare-and-set update", async (from, next) => {
     const deps = prepareStatusUpdate(from);
 
@@ -119,6 +129,36 @@ describe("DealService status state machine and deletion orchestration", () => {
       deps.service.updateDealStatus(81, DealStatus.Registered, superAdmin),
     ).resolves.toBeDefined();
     expect(deps.dealRepository.update).toHaveBeenCalled();
+  });
+
+  it("does not resend approval notification when moving win back to registered", async () => {
+    const deps = prepareStatusUpdate(DealStatus.Win);
+
+    await deps.service.updateDealStatus(
+      81,
+      DealStatus.Registered,
+      superAdmin,
+    );
+
+    expect(
+      deps.service.notifyDistributorAboutApprovedDeal,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("allows the responsible manager to move a registered deal back", async () => {
+    const deps = prepareStatusUpdate(DealStatus.Registered);
+    (deps.deal as any).responsible_manager_id = partnerManager.id;
+
+    await deps.service.updateDealStatus(
+      81,
+      DealStatus.Moderation,
+      partnerManager,
+    );
+
+    expect(deps.dealRepository.update).toHaveBeenCalledWith(
+      { id: 81, status: DealStatus.Registered },
+      { status: DealStatus.Moderation },
+    );
   });
 
   it("reports a status CAS miss as conflict and skips side effects", async () => {

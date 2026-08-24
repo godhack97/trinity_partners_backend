@@ -64,6 +64,10 @@ describe("AdminDealService status state machine", () => {
     [DealStatus.Moderation, DealStatus.Canceled],
     [DealStatus.Registered, DealStatus.Win],
     [DealStatus.Registered, DealStatus.Lose],
+    [DealStatus.Registered, DealStatus.Moderation],
+    [DealStatus.Canceled, DealStatus.Moderation],
+    [DealStatus.Win, DealStatus.Registered],
+    [DealStatus.Lose, DealStatus.Registered],
   ])("allows %s -> %s using a compare-and-set update", async (from, next) => {
     const deps = makeService(from, { persistedStatus: next });
 
@@ -104,6 +108,22 @@ describe("AdminDealService status state machine", () => {
       ),
     ).resolves.toEqual(expect.objectContaining({ success: true }));
     expect(deps.dealRepository.update).toHaveBeenCalled();
+  });
+
+  it("does not resend approval notification when moving win back to registered", async () => {
+    const deps = makeService(DealStatus.Win, {
+      persistedStatus: DealStatus.Registered,
+    });
+
+    await deps.service.update(
+      71,
+      { status: DealStatus.Registered },
+      superAdmin,
+    );
+
+    expect(
+      deps.dealService.notifyDistributorAboutApprovedDeal,
+    ).not.toHaveBeenCalled();
   });
 
   it("reports a CAS miss as conflict and emits no notifications", async () => {

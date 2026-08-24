@@ -564,6 +564,43 @@ describe("DealService business roles", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it("не позволяет изменить интегратора в зарегистрированной сделке", async () => {
+    const replacementIntegrator = {
+      id: 11,
+      owner_id: 3,
+      name: "Другой интегратор",
+      inn: "7700000011",
+      partnership_type: PartnershipType.Integrator,
+      status: CompanyStatus.Accept,
+    };
+    const { service, mocks } = makeService({
+      dealRepository: {
+        findById: jest.fn().mockResolvedValue({
+          id: 1,
+          creator_id: 2,
+          creator_company_id: 10,
+          integrator_company_id: 10,
+          integrator_name: "Интегратор",
+          integrator_inn: "7700000000",
+          status: DealStatus.Registered,
+        }),
+      },
+      companyRepository: {
+        findById: jest.fn().mockResolvedValue(replacementIntegrator),
+      },
+    });
+
+    await expect(
+      service.update(1, makeUser(8, [RoleTypes.SuperAdmin]), {
+        integrator_company_id: replacementIntegrator.id,
+      } as any),
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(
+      mocks.dealRepository.updateDealAndCustomerSnapshot,
+    ).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["membership отсутствует", null],
     [

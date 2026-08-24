@@ -77,7 +77,7 @@ export class AdminDealService {
     }
 
     if (
-      previousStatus !== deal.status &&
+      previousStatus === DealStatus.Moderation &&
       deal.status === DealStatus.Registered
     ) {
       await this.dealService.notifyDistributorAboutApprovedDeal(deal);
@@ -189,7 +189,14 @@ export class AdminDealService {
 
     const allowed: Partial<Record<DealStatus, DealStatus[]>> = {
       [DealStatus.Moderation]: [DealStatus.Registered, DealStatus.Canceled],
-      [DealStatus.Registered]: [DealStatus.Win, DealStatus.Lose],
+      [DealStatus.Registered]: [
+        DealStatus.Moderation,
+        DealStatus.Win,
+        DealStatus.Lose,
+      ],
+      [DealStatus.Canceled]: [DealStatus.Moderation],
+      [DealStatus.Win]: [DealStatus.Registered],
+      [DealStatus.Lose]: [DealStatus.Registered],
     };
     if (!(allowed[deal.status] || []).includes(next)) {
       throw new BadRequestException(

@@ -1478,7 +1478,7 @@ export class DealService {
 
     await this.notifyDealStatusChanged(deal, status, auth_user);
     if (
-      previousStatus !== DealStatus.Registered &&
+      previousStatus === DealStatus.Moderation &&
       status === DealStatus.Registered
     ) {
       await this.notifyDistributorAboutApprovedDeal(deal);
@@ -1490,7 +1490,14 @@ export class DealService {
   private assertAllowedDealStatusTransition(deal: any, next: DealStatus) {
     const allowed: Partial<Record<DealStatus, DealStatus[]>> = {
       [DealStatus.Moderation]: [DealStatus.Registered, DealStatus.Canceled],
-      [DealStatus.Registered]: [DealStatus.Win, DealStatus.Lose],
+      [DealStatus.Registered]: [
+        DealStatus.Moderation,
+        DealStatus.Win,
+        DealStatus.Lose,
+      ],
+      [DealStatus.Canceled]: [DealStatus.Moderation],
+      [DealStatus.Win]: [DealStatus.Registered],
+      [DealStatus.Lose]: [DealStatus.Registered],
     };
 
     if (!(allowed[deal.status] || []).includes(next)) {
@@ -1648,6 +1655,24 @@ export class DealService {
         updateDealDto.integrator_name,
         updateDealDto.integrator_inn,
       );
+
+      const keepsRegisteredIntegrator = deal.integrator_company_id
+        ? Number(deal.integrator_company_id) === Number(integratorCompany.id)
+        : Boolean(
+            deal.integrator_inn &&
+              `${deal.integrator_inn}`.trim() ===
+                `${integratorCompany.inn || ""}`.trim(),
+          );
+
+      if (
+        deal.status === DealStatus.Registered &&
+        !keepsRegisteredIntegrator
+      ) {
+        throw new HttpException(
+          "Интегратора нельзя изменить в зарегистрированной сделке",
+          HttpStatus.CONFLICT,
+        );
+      }
 
       if (
         !canAssignParticipants &&
