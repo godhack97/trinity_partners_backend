@@ -256,7 +256,10 @@ export class AuthService {
 
       if (
         signature.length !== expected.length ||
-        !timingSafeEqual(signature, expected)
+        !timingSafeEqual(
+          new Uint8Array(signature),
+          new Uint8Array(expected),
+        )
       ) {
         return false;
       }

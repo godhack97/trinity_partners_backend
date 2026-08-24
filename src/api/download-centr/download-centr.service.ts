@@ -34,7 +34,7 @@ export class DownloadCentrService {
       const fileName = `${Date.now()}_${file.originalname}`;
       const filePath = path.join(uploadDir, fileName);
 
-      fs.writeFileSync(filePath, file.buffer);
+      fs.writeFileSync(filePath, new Uint8Array(file.buffer));
 
       existingFile.filePath = `/upload/centr/${fileName}`;
     }
@@ -68,7 +68,7 @@ export class DownloadCentrService {
     const fileName = `${Date.now()}_${file.originalname}`;
     const filePath = path.join(uploadDir, fileName);
 
-    fs.writeFileSync(filePath, file.buffer);
+    fs.writeFileSync(filePath, new Uint8Array(file.buffer));
 
     const downloadCentr = this.downloadCentrRepository.create({
       ...createDto,

@@ -250,7 +250,10 @@ export class DocumentsService {
 
     const ext = path.extname(file.originalname) || '';
     const fileName = `${Date.now()}${ext}`;
-    fs.writeFileSync(path.join(uploadDir, fileName), file.buffer);
+    fs.writeFileSync(
+      path.join(uploadDir, fileName),
+      new Uint8Array(file.buffer),
+    );
     return `/upload/documents/${fileName}`;
   }
 
