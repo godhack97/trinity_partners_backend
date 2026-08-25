@@ -58,7 +58,7 @@ export const DealStatusRu = {
   canceled: "не зарегистрирована",
   moderation: "на рассмотрении",
   win: "выиграна",
-  loose: "проиграна",
+  loose: "отменена",
 };
 
 const BITRIX24_CONTACT_PARTNER_INN_FIELD = "UF_CRM_68500D3603B21";
