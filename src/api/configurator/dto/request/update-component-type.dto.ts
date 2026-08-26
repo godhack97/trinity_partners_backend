@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class UpdateComponentTypeDto {
   @ApiPropertyOptional({ description: "Название типа компонента", maxLength: 36 })
@@ -7,4 +7,11 @@ export class UpdateComponentTypeDto {
   @IsString()
   @MaxLength(36)
   name?: string;
+
+  @ApiPropertyOptional({
+    description: "Поднимать выбранный компонент вверх списка",
+  })
+  @IsOptional()
+  @IsBoolean()
+  move_selected_to_top?: boolean;
 }

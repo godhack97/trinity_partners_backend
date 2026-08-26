@@ -2725,6 +2725,12 @@ export class ConfiguratorService {
   async getComponents(entry?: SearchComponentsDto) {
     const queryBuilder = this.cnfComponentRepository
       .createQueryBuilder("cmp")
+      .leftJoinAndMapOne(
+        "cmp.component_type",
+        "cnf_component_types",
+        "ctype",
+        "ctype.id = cmp.type_id",
+      )
       .leftJoinAndMapMany(
         "cmp.component_slots",
         "cnf_component_slots",
@@ -2857,6 +2863,12 @@ export class ConfiguratorService {
         result.push({
           ...component,
           typeId: component.type_id,
+          move_selected_to_top:
+            mappedComponent.component_type?.move_selected_to_top == null
+              ? true
+              : Boolean(
+                  mappedComponent.component_type.move_selected_to_top,
+                ),
           ...profileMetadata,
           profile_is_active:
             mappedComponent.catalog_profile?.is_active ?? null,

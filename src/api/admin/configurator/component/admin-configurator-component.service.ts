@@ -61,7 +61,11 @@ interface ComponentBackupSnapshot {
   schema_version: number;
   created_at: string;
   references: {
-    component_types: Array<{ id: string; name: string }>;
+    component_types: Array<{
+      id: string;
+      name: string;
+      move_selected_to_top?: boolean;
+    }>;
     slots: Array<{ id: string; name: string }>;
     multislots: Array<{ id: string; name: string }>;
     multislot_slots: Array<{
@@ -574,6 +578,7 @@ export class AdminConfiguratorComponentService {
         component_types: componentTypes.map((item: any) => ({
           id: item.id,
           name: item.name,
+          move_selected_to_top: item.move_selected_to_top,
         })),
         slots: slots.map((item: any) => ({ id: item.id, name: item.name })),
         multislots: multislots.map((item: any) => ({

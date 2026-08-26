@@ -17,6 +17,9 @@ export class CnfComponentTypeEntity {
   @Column()
   name: string;
 
+  @Column({ default: true })
+  move_selected_to_top: boolean;
+
   @CreateDateColumn()
   created_at: Timestamp;
 

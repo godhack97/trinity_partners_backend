@@ -18,6 +18,9 @@ describe("ConfiguratorService component public projection", () => {
       subtype: "",
       name: "GPU 48 GB",
       price: 1000,
+      component_type: {
+        move_selected_to_top: false,
+      },
       component_slots: [{
         slot_id: "pcie-slot",
         amount: 1,
@@ -63,6 +66,7 @@ describe("ConfiguratorService component public projection", () => {
       component_type_key: "gpu",
       profile_kind: "gpu",
       resource_kind: "gpu",
+      move_selected_to_top: false,
       profile_is_active: true,
       profile_errors: [],
     }));
