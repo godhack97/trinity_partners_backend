@@ -347,6 +347,32 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.price.service_total).toBe(0);
   });
 
+  it("возвращает отдельные ошибки для обязательных CPU, RAM и диска", async () => {
+    const { service } = makeService();
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [{ component_id: baseComponents.psu.id, qty: 2 }],
+      }) as any,
+    );
+
+    const requiredErrors = result.errors.filter(
+      (error) => error.code === "REQUIRED_COMPONENT_MISSING",
+    );
+
+    expect(requiredErrors).toHaveLength(3);
+    expect(requiredErrors.map((error) => error.message)).toEqual([
+      "Выберите процессор — минимум 1",
+      "Выберите модули памяти — минимум 2",
+      "Выберите диск — минимум 1",
+    ]);
+    expect(requiredErrors.map((error) => error.details.missing)).toEqual([
+      ["cpu"],
+      ["ram"],
+      ["drive"],
+    ]);
+  });
+
   it("берет выбранную техподдержку и ее цену из компонентного каталога", async () => {
     const legacySupportComponent = component(
       "support-standard-legacy",

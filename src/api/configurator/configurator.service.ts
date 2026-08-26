@@ -650,21 +650,50 @@ export class ConfiguratorService {
     if (!hasDrive) missingRequired.push("drive");
     if (!hasService) missingRequired.push("service");
 
-    if (missingRequired.length) {
-      const requiredMessage =
-        "Для расчета стоимости выберите минимум: процессор — 1, модули памяти — 2, диск — 1 и сервис";
+    if (!hasCpu) {
       errors.push({
         code: "REQUIRED_COMPONENT_MISSING",
-        message: requiredMessage,
+        message: "Выберите процессор — минимум 1",
         details: {
-          missing: missingRequired,
+          missing: ["cpu"],
+          selected: { cpu: 0 },
+          required: { cpu_min: 1 },
+        },
+      });
+    }
+
+    if (ramModulesTotal < 2) {
+      errors.push({
+        code: "REQUIRED_COMPONENT_MISSING",
+        message: "Выберите модули памяти — минимум 2",
+        details: {
+          missing: ["ram"],
           selected: { ram_modules: ramModulesTotal },
-          required: {
-            cpu_min: 1,
-            ram_modules_min: 2,
-            drive_min: 1,
-            service_required: true,
-          },
+          required: { ram_modules_min: 2 },
+        },
+      });
+    }
+
+    if (!hasDrive) {
+      errors.push({
+        code: "REQUIRED_COMPONENT_MISSING",
+        message: "Выберите диск — минимум 1",
+        details: {
+          missing: ["drive"],
+          selected: { drive: 0 },
+          required: { drive_min: 1 },
+        },
+      });
+    }
+
+    if (!hasService) {
+      errors.push({
+        code: "REQUIRED_SERVICE_MISSING",
+        message: "Выберите сервис",
+        details: {
+          missing: ["service"],
+          selected: { service: 0 },
+          required: { service_required: true },
         },
       });
     }
