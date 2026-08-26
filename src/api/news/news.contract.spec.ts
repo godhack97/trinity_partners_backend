@@ -38,7 +38,7 @@ describe("news contract", () => {
       findBySlugOrName: jest.fn().mockResolvedValue(null),
       save: jest.fn(async value => ({ id: 1, ...value })),
     };
-    const service = new NewsService(repository);
+    const service = new NewsService(repository, {} as any);
 
     const result = await service.create({
       name: "Новая статья",
@@ -60,7 +60,7 @@ describe("news contract", () => {
       findBySlugOrName: jest.fn(),
       save: jest.fn(),
     };
-    const service = new NewsService(repository);
+    const service = new NewsService(repository, {} as any);
 
     await expect(service.create({
       name: "Empty",
@@ -69,5 +69,22 @@ describe("news contract", () => {
       image_big: null,
     }, { id: 7 } as any)).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it("counts unread news and records a read idempotently", async () => {
+    const repository: any = {
+      findBySlug: jest.fn().mockResolvedValue({ id: 42, url: "article" }),
+    };
+    const readRepository: any = {
+      markRead: jest.fn().mockResolvedValue(undefined),
+      countUnread: jest.fn().mockResolvedValueOnce(5).mockResolvedValueOnce(4),
+    };
+    const service = new NewsService(repository, readRepository);
+
+    await expect(service.getUnreadCount(7)).resolves.toBe(5);
+    await expect(service.markAsRead("article", 7)).resolves.toEqual({
+      unread_count: 4,
+    });
+    expect(readRepository.markRead).toHaveBeenCalledWith(7, 42);
   });
 });

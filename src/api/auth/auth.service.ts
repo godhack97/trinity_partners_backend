@@ -339,6 +339,7 @@ export class AuthService {
       user.id,
     );
     const news = await this.newsService.check();
+    const news_unread = await this.newsService.getUnreadCount(user.id);
     const important_alerts = await this.importantAlertService.getActive(
       this.getUserCompanyId(user),
     );
@@ -353,6 +354,7 @@ export class AuthService {
       notifications_unread,
       notifications_settings,
       news,
+      news_unread,
       important_alerts,
     };
   }

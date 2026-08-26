@@ -9,6 +9,7 @@ export * from "./deal.entity";
 export * from "./distributor.entity";
 export * from "./forbidden-inn.entity";
 export * from "./news.entity";
+export * from "./news-read.entity";
 export * from "./notification.entity";
 export * from "./permission.entity";
 export * from "./reset-hash.entity";

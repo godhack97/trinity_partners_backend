@@ -11,6 +11,7 @@ export * from "./customer.repository";
 export * from "./distributor.repository";
 export * from "./notification.repository";
 export * from "./news.repository";
+export * from "./news-read.repository";
 export * from "./deal.deletion.request.repository";
 export * from "./important-alert.repository";
 export * from "./configurator-draft.repository";

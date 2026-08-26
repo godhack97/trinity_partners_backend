@@ -60,4 +60,8 @@ export class AuthCheckResponseDto extends UserResponseDto {
   @Expose()
   @Type(() => NewsResponseListDto)
   news: NewsResponseListDto[];
+
+  @ApiProperty()
+  @Expose()
+  news_unread: number;
 }

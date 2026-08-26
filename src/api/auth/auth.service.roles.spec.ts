@@ -29,7 +29,10 @@ describe("AuthService role response", () => {
     const importantAlertService = {
       getActive: jest.fn().mockResolvedValue([]),
     };
-    const newsService = { check: jest.fn().mockResolvedValue([]) };
+    const newsService = {
+      check: jest.fn().mockResolvedValue([]),
+      getUnreadCount: jest.fn().mockResolvedValue(3),
+    };
     const userTokenRepository = {
       findOneBy: jest.fn().mockResolvedValue({ user_id: user.id }),
     };
@@ -48,6 +51,7 @@ describe("AuthService role response", () => {
     expect(response.roles).toEqual([
       expect.objectContaining({ name: RoleTypes.PartnerManager }),
     ]);
+    expect(response.news_unread).toBe(3);
   });
 
   it("uses a stable delivery key for the one-time incomplete-company alert", async () => {
@@ -76,7 +80,10 @@ describe("AuthService role response", () => {
       {} as any,
       { getActive: jest.fn().mockResolvedValue([]) } as any,
       notificationService as any,
-      { check: jest.fn().mockResolvedValue([]) } as any,
+      {
+        check: jest.fn().mockResolvedValue([]),
+        getUnreadCount: jest.fn().mockResolvedValue(0),
+      } as any,
       { findOneBy: jest.fn().mockResolvedValue({ user_id: user.id }) } as any,
     );
 

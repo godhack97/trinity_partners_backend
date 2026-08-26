@@ -9,7 +9,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { NewsEntity, UserEntity } from "@orm/entities";
-import { NewsRepository } from "@orm/repositories";
+import { NewsReadRepository, NewsRepository } from "@orm/repositories";
 const opt = {
   delimiter: "-",
   charMap: {
@@ -58,10 +58,29 @@ const defaultFilter = {
 export class NewsService {
   ERROR_EXISTS = "Новость с таким заголовком уже существует!";
 
-  constructor(private readonly newsRepository: NewsRepository) {}
+  constructor(
+    private readonly newsRepository: NewsRepository,
+    private readonly newsReadRepository: NewsReadRepository,
+  ) {}
 
   async getCount(): Promise<number> {
     return await this.newsRepository.createQueryBuilder().getCount();
+  }
+
+  async getUnreadCount(userId: number): Promise<number> {
+    return this.newsReadRepository.countUnread(userId);
+  }
+
+  async markAsRead(slug: string, userId: number) {
+    const news = await this.newsRepository.findBySlug({ slug });
+
+    if (!news) {
+      throw new NotFoundException();
+    }
+
+    await this.newsReadRepository.markRead(userId, news.id);
+
+    return { unread_count: await this.getUnreadCount(userId) };
   }
 
   async findAll(filters: NewsPaginationDto) {

@@ -48,3 +48,9 @@ export class NewsPaginationResponseDto extends PaginationResponseDto<NewsRespons
   @Type(() => NewsResponseDto)
   data: NewsResponseDto[];
 }
+
+export class NewsUnreadCountResponseDto {
+  @ApiProperty()
+  @Expose()
+  unread_count: number;
+}

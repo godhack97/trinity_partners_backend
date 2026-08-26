@@ -3,16 +3,20 @@ import { NewsRequestDto } from "@api/news/dto/news.request.dto";
 import {
   NewsResponseDto,
   NewsPaginationResponseDto,
+  NewsUnreadCountResponseDto,
 } from "@api/news/dto/news.response.dto";
 import { NewsService } from "@api/news/news.service";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { AuthUser } from "@decorators/auth-user";
+import { RequirePermissions } from "@decorators/permissions.decorator";
 import { Roles } from "@decorators/Roles";
 import { TransformResponse } from "@interceptors/transform-response.interceptor";
 import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Query,
@@ -42,11 +46,30 @@ export class NewsController {
     return this.newsService.getCount();
   }
 
+  @Get("/unread-count")
+  @ApiResponse({ type: NewsUnreadCountResponseDto })
+  async getUnreadCount(@AuthUser() auth_user: Partial<UserEntity>) {
+    return {
+      unread_count: await this.newsService.getUnreadCount(+auth_user.id),
+    };
+  }
+
   @Get("/:slug")
   @UseInterceptors(new TransformResponse(NewsResponseDto))
   @ApiResponse({ type: NewsResponseDto })
   async findOne(@Param("slug") slug: string) {
     return this.newsService.findOne(slug);
+  }
+
+  @Post("/:slug/read")
+  @RequirePermissions("api.portal-news.read")
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({ type: NewsUnreadCountResponseDto })
+  async markAsRead(
+    @Param("slug") slug: string,
+    @AuthUser() auth_user: Partial<UserEntity>,
+  ) {
+    return this.newsService.markAsRead(slug, +auth_user.id);
   }
 
   @Roles([RoleTypes.SuperAdmin, RoleTypes.ContentManager])
