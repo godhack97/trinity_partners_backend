@@ -35,6 +35,11 @@ export class AdminDealService {
     await this.assertCanModerateDeal(id, actor);
     const previousStatus = deal.status;
     this.assertAllowedStatusTransition(deal, updateDealDto.status);
+    const registrationExpiresAt = this.validateRegistrationExpiresAt(
+      previousStatus,
+      updateDealDto.status,
+      updateDealDto.registration_expires_at,
+    );
 
     const hasSpecialTermsUpdate =
       updateDealDto.special_discount !== undefined ||
@@ -45,6 +50,9 @@ export class AdminDealService {
     const patch: Record<string, unknown> = {
       status: updateDealDto.status,
     };
+    if (registrationExpiresAt) {
+      patch.registration_expires_at = registrationExpiresAt;
+    }
 
     if (specialTerms) {
       patch.special_discount = specialTerms.special_discount;
@@ -203,6 +211,32 @@ export class AdminDealService {
         `Недопустимый переход этапа: ${deal.status} -> ${next}`,
       );
     }
+  }
+
+  private validateRegistrationExpiresAt(
+    previousStatus: DealStatus,
+    nextStatus: DealStatus,
+    registrationExpiresAt?: Date | null,
+  ): Date | null {
+    if (nextStatus !== DealStatus.Registered) return null;
+
+    if (!registrationExpiresAt && previousStatus !== DealStatus.Registered) {
+      throw new BadRequestException("Укажите срок регистрации сделки");
+    }
+
+    if (!registrationExpiresAt) return null;
+
+    const normalized = new Date(registrationExpiresAt);
+    if (
+      Number.isNaN(normalized.getTime()) ||
+      normalized.getTime() <= Date.now()
+    ) {
+      throw new BadRequestException(
+        "Срок регистрации сделки должен быть в будущем",
+      );
+    }
+
+    return normalized;
   }
 
   private async changeStatusNotify({ deal }) {

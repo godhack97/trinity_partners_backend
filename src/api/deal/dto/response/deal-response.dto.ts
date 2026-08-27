@@ -200,6 +200,10 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   status: DealStatus;
 
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  @Expose()
+  registration_expires_at?: Date | string | null;
+
   @ApiPropertyOptional({ type: Number, nullable: true })
   @Expose()
   duplicate_of_deal_id?: number | null;

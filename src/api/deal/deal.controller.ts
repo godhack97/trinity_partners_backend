@@ -271,6 +271,7 @@ export class DealController {
       +id,
       updateDealStatusDto.status,
       auth_user,
+      updateDealStatusDto.registration_expires_at,
     );
   }
 

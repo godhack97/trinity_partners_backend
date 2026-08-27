@@ -3,6 +3,7 @@ import { DealStatus } from "@orm/entities";
 import { AdminDealService } from "./admin-deal.service";
 
 describe("AdminDealService", () => {
+  const registrationDeadline = new Date("2099-12-31T23:59:59.000Z");
   const dealRepository = {
     findById: jest.fn(),
     update: jest.fn(),
@@ -48,7 +49,14 @@ describe("AdminDealService", () => {
       .mockResolvedValueOnce(deal)
       .mockResolvedValueOnce({ ...deal, status: DealStatus.Registered });
 
-    await service.update(7, { status: DealStatus.Registered }, superAdmin);
+    await service.update(
+      7,
+      {
+        status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
+      },
+      superAdmin,
+    );
 
     expect(dealService.notifyDistributorAboutApprovedDeal).toHaveBeenCalledWith(
       expect.objectContaining({ id: 7, status: DealStatus.Registered }),
@@ -56,11 +64,21 @@ describe("AdminDealService", () => {
   });
 
   it("preserves special terms when only the status changes", async () => {
-    await service.update(7, { status: DealStatus.Registered }, superAdmin);
+    await service.update(
+      7,
+      {
+        status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
+      },
+      superAdmin,
+    );
 
     expect(dealRepository.update).toHaveBeenCalledWith(
       { id: 7, status: DealStatus.Moderation },
-      { status: DealStatus.Registered },
+      {
+        status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
+      },
     );
   });
 
@@ -71,6 +89,7 @@ describe("AdminDealService", () => {
       7,
       {
         status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
         special_discount: "12.5%",
         special_price: 875,
         discount_date: discountDate,
@@ -82,6 +101,7 @@ describe("AdminDealService", () => {
       { id: 7, status: DealStatus.Moderation },
       {
         status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
         special_discount: "12.5%",
         special_price: 875,
         discount_date: discountDate,
@@ -94,6 +114,7 @@ describe("AdminDealService", () => {
       7,
       {
         status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
         special_price: 820.5,
       },
       superAdmin,
@@ -103,6 +124,7 @@ describe("AdminDealService", () => {
       { id: 7, status: DealStatus.Moderation },
       {
         status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
         special_discount: null,
         special_price: 820.5,
         discount_date: null,
@@ -116,6 +138,7 @@ describe("AdminDealService", () => {
         7,
         {
           status: DealStatus.Registered,
+          registration_expires_at: registrationDeadline,
           special_discount: "10%",
           special_price: 700,
         },
@@ -146,7 +169,10 @@ describe("AdminDealService", () => {
     await expect(
       service.update(
         7,
-        { status: DealStatus.Registered },
+        {
+          status: DealStatus.Registered,
+          registration_expires_at: registrationDeadline,
+        },
         foreignManager,
       ),
     ).rejects.toThrow("Нет доступа к сделке этой компании");

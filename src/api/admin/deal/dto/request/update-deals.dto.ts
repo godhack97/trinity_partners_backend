@@ -14,6 +14,12 @@ export class UpdateDealDto {
   @IsEnum(DealStatus)
   status: DealStatus;
 
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDateRu()
+  registration_expires_at?: Date | null;
+
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsDateRu()

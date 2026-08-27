@@ -235,6 +235,9 @@ export class DealEntity extends BasisEntity {
   })
   status: DealStatus;
 
+  @Column({ type: "datetime", nullable: true })
+  registration_expires_at?: Date | null;
+
   @Column({ type: "int", nullable: true })
   duplicate_of_deal_id?: number | null;
 

@@ -6,6 +6,7 @@ import {
 import { DealDeletionStatus } from "@orm/entities/deal-deletion-request.entity";
 
 describe("DealService status state machine and deletion orchestration", () => {
+  const registrationDeadline = new Date("2099-12-31T23:59:59.000Z");
   const superAdmin = {
     id: 1,
     email: "admin@example.test",
@@ -93,11 +94,21 @@ describe("DealService status state machine and deletion orchestration", () => {
   ])("allows %s -> %s using a compare-and-set update", async (from, next) => {
     const deps = prepareStatusUpdate(from);
 
-    await deps.service.updateDealStatus(81, next, superAdmin);
+    await deps.service.updateDealStatus(
+      81,
+      next,
+      superAdmin,
+      next === DealStatus.Registered ? registrationDeadline : undefined,
+    );
 
     expect(deps.dealRepository.update).toHaveBeenCalledWith(
       { id: 81, status: from },
-      { status: next },
+      {
+        status: next,
+        ...(next === DealStatus.Registered
+          ? { registration_expires_at: registrationDeadline }
+          : {}),
+      },
     );
     expect((deps.service as any).notifyDealStatusChanged).toHaveBeenCalledWith(
       expect.objectContaining({ status: next }),
@@ -126,7 +137,12 @@ describe("DealService status state machine and deletion orchestration", () => {
     });
 
     await expect(
-      deps.service.updateDealStatus(81, DealStatus.Registered, superAdmin),
+      deps.service.updateDealStatus(
+        81,
+        DealStatus.Registered,
+        superAdmin,
+        registrationDeadline,
+      ),
     ).resolves.toBeDefined();
     expect(deps.dealRepository.update).toHaveBeenCalled();
   });
@@ -138,6 +154,7 @@ describe("DealService status state machine and deletion orchestration", () => {
       81,
       DealStatus.Registered,
       superAdmin,
+      registrationDeadline,
     );
 
     expect(
@@ -165,10 +182,114 @@ describe("DealService status state machine and deletion orchestration", () => {
     const deps = prepareStatusUpdate(DealStatus.Moderation, { affected: 0 });
 
     await expect(
-      deps.service.updateDealStatus(81, DealStatus.Registered, superAdmin),
+      deps.service.updateDealStatus(
+        81,
+        DealStatus.Registered,
+        superAdmin,
+        registrationDeadline,
+      ),
     ).rejects.toMatchObject({ status: 409 });
     expect((deps.service as any).notifyDealStatusChanged).not.toHaveBeenCalled();
     expect(deps.service.notifyDistributorAboutApprovedDeal).not.toHaveBeenCalled();
+  });
+
+  it("requires a future deadline when registering a deal", async () => {
+    const deps = prepareStatusUpdate(DealStatus.Moderation);
+
+    await expect(
+      deps.service.updateDealStatus(81, DealStatus.Registered, superAdmin),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Укажите срок регистрации сделки",
+    });
+    await expect(
+      deps.service.updateDealStatus(
+        81,
+        DealStatus.Registered,
+        superAdmin,
+        new Date("2020-01-01T00:00:00.000Z"),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("automatically cancels an expired registered deal once", async () => {
+    const expiredAt = new Date("2026-08-26T12:00:00.000Z");
+    const queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([
+        {
+          id: 82,
+          creator_id: 17,
+          deal_num: "D-82",
+          status: DealStatus.Registered,
+          registration_expires_at: expiredAt,
+          bitrix24_deal_id: null,
+        },
+      ]),
+    };
+    const update = jest.fn().mockResolvedValue({ affected: 1 });
+    const deps = makeService({
+      dealRepository: {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        update,
+      },
+    });
+    (deps.service as any).syncExpiredDealStatusWithBitrix = jest.fn();
+    (deps.service as any).notifyDealRegistrationExpired = jest
+      .fn()
+      .mockResolvedValue(undefined);
+
+    await deps.service.expireDealRegistrations();
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 82,
+        status: DealStatus.Registered,
+        registration_expires_at: expect.anything(),
+      }),
+      { status: DealStatus.Canceled },
+    );
+    expect(
+      (deps.service as any).notifyDealRegistrationExpired,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      (deps.service as any).syncExpiredDealStatusWithBitrix,
+    ).toHaveBeenCalledWith(expect.objectContaining({
+      id: 82,
+      status: DealStatus.Canceled,
+    }));
+  });
+
+  it("does not cancel a registration extended during expiration processing", async () => {
+    const queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([
+        {
+          id: 83,
+          status: DealStatus.Registered,
+          registration_expires_at: new Date("2026-08-26T12:00:00.000Z"),
+        },
+      ]),
+    };
+    const deps = makeService({
+      dealRepository: {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        update: jest.fn().mockResolvedValue({ affected: 0 }),
+      },
+    });
+    (deps.service as any).syncExpiredDealStatusWithBitrix = jest.fn();
+    (deps.service as any).notifyDealRegistrationExpired = jest.fn();
+
+    await deps.service.expireDealRegistrations();
+
+    expect(
+      (deps.service as any).syncExpiredDealStatusWithBitrix,
+    ).not.toHaveBeenCalled();
+    expect(
+      (deps.service as any).notifyDealRegistrationExpired,
+    ).not.toHaveBeenCalled();
   });
 
   it("deletes a deal regardless of historical duplicate references", async () => {

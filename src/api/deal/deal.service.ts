@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { LessThanOrEqual } from "typeorm";
 import { CreateDealDto } from "./dto/request/create-deal.dto";
 import {
   CompanyRepository,
@@ -1424,6 +1425,7 @@ export class DealService {
     dealId: number,
     status: DealStatus,
     auth_user: UserEntity,
+    registrationExpiresAt?: Date | null,
   ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
     const previousStatus = deal.status;
@@ -1444,9 +1446,21 @@ export class DealService {
 
     this.assertAllowedDealStatusTransition(deal, status);
 
+    const normalizedRegistrationExpiresAt =
+      this.validateRegistrationExpiresAt(
+        previousStatus,
+        status,
+        registrationExpiresAt,
+      );
+
+    const statusPatch: Record<string, unknown> = { status };
+    if (normalizedRegistrationExpiresAt) {
+      statusPatch.registration_expires_at = normalizedRegistrationExpiresAt;
+    }
+
     const updatedDeal = await this.dealRepository.update(
       { id: dealId, status: previousStatus },
-      { status },
+      statusPatch,
     );
 
     if (updatedDeal.affected === 0) {
@@ -1457,6 +1471,9 @@ export class DealService {
     }
 
     deal.status = status;
+    if (normalizedRegistrationExpiresAt) {
+      deal.registration_expires_at = normalizedRegistrationExpiresAt;
+    }
 
     if (deal.bitrix24_deal_id) {
       const distributorCompany = await this.findDistributorCompanyForDeal(deal);
@@ -1507,6 +1524,36 @@ export class DealService {
       );
     }
 
+  }
+
+  private validateRegistrationExpiresAt(
+    previousStatus: DealStatus,
+    nextStatus: DealStatus,
+    registrationExpiresAt?: Date | null,
+  ): Date | null {
+    if (nextStatus !== DealStatus.Registered) return null;
+
+    if (!registrationExpiresAt && previousStatus !== DealStatus.Registered) {
+      throw new HttpException(
+        "Укажите срок регистрации сделки",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!registrationExpiresAt) return null;
+
+    const normalized = new Date(registrationExpiresAt);
+    if (
+      Number.isNaN(normalized.getTime()) ||
+      normalized.getTime() <= Date.now()
+    ) {
+      throw new HttpException(
+        "Срок регистрации сделки должен быть в будущем",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return normalized;
   }
 
   async update(
@@ -2190,6 +2237,95 @@ export class DealService {
             ],
           }),
         ),
+    );
+  }
+
+  @Cron("*/1 * * * *")
+  async expireDealRegistrations() {
+    const now = new Date();
+    const expiredDeals = await this.dealRepository
+      .createQueryBuilder("deal")
+      .where("deal.status = :status", { status: DealStatus.Registered })
+      .andWhere("deal.registration_expires_at IS NOT NULL")
+      .andWhere("deal.registration_expires_at <= :now", { now })
+      .getMany();
+
+    for (const deal of expiredDeals) {
+      const updated = await this.dealRepository.update(
+        {
+          id: deal.id,
+          status: DealStatus.Registered,
+          registration_expires_at: LessThanOrEqual(now),
+        },
+        { status: DealStatus.Canceled },
+      );
+
+      if (updated.affected === 0) continue;
+
+      const registeredDeal = { ...deal, status: DealStatus.Registered };
+      deal.status = DealStatus.Canceled;
+      this.syncExpiredDealStatusWithBitrix(deal);
+
+      try {
+        await this.notifyDealRegistrationExpired(registeredDeal);
+      } catch (error) {
+        this.logger.error(
+          `Ошибка уведомления об истечении регистрации сделки ${deal.id}`,
+          error,
+        );
+      }
+    }
+  }
+
+  private syncExpiredDealStatusWithBitrix(deal: any) {
+    if (!deal.bitrix24_deal_id) return;
+
+    Promise.all([
+      this.findDistributorCompanyForDeal(deal),
+      deal.distributor_id
+        ? this.distributorRepository.findById(deal.distributor_id)
+        : Promise.resolve(null),
+    ])
+      .then(([distributorCompany, distributor]) => {
+        const distributorName =
+          distributorCompany?.name ||
+          distributor?.name ||
+          deal.distributor?.name;
+        return this.bitrix24Service.updateLead(
+          deal.bitrix24_deal_id,
+          deal,
+          distributorName,
+        );
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Ошибка обновления лида ${deal.id} в Bitrix24:`,
+          error,
+        );
+      });
+  }
+
+  private async notifyDealRegistrationExpired(deal: any) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const deadline = new Date(deal.registration_expires_at).toLocaleDateString(
+      "ru-RU",
+    );
+
+    await Promise.all(
+      recipientIds.map((userId) =>
+        this.notificationService.send({
+          user_id: userId,
+          title: `Истёк срок регистрации сделки №${deal.deal_num}`,
+          text: `Срок регистрации сделки №${deal.deal_num} истёк ${deadline}. Сделка переведена в статус «не зарегистрирована».`,
+          category: NotificationCategory.Deal,
+          actions: [
+            {
+              label: "Перейти к сделке",
+              url: `/deals.management/${deal.id}`,
+            },
+          ],
+        }),
+      ),
     );
   }
 

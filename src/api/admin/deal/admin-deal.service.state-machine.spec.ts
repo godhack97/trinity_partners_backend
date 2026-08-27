@@ -8,6 +8,7 @@ import {
 import { AdminDealService } from "./admin-deal.service";
 
 describe("AdminDealService status state machine", () => {
+  const registrationDeadline = new Date("2099-12-31T23:59:59.000Z");
   const superAdmin = {
     id: 1,
     role: { name: "super_admin" },
@@ -72,12 +73,26 @@ describe("AdminDealService status state machine", () => {
     const deps = makeService(from, { persistedStatus: next });
 
     await expect(
-      deps.service.update(71, { status: next }, superAdmin),
+      deps.service.update(
+        71,
+        {
+          status: next,
+          ...(next === DealStatus.Registered
+            ? { registration_expires_at: registrationDeadline }
+            : {}),
+        },
+        superAdmin,
+      ),
     ).resolves.toMatchObject({ success: true });
 
     expect(deps.dealRepository.update).toHaveBeenCalledWith(
       { id: 71, status: from },
-      { status: next },
+      {
+        status: next,
+        ...(next === DealStatus.Registered
+          ? { registration_expires_at: registrationDeadline }
+          : {}),
+      },
     );
   });
 
@@ -103,7 +118,10 @@ describe("AdminDealService status state machine", () => {
     await expect(
       deps.service.update(
         71,
-        { status: DealStatus.Registered },
+        {
+          status: DealStatus.Registered,
+          registration_expires_at: registrationDeadline,
+        },
         superAdmin,
       ),
     ).resolves.toEqual(expect.objectContaining({ success: true }));
@@ -117,7 +135,10 @@ describe("AdminDealService status state machine", () => {
 
     await deps.service.update(
       71,
-      { status: DealStatus.Registered },
+      {
+        status: DealStatus.Registered,
+        registration_expires_at: registrationDeadline,
+      },
       superAdmin,
     );
 
@@ -135,7 +156,10 @@ describe("AdminDealService status state machine", () => {
     await expect(
       deps.service.update(
         71,
-        { status: DealStatus.Registered },
+        {
+          status: DealStatus.Registered,
+          registration_expires_at: registrationDeadline,
+        },
         superAdmin,
       ),
     ).rejects.toMatchObject({ status: 409 });
@@ -143,6 +167,19 @@ describe("AdminDealService status state machine", () => {
     expect(
       deps.dealService.notifyDistributorAboutApprovedDeal,
     ).not.toHaveBeenCalled();
+  });
+
+  it("rejects registration without a deadline", async () => {
+    const deps = makeService(DealStatus.Moderation);
+
+    await expect(
+      deps.service.update(
+        71,
+        { status: DealStatus.Registered },
+        superAdmin,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(deps.dealRepository.update).not.toHaveBeenCalled();
   });
 
   it("allows same-status commercial-term updates without another status notification", async () => {
