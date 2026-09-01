@@ -15,6 +15,7 @@ describe("configuration component mutation DTO", () => {
   });
   const validPayload = () => ({
     name: "GPU 48 GB",
+    description: "Графический ускоритель для вычислений",
     price: 1000,
     type_id: "gpu-type-id",
     subtype: null,
@@ -43,6 +44,7 @@ describe("configuration component mutation DTO", () => {
     );
 
     expect(result).toBeInstanceOf(SaveConfigurationComponentRequestDto);
+    expect(result.description).toBe("Графический ускоритель для вычислений");
     expect(result.profiles.gpu?.memory_gb).toBe(48);
     expect(result.profiles.catalog?.warning_text).toBe("Требуется согласование");
     expect(result.profiles.catalog?.warning_color).toBe("#D97706");

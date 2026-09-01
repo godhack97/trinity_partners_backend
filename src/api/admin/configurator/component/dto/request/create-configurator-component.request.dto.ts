@@ -37,6 +37,11 @@ export class CreateConfigurationComponentRequestDto {
   @IsNotEmptyRu()
   name: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
   @ApiProperty({ minimum: 0 })
   @MinRu(0)
   price: number;

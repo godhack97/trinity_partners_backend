@@ -19,6 +19,7 @@ export class CnfComponentEntity extends BasisUUIDEntity {
     "subtype",
     "price",
     "name",
+    "description",
     "server_generation_id",
     "processor_generation_id",
   ];
@@ -34,6 +35,9 @@ export class CnfComponentEntity extends BasisUUIDEntity {
 
   @Column()
   name: string;
+
+  @Column({ type: "text", nullable: true })
+  description: string | null;
 
   @Column({ nullable: true })
   server_generation_id: string;

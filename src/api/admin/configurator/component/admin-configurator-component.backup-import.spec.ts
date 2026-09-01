@@ -62,6 +62,7 @@ const initialStore = (): Store => ({
     type_id: "gpu-type-id",
     subtype: "",
     name: "GPU 48 GB",
+    description: "GPU для вычислений",
     price: 1000,
     server_generation_id: null,
     processor_generation_id: null,
@@ -248,6 +249,7 @@ const makeService = (memory: ReturnType<typeof createMemory>) =>
 const importRow = (overrides: Record<string, any> = {}) => ({
   ID: "gpu-1",
   "Название": "GPU 80 GB",
+  "Описание": "GPU для вычислений",
   "Подтип": "Не указано",
   "Цена": 1200,
   "Тип компонента": "gpu-type-id",
@@ -284,6 +286,7 @@ describe("AdminConfiguratorComponentService backup/restore/import", () => {
     expect(snapshot.components[0].profiles.gpu).toEqual(
       expect.objectContaining({ memory_gb: 48 }),
     );
+    expect(snapshot.components[0].component.description).toBe("GPU для вычислений");
     expect(Object.keys(snapshot.components[0].profiles)).toHaveLength(12);
   });
 
@@ -430,6 +433,29 @@ describe("AdminConfiguratorComponentService backup/restore/import", () => {
     expect(memory.state().backups).toHaveLength(0);
   });
 
+  it("preserves an existing description when importing a legacy XLSX row", async () => {
+    const memory = createMemory();
+    const service = makeService(memory);
+    const row = importRow({
+      "Название": "GPU 48 GB",
+      "Цена": 1000,
+      "profile.price.base_price": 1000,
+      "profile.gpu.memory_gb": 48,
+    });
+    delete row["Описание"];
+
+    const report = await service.importExcel([row], "admin-1", {
+      dryRun: true,
+    });
+
+    expect(report).toEqual(expect.objectContaining({
+      updated: 0,
+      unchanged: 1,
+      errors: [],
+    }));
+    expect(memory.state().components[0].description).toBe("GPU для вычислений");
+  });
+
   it("keeps the complete component aggregate unchanged after export and import", async () => {
     const memory = createMemory();
     const service = makeService(memory);
@@ -442,6 +468,7 @@ describe("AdminConfiguratorComponentService backup/restore/import", () => {
     const after = await service.getComponentProfiles("gpu-1");
 
     expect(exportedRows[0]).toEqual(expect.objectContaining({
+      "Описание": "GPU для вычислений",
       "profile.gpu.memory_gb": 48,
       "profile.resource.pcie_lanes": 16,
       "Слот[1]": "PCIe x16",

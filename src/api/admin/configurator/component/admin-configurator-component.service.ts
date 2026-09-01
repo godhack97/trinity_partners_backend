@@ -35,6 +35,7 @@ interface ExcelRow {
   [key: string]: any;
   ID?: string;
   'Название': string;
+  'Описание'?: string;
   'Подтип': string;
   'Цена': number;
   'Тип компонента'?: string;
@@ -957,6 +958,7 @@ export class AdminConfiguratorComponentService {
         'ID': component.id,
         'Действие': 'upsert',
         'Название': component.name,
+        'Описание': component.description || '',
         'Подтип': component.subtype || 'Не указано',
         'Цена': component.price || 0,
         'Тип компонента': component.type_id || '',
@@ -1009,6 +1011,12 @@ export class AdminConfiguratorComponentService {
         type: "text",
         required: "Да",
         description: "Название компонента",
+      },
+      {
+        column: "Описание",
+        type: "text",
+        required: "Нет",
+        description: "Описание компонента для интерфейса и PDF",
       },
       {
         column: "Подтип",
@@ -1290,6 +1298,11 @@ export class AdminConfiguratorComponentService {
       // Формируем данные для компонента
       const componentData: any = {
         name: row['Название'].toString().trim(),
+        description: Object.prototype.hasOwnProperty.call(row, 'Описание')
+          ? row['Описание']?.toString()?.trim() || null
+          : rawId
+            ? existingById.get(rawId)?.description ?? null
+            : null,
         subtype:
           !row['Подтип'] || row['Подтип'].toString().trim() === 'Не указано'
             ? null
@@ -1477,6 +1490,7 @@ export class AdminConfiguratorComponentService {
   ) {
     const baseChanged =
       existingComponent.name !== payload.name ||
+      (existingComponent.description || null) !== (payload.description || null) ||
       (existingComponent.subtype || null) !== (payload.subtype || null) ||
       !this.sameImportValue(existingComponent.price, payload.price) ||
       existingComponent.type_id !== payload.type_id ||
@@ -1617,6 +1631,7 @@ export class AdminConfiguratorComponentService {
     const componentRepo = manager.getRepository(CnfComponentEntity);
     const componentValues = {
       name: data.name,
+      description: data.description?.trim() || null,
       price: data.price,
       type_id: data.type_id,
       subtype: data.subtype ?? "",

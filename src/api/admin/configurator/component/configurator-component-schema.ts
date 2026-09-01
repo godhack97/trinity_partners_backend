@@ -6,6 +6,7 @@ export const CONFIGURATOR_COMPONENT_BACKUP_FIELDS = [
   "subtype",
   "price",
   "name",
+  "description",
   "server_generation_id",
   "processor_generation_id",
   "created_at",

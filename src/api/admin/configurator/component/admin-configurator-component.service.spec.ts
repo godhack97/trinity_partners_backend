@@ -127,6 +127,7 @@ describe("AdminConfiguratorComponentService XLSX profile columns", () => {
       "ID",
       "Действие",
       "Название",
+      "Описание",
       "Слот[5]",
       "Количество[5]",
       "Увеличение[5]",
