@@ -110,6 +110,17 @@ export class DealService {
     return this.hasRole(user, RoleTypes.SuperAdmin);
   }
 
+  private canAssignDealParticipants(
+    user: UserEntity,
+    company?: CompanyEntity | null,
+  ): boolean {
+    if (this.isSuperAdmin(user)) return true;
+    if (company?.partnership_type === PartnershipType.Vendor) return false;
+    if (company?.partnership_type === PartnershipType.Integrator) return true;
+
+    return this.hasAnyRole(user, [RoleTypes.PartnerManager]);
+  }
+
   async getCount(auth_user: UserEntity): Promise<number> {
     return this.getVisibleDealCount(auth_user);
   }
@@ -812,8 +823,17 @@ export class DealService {
         .map(({ deal }) => deal);
     }
 
+    const authUserCompany =
+      scope.kind === "company"
+        ? scope.company
+        : this.isSuperAdmin(auth_user)
+          ? null
+          : await this.getUserCompany(auth_user);
+
     return Promise.all(
-      visibleDeals.map((deal) => this.withDealCapabilities(deal, auth_user)),
+      visibleDeals.map((deal) =>
+        this.withDealCapabilities(deal, auth_user, authUserCompany),
+      ),
     );
   }
 
@@ -1129,12 +1149,19 @@ export class DealService {
       );
     }
 
+    const authUserCompany =
+      scope.kind === "company"
+        ? scope.company
+        : this.isSuperAdmin(auth_user)
+          ? null
+          : await this.getUserCompany(auth_user);
+
     if (
       !this.isSuperAdmin(auth_user) &&
       !this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
       this.hasAnyRole(auth_user, [RoleTypes.TechnicalSpecialist])
     ) {
-      return this.withDealCapabilities(deal, auth_user, {
+      return this.withDealCapabilities(deal, auth_user, authUserCompany, {
         can_update_status: false,
         can_update_fields: false,
         can_update_configurations: false,
@@ -1146,7 +1173,7 @@ export class DealService {
       });
     }
 
-    return this.withDealCapabilities(deal, auth_user);
+    return this.withDealCapabilities(deal, auth_user, authUserCompany);
   }
 
   async getDealStatistic(auth_user: UserEntity) {
@@ -1574,12 +1601,16 @@ export class DealService {
     const customerPatch: Record<string, unknown> = {};
     const changedFieldLabels: string[] = [];
     const authUserCompany = await this.getUserCompany(auth_user);
-    const canAssignParticipants = this.hasAnyRole(auth_user, [
+    const canBypassCreatorCompanyCheck = this.hasAnyRole(auth_user, [
       RoleTypes.SuperAdmin,
       RoleTypes.PartnerManager,
     ]);
+    const canAssignParticipants = this.canAssignDealParticipants(
+      auth_user,
+      authUserCompany,
+    );
     let creatorCompanySnapshot: CompanyEntity | null = null;
-    if (!canAssignParticipants) {
+    if (!canBypassCreatorCompanyCheck) {
       if (!deal.creator_company_id || deal.creator_id !== auth_user.id) {
         throw new HttpException(
           "Редактирование legacy-сделки требует сопоставления компании-создателя",
@@ -1602,6 +1633,24 @@ export class DealService {
           HttpStatus.FORBIDDEN,
         );
       }
+    }
+
+    const changesParticipants =
+      updateDealDto.distributor_id !== undefined ||
+      updateDealDto.distributor_company_id !== undefined ||
+      updateDealDto.integrator_company_id !== undefined ||
+      updateDealDto.integrator_name !== undefined ||
+      updateDealDto.integrator_inn !== undefined;
+
+    if (
+      changesParticipants &&
+      authUserCompany?.partnership_type === PartnershipType.Vendor &&
+      !this.isSuperAdmin(auth_user)
+    ) {
+      throw new HttpException(
+        "У вас недостаточно прав для изменения участников сделки",
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (
@@ -2657,6 +2706,7 @@ export class DealService {
   private async withDealCapabilities(
     deal: any,
     auth_user: UserEntity,
+    authUserCompany: CompanyEntity | null,
     overrides: Record<string, boolean> = {},
   ) {
     const canDecide = await this.canUpdateDealStatus(deal, auth_user);
@@ -2669,10 +2719,10 @@ export class DealService {
       ),
       can_submit:
         deal.status === DealStatus.Draft && deal.creator_id === auth_user.id,
-      can_assign_participants: this.hasAnyRole(auth_user, [
-        RoleTypes.SuperAdmin,
-        RoleTypes.PartnerManager,
-      ]),
+      can_assign_participants: this.canAssignDealParticipants(
+        auth_user,
+        authUserCompany,
+      ),
       can_request_deletion:
         deal.creator_id === auth_user.id && !deal.deletedAt,
       can_comment: await this.canCommentOnDeal(deal, auth_user),

@@ -271,6 +271,51 @@ describe("DealService business roles", () => {
     });
   });
 
+  it("сотрудник вендора не получает право менять участников сделки", async () => {
+    const vendorCompany = {
+      id: 10,
+      owner_id: 1,
+      name: "Вендор",
+      partnership_type: PartnershipType.Vendor,
+      status: CompanyStatus.Accept,
+      responsible_manager_id: 7,
+    };
+    const { service } = makeService({
+      dealRepository: {
+        findById: jest.fn().mockResolvedValue({
+          id: 1,
+          creator_id: 2,
+          status: DealStatus.Draft,
+          responsible_manager_id: 7,
+        }),
+      },
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockResolvedValue({
+          company_id: vendorCompany.id,
+          company: vendorCompany,
+        }),
+      },
+    });
+
+    await expect(
+      service.findOne(1, makeUser(7, [RoleTypes.PartnerManager])),
+    ).resolves.toMatchObject({
+      can_update_fields: true,
+      can_assign_participants: false,
+    });
+  });
+
+  it("сотрудник интегратора сохраняет право менять участников своей сделки", async () => {
+    const { service } = makeService();
+
+    await expect(
+      service.findOne(1, makeUser(2, [RoleTypes.CompanyAdmin])),
+    ).resolves.toMatchObject({
+      can_update_fields: true,
+      can_assign_participants: true,
+    });
+  });
+
   it("менеджер не открывает сделку чужой active-компании по прямому id", async () => {
     const { service } = makeService();
 
@@ -539,6 +584,45 @@ describe("DealService business roles", () => {
       mocks.companyRepository.findAcceptedIntegratorByInn,
     ).toHaveBeenCalledWith("7700000099");
   });
+
+  it.each([
+    ["дистрибьютора", { distributor_company_id: 20 }],
+    ["интегратора", { integrator_company_id: 30 }],
+  ])(
+    "запрещает сотруднику вендора менять %s через прямой API",
+    async (_participant, participantPatch) => {
+      const vendorCompany = {
+        id: 10,
+        owner_id: 1,
+        name: "Вендор",
+        partnership_type: PartnershipType.Vendor,
+        status: CompanyStatus.Accept,
+      };
+      const { service, mocks } = makeService({
+        companyRepository: {
+          findById: jest.fn().mockResolvedValue(vendorCompany),
+        },
+        companyEmployeeRepository: {
+          findOne: jest.fn().mockResolvedValue({
+            company_id: vendorCompany.id,
+            company: vendorCompany,
+          }),
+        },
+      });
+
+      await expect(
+        service.update(
+          1,
+          makeUser(2, [RoleTypes.SalesManager]),
+          participantPatch as any,
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+
+      expect(
+        mocks.dealRepository.updateDealAndCustomerSnapshot,
+      ).not.toHaveBeenCalled();
+    },
+  );
 
   it("не позволяет рассинхронизировать реквизиты и canonical id интегратора", async () => {
     const integratorCompany = {
