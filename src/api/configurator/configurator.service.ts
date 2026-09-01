@@ -350,6 +350,7 @@ export class ConfiguratorService {
       const transceiverProfile = transceiverProfiles.get(component.id);
       const psuProfile = psuProfiles.get(component.id);
       const typeKey = catalogProfile?.component_type_key || this.mapLegacyTypeKey(component.type_id);
+      const isDriveComponent = this.isDriveType(typeKey) || Boolean(driveProfile);
       const isLegacyServiceDuplicatedBySupport =
         Boolean(virtualSupport) && (typeKey === "service" || Boolean(serviceProfile));
 
@@ -412,7 +413,7 @@ export class ConfiguratorService {
           message: "Для компонента не заполнен ресурсный профиль",
           details: { component_id: component.id, name: component.name },
         });
-      } else {
+      } else if (!isDriveComponent) {
         resources.pcie_total.used += Number(effectiveResourceProfile.pcie_lanes || 0) * qty;
         resources.rear_pcie_ocp.used +=
           Number(effectiveResourceProfile.rear_pcie_lanes || 0) * qty;
@@ -460,7 +461,7 @@ export class ConfiguratorService {
         });
       }
 
-      if (this.isDriveType(typeKey) || driveProfile) {
+      if (isDriveComponent) {
         hasDrive = true;
         selectedDrives.push({
           component,
@@ -1411,14 +1412,6 @@ export class ConfiguratorService {
         continue;
       }
 
-      if (driveType === "SATA") {
-        sataQty += qty;
-      }
-
-      if (driveType === "SAS") {
-        sasQty += qty;
-      }
-
       if (driveType === "M2") {
         m2Drives.push({
           component_id: component.id,
@@ -1427,13 +1420,6 @@ export class ConfiguratorService {
           m2_interface: m2Interface,
         });
         continue;
-      }
-
-      if (
-        driveType === "NVME" &&
-        (!resourceProfile || Number(resourceProfile.pcie_lanes || 0) === 0)
-      ) {
-        resources.pcie_total.used += Number(driveProfile.pcie_lanes || 4) * qty;
       }
 
       drivesToPlace.push({
@@ -1467,7 +1453,7 @@ export class ConfiguratorService {
     for (const unplacedM2 of m2Placement.unplaced) {
       warnings.push({
         code: "DRIVE_BAY_LIMIT_EXCEEDED",
-        message: "Недостаточно native или adapter M.2 слотов для выбранных дисков",
+        message: "Диски сверх доступных M.2 слотов добавлены как запасные",
         details: unplacedM2,
       });
     }
@@ -1482,11 +1468,45 @@ export class ConfiguratorService {
       drivePlacements.push(...placementResult.placements);
 
       for (const unplacedDrive of placementResult.unplaced) {
-        errors.push({
+        warnings.push({
           code: "DRIVE_BAY_LIMIT_EXCEEDED",
-          message: unplacedDrive.message || "Недостаточно дисковых корзин для выбранных дисков",
+          message: unplacedDrive.message || "Диски сверх доступных корзин добавлены как запасные",
           details: unplacedDrive.details || unplacedDrive,
         });
+      }
+    }
+
+    const installedDriveQtyByComponent = this.allocateInstalledDriveQuantities({
+      selectedDrives,
+      drivePlacements,
+      installedM2Qty: m2Placement.native_used + m2Placement.adapter_used,
+    });
+    sataQty = 0;
+    sasQty = 0;
+
+    for (const selectedDrive of selectedDrives) {
+      const { component, driveProfile, resourceProfile } = selectedDrive;
+      const installedQty = installedDriveQtyByComponent.get(component.id) || 0;
+      if (!driveProfile || installedQty <= 0) {
+        continue;
+      }
+
+      const driveType = this.normalizeDriveType(driveProfile.drive_type);
+      if (driveType === "SATA") sataQty += installedQty;
+      if (driveType === "SAS") sasQty += installedQty;
+
+      const pcieLanes =
+        Number(resourceProfile?.pcie_lanes || 0) ||
+        (driveType === "NVME" ? Number(driveProfile.pcie_lanes || 4) : 0);
+      resources.pcie_total.used += pcieLanes * installedQty;
+      resources.pcie_slots.used +=
+        Number(resourceProfile?.physical_slots || 0) * installedQty;
+      resources.ocp_slots.used +=
+        Number(resourceProfile?.ocp_slots || 0) * installedQty;
+
+      const powerW = resourceProfile?.power_w ?? driveProfile.power_w;
+      if (powerW != null && (resourceProfile?.uses_power ?? true)) {
+        resources.power_w.used += Number(powerW || 0) * installedQty;
       }
     }
 
@@ -1540,9 +1560,9 @@ export class ConfiguratorService {
     resources.rear_bays = baySummary.rear;
 
     if (resources.internal_m2.limit !== null && resources.internal_m2.used > resources.internal_m2.limit) {
-      errors.push({
+      warnings.push({
         code: "DRIVE_BAY_LIMIT_EXCEEDED",
-        message: "Превышен лимит внутренних M.2",
+        message: "Диски сверх лимита внутренних M.2 добавлены как запасные",
         details: resources.internal_m2,
       });
     }
@@ -1676,6 +1696,80 @@ export class ConfiguratorService {
       unplaced,
       gen3_sata_native_forbidden: gen3SataNativeForbidden,
     };
+  }
+
+  private allocateInstalledDriveQuantities({
+    selectedDrives,
+    drivePlacements,
+    installedM2Qty,
+  }: {
+    selectedDrives: any[];
+    drivePlacements: any[];
+    installedM2Qty: number;
+  }) {
+    const availableByType = new Map<string, number>();
+    let sharedSataSasAvailable = 0;
+
+    for (const placement of drivePlacements) {
+      const driveType = this.normalizeDriveType(placement.drive_type);
+      const qty = Number(placement.qty || 0);
+      if (driveType === "SATA_SAS") {
+        sharedSataSasAvailable += qty;
+      } else {
+        availableByType.set(
+          driveType,
+          (availableByType.get(driveType) || 0) + qty,
+        );
+      }
+    }
+    availableByType.set("M2", Number(installedM2Qty || 0));
+
+    const installedByComponent = new Map<string, number>();
+    const orderedDrives = [...selectedDrives].sort((a, b) => {
+      const driveTypeDiff =
+        this.driveTypePlacementRank(
+          this.normalizeDriveType(a.driveProfile?.drive_type),
+        ) -
+        this.driveTypePlacementRank(
+          this.normalizeDriveType(b.driveProfile?.drive_type),
+        );
+      if (driveTypeDiff !== 0) return driveTypeDiff;
+
+      return `${a.component?.name || ""}`.localeCompare(
+        `${b.component?.name || ""}`,
+        "ru",
+      );
+    });
+
+    for (const selectedDrive of orderedDrives) {
+      if (!selectedDrive.driveProfile) continue;
+
+      const driveType = this.normalizeDriveType(
+        selectedDrive.driveProfile.drive_type,
+      );
+      let remaining = Number(selectedDrive.qty || 0);
+      const exactAvailable = availableByType.get(driveType) || 0;
+      const exactInstalled = Math.min(remaining, exactAvailable);
+      remaining -= exactInstalled;
+      availableByType.set(driveType, exactAvailable - exactInstalled);
+
+      let sharedInstalled = 0;
+      if (
+        remaining > 0 &&
+        sharedSataSasAvailable > 0 &&
+        ["SATA", "SAS"].includes(driveType)
+      ) {
+        sharedInstalled = Math.min(remaining, sharedSataSasAvailable);
+        sharedSataSasAvailable -= sharedInstalled;
+      }
+
+      installedByComponent.set(
+        selectedDrive.component.id,
+        exactInstalled + sharedInstalled,
+      );
+    }
+
+    return installedByComponent;
   }
 
   private resolveM2Interface({

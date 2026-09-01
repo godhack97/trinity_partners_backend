@@ -832,7 +832,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.resources.sas_sata_controller_ports).toEqual({ used: 0, limit: 0 });
   });
 
-  it("требует порт контроллера для SATA сверх direct-limit", async () => {
+  it("считает SATA сверх вместимости запасным и не требует для него порт контроллера", async () => {
     const { service } = makeService();
 
     const result = await service.validateConfiguration(
@@ -846,9 +846,16 @@ describe("ConfiguratorService.validateConfiguration", () => {
       }) as any,
     );
 
-    expect(codes(result.errors)).toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(result.resources.sata_direct_ports).toEqual({ used: 12, limit: 12 });
-    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 1, limit: 0 });
+    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 0, limit: 0 });
+    expect(result.resources.power_w.used).toBe(786);
+    expect(result.normalized_configuration.items).toEqual(
+      expect.arrayContaining([
+        { component_id: baseComponents.drive.id, qty: 13, source: "manual" },
+      ]),
+    );
   });
 
   it("не считает VROC контроллером для SAS-дисков", async () => {
@@ -2308,8 +2315,8 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 23, limit: 24 });
     expect(result.resources.rear_bays).toEqual({ used: 4, limit: 4 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(result.errors).toEqual(
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(result.warnings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "DRIVE_BAY_LIMIT_EXCEEDED",
@@ -2385,7 +2392,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.front_bays).toEqual({ used: 2, limit: 2 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("запрещает 3.5-диски для ER225", async () => {
@@ -2646,7 +2653,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 12, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 4 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("rear_to_pcie зануляет rear bays и добавляет 2 PCIe slots для ER220HDR", async () => {
@@ -2704,7 +2711,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).not.toContain("PCIE_SLOTS_EXCEEDED");
   });
 
-  it("rear_to_pcie не удаляет выбранные rear-диски молча и оставляет конфигурацию невалидной", async () => {
+  it("rear_to_pcie не удаляет выбранные rear-диски и считает неразмещенный остаток запасным", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformProfileEntity, [
       {
@@ -2745,7 +2752,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
     expect(result.resources.front_bays).toEqual({ used: 12, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("rear_to_pcie запрещен для Pluton и TSGM240", async () => {
@@ -2943,7 +2950,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).toContain("PLUTON_STORAGE_FORBIDDEN");
   });
 
-  it("ограничивает Pluton двумя SATA и двумя M.2", async () => {
+  it("размещает в Pluton два SATA и два M.2, а остаток считает запасным", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformProfileEntity, [
       {
@@ -3013,7 +3020,8 @@ describe("ConfiguratorService.validateConfiguration", () => {
       }) as any,
     );
 
-    expect(codes(sataResult.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(sataResult.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(sataResult.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(m2Result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(m2Result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
