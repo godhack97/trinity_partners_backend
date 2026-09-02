@@ -132,6 +132,47 @@ describe("UserService business roles", () => {
     privacy_policy_accepted: true,
   };
 
+  it("возвращает компанию для предварительной проверки ИНН", async () => {
+    const { service, mocks } = makeService({
+      companyRepository: {
+        findOneBy: jest.fn().mockResolvedValue({
+          id: 11,
+          inn: "7700000001",
+          name: "Partner LLC",
+        }),
+      },
+    });
+
+    await expect(
+      service.findRegistrationCompanyByInn("77-0000-0001"),
+    ).resolves.toEqual({
+      exists: true,
+      company_name: "Partner LLC",
+    });
+    expect(mocks.companyRepository.findOneBy).toHaveBeenCalledWith({
+      inn: "7700000001",
+    });
+  });
+
+  it("сообщает, что компания с ИНН ещё не зарегистрирована", async () => {
+    const { service } = makeService();
+
+    await expect(
+      service.findRegistrationCompanyByInn("7700000002"),
+    ).resolves.toEqual({
+      exists: false,
+      company_name: null,
+    });
+  });
+
+  it("не выполняет поиск по неполному ИНН", async () => {
+    const { service, mocks } = makeService();
+
+    await expect(service.findRegistrationCompanyByInn("123"))
+      .rejects.toThrow("ИНН должен содержать 10 цифр");
+    expect(mocks.companyRepository.findOneBy).not.toHaveBeenCalled();
+  });
+
   it("назначает первому пользователю новой компании роли partner и company_admin", async () => {
     const { service, mocks } = makeService();
 

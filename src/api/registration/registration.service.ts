@@ -17,6 +17,10 @@ export class RegistrationService {
     return this.userService.createEmployee(registrationEmployeeDto);
   }
 
+  findCompanyByInn(inn: string) {
+    return this.userService.findRegistrationCompanyByInn(inn);
+  }
+
   async createCompany(registrationCompanyDto: RegistrationCompanyRequestDto) {
     return await this.userService.createCompany(registrationCompanyDto);
   }

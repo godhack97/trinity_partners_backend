@@ -68,6 +68,23 @@ export class UserService {
     private readonly userRoleRepository: Repository<UserRoleEntity>,
   ) { }
 
+  async findRegistrationCompanyByInn(inn: string) {
+    const normalizedInn = `${inn || ""}`.replace(/\D/g, "");
+
+    if (!/^\d{10}$/.test(normalizedInn)) {
+      throw new BadRequestException("ИНН должен содержать 10 цифр");
+    }
+
+    const company = await this.companyRepository.findOneBy({
+      inn: normalizedInn,
+    });
+
+    return {
+      exists: Boolean(company),
+      company_name: company?.name || null,
+    };
+  }
+
   async createEmployee(
     registrationEmployeeDto: RegistrationEmployeeRequestDto,
   ) {

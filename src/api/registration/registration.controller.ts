@@ -1,5 +1,5 @@
 import { AuthUser } from "@decorators/auth-user";
-import { Body, Controller, HttpCode, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
 import { ApiBody, ApiTags } from "@nestjs/swagger";
 import { UserEntity } from "@orm/entities";
 import { Public } from "src/decorators/Public";
@@ -13,6 +13,12 @@ import { LogAction } from "src/logs/log-action.decorator";
 @Controller("registration")
 export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
+
+  @Public()
+  @Get("/company-by-inn/:inn")
+  findCompanyByInn(@Param("inn") inn: string) {
+    return this.registrationService.findCompanyByInn(inn);
+  }
 
   @Public()
   @Post("/employee")
