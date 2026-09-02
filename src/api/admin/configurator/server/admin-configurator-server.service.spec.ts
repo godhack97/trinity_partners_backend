@@ -145,6 +145,7 @@ const payload = (): SaveServerWithProfileRequestDto => ({
   profile: {
     platform_code: "ER220-M8",
     family: "ER220",
+    gpu_limit: 4,
     ram_type: "DDR5",
     is_active: true,
     bays: [
@@ -189,7 +190,11 @@ describe("AdminConfiguratorServerService atomic server/profile save", () => {
       }),
     ]);
     expect(result.profile).toEqual(
-      expect.objectContaining({ platform_code: "ER220-M8", is_active: true }),
+      expect.objectContaining({
+        platform_code: "ER220-M8",
+        gpu_limit: 4,
+        is_active: true,
+      }),
     );
     expect(result.bays).toHaveLength(1);
     expect(result.forbidden_component_types).toHaveLength(1);

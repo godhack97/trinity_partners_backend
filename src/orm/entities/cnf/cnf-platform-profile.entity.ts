@@ -28,6 +28,9 @@ export class CnfPlatformProfileEntity extends BasisUUIDEntity {
   @Column({ type: "int", default: 2 })
   cpu_limit: number;
 
+  @Column({ type: "int", nullable: true })
+  gpu_limit: number | null;
+
   @Column({ default: "DDR5" })
   ram_type: string;
 

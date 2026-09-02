@@ -206,6 +206,7 @@ export class AdminConfiguratorServerService {
       family: data.family,
       mode: data.mode ?? "standard",
       cpu_limit: data.cpu_limit ?? 2,
+      gpu_limit: data.gpu_limit ?? null,
       ram_type: data.ram_type,
       pcie_generation: data.pcie_generation || null,
       pcie_lanes_per_cpu: data.pcie_lanes_per_cpu ?? 80,

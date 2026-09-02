@@ -20,6 +20,7 @@ describe("ConfiguratorService component public projection", () => {
       price: 1000,
       component_type: {
         move_selected_to_top: false,
+        default_selected_quantity: 3,
       },
       component_slots: [{
         slot_id: "pcie-slot",
@@ -67,6 +68,7 @@ describe("ConfiguratorService component public projection", () => {
       profile_kind: "gpu",
       resource_kind: "gpu",
       move_selected_to_top: false,
+      default_selected_quantity: 3,
       profile_is_active: true,
       profile_errors: [],
     }));

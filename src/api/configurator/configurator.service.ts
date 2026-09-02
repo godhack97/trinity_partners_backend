@@ -1033,6 +1033,16 @@ export class ConfiguratorService {
   }
 
   private inferMaxGpuCount(platformProfile: any, server: any) {
+    if (
+      platformProfile?.gpu_limit !== null &&
+      platformProfile?.gpu_limit !== undefined
+    ) {
+      const configuredLimit = Number(platformProfile.gpu_limit);
+      if (Number.isInteger(configuredLimit) && configuredLimit >= 0) {
+        return configuredLimit;
+      }
+    }
+
     const code = `${platformProfile?.platform_code || server?.name || ""}`.toUpperCase();
     const family = `${platformProfile?.family || ""}`.toUpperCase();
 
@@ -1450,14 +1460,6 @@ export class ConfiguratorService {
       });
     }
 
-    for (const unplacedM2 of m2Placement.unplaced) {
-      warnings.push({
-        code: "DRIVE_BAY_LIMIT_EXCEEDED",
-        message: "Диски сверх доступных M.2 слотов добавлены как запасные",
-        details: unplacedM2,
-      });
-    }
-
     if (availableBays.length && drivesToPlace.length) {
       const placementResult = this.placeSelectedDrivesIntoBays({
         drives: drivesToPlace,
@@ -1466,14 +1468,6 @@ export class ConfiguratorService {
       });
 
       drivePlacements.push(...placementResult.placements);
-
-      for (const unplacedDrive of placementResult.unplaced) {
-        warnings.push({
-          code: "DRIVE_BAY_LIMIT_EXCEEDED",
-          message: unplacedDrive.message || "Диски сверх доступных корзин добавлены как запасные",
-          details: unplacedDrive.details || unplacedDrive,
-        });
-      }
     }
 
     const installedDriveQtyByComponent = this.allocateInstalledDriveQuantities({
@@ -1529,43 +1523,9 @@ export class ConfiguratorService {
       limit: sasSataControllerPorts,
     };
 
-    if (requiredControllerPorts > 0 && sasSataControllerPorts === 0) {
-      errors.push({
-        code: "SAS_SATA_CONTROLLER_REQUIRED",
-        message: "Для выбранных SAS-дисков и SATA сверх direct-limit требуется RAID/HBA/eHBA",
-        details: {
-          needed: requiredControllerPorts,
-          available: sasSataControllerPorts,
-          sata_drives: sataQty,
-          sas_drives: sasQty,
-          direct_sata_limit: directSataLimit,
-        },
-      });
-    } else if (sasSataControllerPorts < requiredControllerPorts) {
-      errors.push({
-        code: "SAS_SATA_CONTROLLER_CAPACITY_EXCEEDED",
-        message: "Недостаточно внутренних портов RAID/HBA/eHBA для SAS/SATA-дисков",
-        details: {
-          needed: requiredControllerPorts,
-          available: sasSataControllerPorts,
-          sata_drives: sataQty,
-          sas_drives: sasQty,
-          direct_sata_limit: directSataLimit,
-        },
-      });
-    }
-
     const baySummary = this.summarizeBayUsage(platformBays, drivePlacements);
     resources.front_bays = baySummary.front;
     resources.rear_bays = baySummary.rear;
-
-    if (resources.internal_m2.limit !== null && resources.internal_m2.used > resources.internal_m2.limit) {
-      warnings.push({
-        code: "DRIVE_BAY_LIMIT_EXCEEDED",
-        message: "Диски сверх лимита внутренних M.2 добавлены как запасные",
-        details: resources.internal_m2,
-      });
-    }
 
     for (const placement of drivePlacements) {
       if (placement.drive_type === "NVME" && placement.counts_to_rear_pcie) {
@@ -2809,6 +2769,7 @@ export class ConfiguratorService {
                 family: server.platform_profile.family,
                 mode: server.platform_profile.mode,
                 cpu_limit: server.platform_profile.cpu_limit,
+                gpu_limit: server.platform_profile.gpu_limit,
                 ram_type: server.platform_profile.ram_type,
                 pcie_generation: server.platform_profile.pcie_generation,
                 pcie_lanes_per_cpu: server.platform_profile.pcie_lanes_per_cpu,
@@ -2992,6 +2953,12 @@ export class ConfiguratorService {
               : Boolean(
                   mappedComponent.component_type.move_selected_to_top,
                 ),
+          default_selected_quantity: Math.max(
+            1,
+            Number(
+              mappedComponent.component_type?.default_selected_quantity || 1,
+            ),
+          ),
           ...profileMetadata,
           profile_is_active:
             mappedComponent.catalog_profile?.is_active ?? null,

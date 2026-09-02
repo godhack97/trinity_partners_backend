@@ -20,6 +20,9 @@ export class CnfComponentTypeEntity {
   @Column({ default: true })
   move_selected_to_top: boolean;
 
+  @Column({ type: "int", default: 1 })
+  default_selected_quantity: number;
+
   @CreateDateColumn()
   created_at: Timestamp;
 

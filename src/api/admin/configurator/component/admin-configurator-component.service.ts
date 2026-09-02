@@ -66,6 +66,7 @@ interface ComponentBackupSnapshot {
       id: string;
       name: string;
       move_selected_to_top?: boolean;
+      default_selected_quantity?: number;
     }>;
     slots: Array<{ id: string; name: string }>;
     multislots: Array<{ id: string; name: string }>;
@@ -580,6 +581,7 @@ export class AdminConfiguratorComponentService {
           id: item.id,
           name: item.name,
           move_selected_to_top: item.move_selected_to_top,
+          default_selected_quantity: item.default_selected_quantity,
         })),
         slots: slots.map((item: any) => ({ id: item.id, name: item.name })),
         multislots: multislots.map((item: any) => ({

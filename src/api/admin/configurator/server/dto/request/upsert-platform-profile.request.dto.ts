@@ -88,6 +88,12 @@ export class UpsertPlatformProfileRequestDto {
   @Min(1)
   cpu_limit?: number;
 
+  @ApiPropertyOptional({ nullable: true, minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  gpu_limit?: number | null;
+
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

@@ -709,7 +709,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     const result = await service.validateConfiguration(baseDto() as any);
 
     expect(codes(result.errors)).toContain("SAS_REQUIRES_RAID");
-    expect(codes(result.errors)).toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
     expect(result.resources.sas_sata_controller_ports).toEqual({ used: 1, limit: 0 });
   });
 
@@ -847,7 +847,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(result.resources.sata_direct_ports).toEqual({ used: 12, limit: 12 });
     expect(result.resources.sas_sata_controller_ports).toEqual({ used: 0, limit: 0 });
     expect(result.resources.power_w.used).toBe(786);
@@ -924,10 +924,10 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(result.errors)).toContain("SAS_REQUIRES_RAID");
-    expect(codes(result.errors)).toContain("SAS_SATA_CONTROLLER_REQUIRED");
+    expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
   });
 
-  it("разрешает SAS-диски при наличии HBA с внутренними SAS-портами", async () => {
+  it("не ограничивает количество SAS-дисков числом внутренних портов HBA", async () => {
     const rows = baseRows();
     rows.set(CnfComponentCatalogProfileEntity, [
       ...(rows.get(CnfComponentCatalogProfileEntity) || []),
@@ -985,7 +985,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
         items: [
           { component_id: baseComponents.cpu.id, qty: 1 },
           { component_id: baseComponents.ram.id, qty: 4 },
-          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.drive.id, qty: 9 },
           { component_id: baseComponents.hba.id, qty: 1 },
           { component_id: baseComponents.psu.id, qty: 2 },
         ],
@@ -995,7 +995,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).not.toContain("SAS_REQUIRES_RAID");
     expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
     expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_CAPACITY_EXCEEDED");
-    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 1, limit: 8 });
+    expect(result.resources.sas_sata_controller_ports).toEqual({ used: 9, limit: 8 });
   });
 
   it("считает PSU по N+1: один блок дает warning, перегруз одного блока дает error", async () => {
@@ -1162,13 +1162,14 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).not.toContain("GPU_COUNT_LIMIT_EXCEEDED");
   });
 
-  it("блокирует суммарно больше 8 GPU для TSGM240", async () => {
+  it("блокирует количество GPU выше заданного лимита платформы", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformProfileEntity, [
       {
         ...basePlatformProfile,
         platform_code: "TSGM240-M8",
         family: "TSGM240",
+        gpu_limit: 7,
         pcie_lanes_total: 999,
         rear_pcie_ocp_limit: 999,
         pcie_slots: 999,
@@ -1227,7 +1228,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "GPU_COUNT_LIMIT_EXCEEDED",
-          details: expect.objectContaining({ used: 9, limit: 8 }),
+          details: expect.objectContaining({ used: 9, limit: 7 }),
         }),
       ]),
     );
@@ -1918,7 +1919,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.resources.front_bays).toEqual({ used: 0, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
     expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("учитывает M.2 слоты RAID/HBA адаптера как отдельный pool", async () => {
@@ -2044,7 +2045,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.adapter_m2_slots).toEqual({ used: 0, limit: 2 });
     expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("размещает M.2 SATA и NVMe в SATA+NVMe M.2 адаптер", async () => {
@@ -2315,47 +2316,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 23, limit: 24 });
     expect(result.resources.rear_bays).toEqual({ used: 4, limit: 4 });
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(result.warnings).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "DRIVE_BAY_LIMIT_EXCEEDED",
-          details: expect.objectContaining({
-            platform_rule: "HSR_FRONT_3X8_BACKPLANES",
-            selected_nvme: 21,
-            selected_sata_sas: 7,
-            unplaced: 1,
-            zones: expect.arrayContaining([
-              expect.objectContaining({
-                name: "Front BP1",
-                mode: "NVME",
-                used: 8,
-                capacity: 8,
-              }),
-              expect.objectContaining({
-                name: "Front BP2",
-                mode: "NVME",
-                used: 8,
-                capacity: 8,
-              }),
-              expect.objectContaining({
-                name: "Front BP3",
-                mode: "SATA_SAS",
-                used: 7,
-                capacity: 8,
-              }),
-              expect.objectContaining({
-                name: "Rear BP",
-                mode: "MIXED",
-                used: 4,
-                capacity: 4,
-                nvme_used: 4,
-              }),
-            ]),
-          }),
-        }),
-      ]),
-    );
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("считает 2.5/3.5 bay как общий лимит, а не как две независимые корзины", async () => {
@@ -2392,7 +2353,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.front_bays).toEqual({ used: 2, limit: 2 });
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("запрещает 3.5-диски для ER225", async () => {
@@ -2653,7 +2614,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 12, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 4 });
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("rear_to_pcie зануляет rear bays и добавляет 2 PCIe slots для ER220HDR", async () => {
@@ -2752,7 +2713,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
     expect(result.resources.front_bays).toEqual({ used: 12, limit: 12 });
     expect(result.resources.rear_bays).toEqual({ used: 0, limit: 0 });
-    expect(codes(result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
   it("rear_to_pcie запрещен для Pluton и TSGM240", async () => {
@@ -3021,8 +2982,8 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(sataResult.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(sataResult.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(sataResult.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(m2Result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(m2Result.warnings)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(m2Result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 });
