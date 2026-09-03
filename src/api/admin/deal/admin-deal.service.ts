@@ -11,7 +11,7 @@ import {
   DealStatusRu,
   UserEntity,
 } from "@orm/entities";
-import { UpdateDealDto } from "./dto/request/update-deals.dto";
+import { UpdateAdminDealDto } from "./dto/request/update-deals.dto";
 import { DealRepository } from "@orm/repositories";
 import { CURRENCY } from "@config/constants";
 import { DealService } from "@api/deal/deal.service";
@@ -27,7 +27,7 @@ export class AdminDealService {
 
   async update(
     id: number,
-    updateDealDto: UpdateDealDto,
+    updateDealDto: UpdateAdminDealDto,
     actor: UserEntity,
   ) {
     let deal = await this.dealRepository.findById(id);
@@ -39,6 +39,11 @@ export class AdminDealService {
       previousStatus,
       updateDealDto.status,
       updateDealDto.registration_expires_at,
+    );
+    const finalDealSum = this.validateFinalDealSum(
+      deal,
+      updateDealDto.status,
+      updateDealDto.final_deal_sum,
     );
 
     const hasSpecialTermsUpdate =
@@ -52,6 +57,9 @@ export class AdminDealService {
     };
     if (registrationExpiresAt) {
       patch.registration_expires_at = registrationExpiresAt;
+    }
+    if (finalDealSum !== null) {
+      patch.final_deal_sum = finalDealSum;
     }
 
     if (specialTerms) {
@@ -124,7 +132,10 @@ export class AdminDealService {
     }
   }
 
-  private resolveSpecialTerms(dealSum: number, updateDealDto: UpdateDealDto) {
+  private resolveSpecialTerms(
+    dealSum: number,
+    updateDealDto: UpdateAdminDealDto,
+  ) {
     const discount = updateDealDto.special_discount?.trim() || null;
     const hasExplicitPrice =
       updateDealDto.special_price !== undefined &&
@@ -237,6 +248,36 @@ export class AdminDealService {
     }
 
     return normalized;
+  }
+
+  private validateFinalDealSum(
+    deal: any,
+    nextStatus: DealStatus,
+    finalDealSum?: number | null,
+  ): number | null {
+    if (finalDealSum !== undefined && finalDealSum !== null) {
+      const normalized = Number(finalDealSum);
+      if (!Number.isFinite(normalized) || normalized <= 0) {
+        throw new BadRequestException(
+          "Итоговая сумма сделки должна быть больше нуля",
+        );
+      }
+      if (nextStatus !== DealStatus.Win) {
+        throw new BadRequestException(
+          "Итоговая сумма сделки указывается только при завершении сделки",
+        );
+      }
+      return normalized;
+    }
+
+    if (nextStatus === DealStatus.Win) {
+      const existingFinalDealSum = Number(deal.final_deal_sum);
+      if (!Number.isFinite(existingFinalDealSum) || existingFinalDealSum <= 0) {
+        throw new BadRequestException("Укажите итоговую сумму сделки");
+      }
+    }
+
+    return null;
   }
 
   private async changeStatusNotify({ deal }) {

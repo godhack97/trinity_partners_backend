@@ -500,6 +500,75 @@ describe("DealService row-level access scope", () => {
     });
   });
 
+  it("hides the final sum from an integrator at the service boundary", async () => {
+    const actor = makeUser(4, [RoleTypes.SalesManager]);
+    const company = {
+      id: 44,
+      owner_id: 1,
+      partnership_type: PartnershipType.Integrator,
+      status: CompanyStatus.Accept,
+    };
+    const deal = {
+      id: 35,
+      creator_id: actor.id,
+      creator_company_id: company.id,
+      integrator_company_id: company.id,
+      status: DealStatus.Win,
+      final_deal_sum: 875000,
+    };
+    const { service } = makeService({
+      deals: [deal],
+      actorCompany: company,
+      actorEmployeeIds: [actor.id],
+    });
+
+    const response = await service.findOne(deal.id, actor);
+
+    expect(response.can_view_final_deal_sum).toBe(false);
+    expect(response).not.toHaveProperty("final_deal_sum");
+  });
+
+  it("shows the final sum to a distributor", async () => {
+    const actor = makeUser(5, [RoleTypes.CompanyAdmin]);
+    const company = {
+      id: 45,
+      owner_id: actor.id,
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Accept,
+    };
+    const deal = {
+      id: 36,
+      creator_id: actor.id,
+      creator_company_id: company.id,
+      distributor_company_id: company.id,
+      status: DealStatus.Win,
+      final_deal_sum: 875000,
+    };
+    const { service } = makeService({ deals: [deal], actorCompany: company });
+
+    await expect(service.findOne(deal.id, actor)).resolves.toMatchObject({
+      final_deal_sum: 875000,
+      can_view_final_deal_sum: true,
+    });
+  });
+
+  it("shows the final sum to vendor staff", async () => {
+    const actor = makeUser(7, [RoleTypes.PartnerManager]);
+    const deal = {
+      id: 37,
+      creator_id: 2,
+      responsible_manager_id: actor.id,
+      status: DealStatus.Win,
+      final_deal_sum: 875000,
+    };
+    const { service } = makeService({ deals: [deal] });
+
+    await expect(service.findOne(deal.id, actor)).resolves.toMatchObject({
+      final_deal_sum: 875000,
+      can_view_final_deal_sum: true,
+    });
+  });
+
   it("keeps a mixed PartnerManager and technical role inside manager scope", async () => {
     const actor = makeUser(9, [
       RoleTypes.PartnerManager,

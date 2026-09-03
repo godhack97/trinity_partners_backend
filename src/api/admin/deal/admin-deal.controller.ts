@@ -1,6 +1,6 @@
 import { Controller, Body, Patch, Param } from "@nestjs/common";
 import { AdminDealService } from "./admin-deal.service";
-import { UpdateDealDto } from "./dto/request/update-deals.dto";
+import { UpdateAdminDealDto } from "./dto/request/update-deals.dto";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { Roles } from "@decorators/Roles";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
@@ -22,7 +22,7 @@ export class AdminDealController {
   @ApiOperation({ summary: 'Принять заявку от партнёра' })
   acceptDeal(
     @Param("id") id: string,
-    @Body() updateDealDto: UpdateDealDto,
+    @Body() updateDealDto: UpdateAdminDealDto,
     @AuthUser() authUser: UserEntity,
   ) {
     return this.dealsService.update(+id, updateDealDto, authUser);

@@ -1453,6 +1453,7 @@ export class DealService {
     status: DealStatus,
     auth_user: UserEntity,
     registrationExpiresAt?: Date | null,
+    finalDealSum?: number | null,
   ): Promise<any> {
     const deal = await this.findOne(dealId, auth_user);
     const previousStatus = deal.status;
@@ -1480,9 +1481,18 @@ export class DealService {
         registrationExpiresAt,
       );
 
+    const normalizedFinalDealSum = this.validateFinalDealSum(
+      deal,
+      status,
+      finalDealSum,
+    );
+
     const statusPatch: Record<string, unknown> = { status };
     if (normalizedRegistrationExpiresAt) {
       statusPatch.registration_expires_at = normalizedRegistrationExpiresAt;
+    }
+    if (normalizedFinalDealSum !== null) {
+      statusPatch.final_deal_sum = normalizedFinalDealSum;
     }
 
     const updatedDeal = await this.dealRepository.update(
@@ -1500,6 +1510,9 @@ export class DealService {
     deal.status = status;
     if (normalizedRegistrationExpiresAt) {
       deal.registration_expires_at = normalizedRegistrationExpiresAt;
+    }
+    if (normalizedFinalDealSum !== null) {
+      deal.final_deal_sum = normalizedFinalDealSum;
     }
 
     if (deal.bitrix24_deal_id) {
@@ -1581,6 +1594,43 @@ export class DealService {
     }
 
     return normalized;
+  }
+
+  private validateFinalDealSum(
+    deal: any,
+    nextStatus: DealStatus,
+    finalDealSum?: number | null,
+  ): number | null {
+    if (finalDealSum !== undefined && finalDealSum !== null) {
+      const normalized = Number(finalDealSum);
+      if (!Number.isFinite(normalized) || normalized <= 0) {
+        throw new HttpException(
+          "Итоговая сумма сделки должна быть больше нуля",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (nextStatus !== DealStatus.Win) {
+        throw new HttpException(
+          "Итоговая сумма сделки указывается только при завершении сделки",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return normalized;
+    }
+
+    if (nextStatus === DealStatus.Win) {
+      const existingFinalDealSum = Number(deal.final_deal_sum);
+      if (!Number.isFinite(existingFinalDealSum) || existingFinalDealSum <= 0) {
+        throw new HttpException(
+          "Укажите итоговую сумму сделки",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    return null;
   }
 
   async update(
@@ -2710,6 +2760,10 @@ export class DealService {
     overrides: Record<string, boolean> = {},
   ) {
     const canDecide = await this.canUpdateDealStatus(deal, auth_user);
+    const canViewFinalDealSum = this.canViewFinalDealSum(
+      auth_user,
+      authUserCompany,
+    );
     const capabilities = {
       can_update_status: canDecide,
       can_update_fields: await this.canUpdateDealFields(deal, auth_user),
@@ -2728,6 +2782,7 @@ export class DealService {
       can_comment: await this.canCommentOnDeal(deal, auth_user),
       can_view_configuration: true,
       can_decide: canDecide,
+      can_view_final_deal_sum: canViewFinalDealSum,
     };
 
     const technicalReadOnlyOverrides =
@@ -2767,7 +2822,31 @@ export class DealService {
       delete result.duplicate_review_comment;
     }
 
+    if (!canViewFinalDealSum) {
+      delete result.final_deal_sum;
+    }
+
     return result;
+  }
+
+  private canViewFinalDealSum(
+    auth_user: UserEntity,
+    authUserCompany?: CompanyEntity | null,
+  ) {
+    if (
+      this.hasAnyRole(auth_user, [
+        RoleTypes.SuperAdmin,
+        RoleTypes.PartnerManager,
+        RoleTypes.TechnicalSpecialist,
+      ])
+    ) {
+      return true;
+    }
+
+    return (
+      authUserCompany?.partnership_type === PartnershipType.Distributor ||
+      authUserCompany?.partnership_type === PartnershipType.Vendor
+    );
   }
 
   private async canCommentOnDeal(deal: any, auth_user: UserEntity) {

@@ -12,6 +12,7 @@ describe("DealResponseDto current portal contract", () => {
       DealResponseDto,
       {
         id: 4,
+        final_deal_sum: 875000,
         special_discount: "10%",
         special_price: 900,
         registration_expires_at: "2026-09-30T20:00:00.000Z",
@@ -92,6 +93,7 @@ describe("DealResponseDto current portal contract", () => {
         can_comment: true,
         can_view_configuration: true,
         can_decide: false,
+        can_view_final_deal_sum: true,
         hidden_field: "must not leak",
       },
       { strategy: "excludeAll" },
@@ -99,6 +101,7 @@ describe("DealResponseDto current portal contract", () => {
 
     expect(response).toMatchObject({
       id: 4,
+      final_deal_sum: 875000,
       special_discount: "10%",
       special_price: 900,
       registration_expires_at: "2026-09-30T20:00:00.000Z",
@@ -133,6 +136,7 @@ describe("DealResponseDto current portal contract", () => {
       can_comment: true,
       can_view_configuration: true,
       can_decide: false,
+      can_view_final_deal_sum: true,
     });
     expect(response).not.toHaveProperty("hidden_field");
     expect(response.responsible_manager).not.toHaveProperty("password");

@@ -189,6 +189,9 @@ export class DealEntity extends BasisEntity {
   @Column({ type: "decimal", precision: 10, scale: 2 })
   deal_sum: number;
 
+  @Column({ type: "decimal", precision: 15, scale: 2, nullable: true })
+  final_deal_sum?: number | null;
+
   @Column()
   competition_link: string;
 

@@ -272,6 +272,7 @@ export class DealController {
       updateDealStatusDto.status,
       auth_user,
       updateDealStatusDto.registration_expires_at,
+      updateDealStatusDto.final_deal_sum,
     );
   }
 

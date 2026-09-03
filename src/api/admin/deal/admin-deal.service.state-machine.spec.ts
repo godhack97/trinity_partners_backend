@@ -80,6 +80,7 @@ describe("AdminDealService status state machine", () => {
           ...(next === DealStatus.Registered
             ? { registration_expires_at: registrationDeadline }
             : {}),
+          ...(next === DealStatus.Win ? { final_deal_sum: 123456.78 } : {}),
         },
         superAdmin,
       ),
@@ -92,6 +93,7 @@ describe("AdminDealService status state machine", () => {
         ...(next === DealStatus.Registered
           ? { registration_expires_at: registrationDeadline }
           : {}),
+        ...(next === DealStatus.Win ? { final_deal_sum: 123456.78 } : {}),
       },
     );
   });
@@ -179,6 +181,22 @@ describe("AdminDealService status state machine", () => {
         superAdmin,
       ),
     ).rejects.toMatchObject({ status: 400 });
+    expect(deps.dealRepository.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects completion without a final sum", async () => {
+    const deps = makeService(DealStatus.Registered);
+
+    await expect(
+      deps.service.update(
+        71,
+        { status: DealStatus.Win },
+        superAdmin,
+      ),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Укажите итоговую сумму сделки",
+    });
     expect(deps.dealRepository.update).not.toHaveBeenCalled();
   });
 

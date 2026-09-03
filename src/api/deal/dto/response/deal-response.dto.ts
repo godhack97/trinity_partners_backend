@@ -149,6 +149,10 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   deal_sum: number;
 
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  final_deal_sum?: number | null;
+
   @ApiProperty()
   @Expose()
   competition_link: string;
@@ -325,4 +329,10 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   can_decide: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю видеть итоговую сумму сделки",
+  })
+  @Expose()
+  can_view_final_deal_sum: boolean;
 }

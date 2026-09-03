@@ -6,9 +6,9 @@ import {
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { DealStatus } from "@orm/entities";
 import { Type } from "class-transformer";
-import { IsEnum, IsNumber, IsOptional, Min } from "class-validator";
+import { IsEnum, IsNumber, IsOptional, IsPositive, Min } from "class-validator";
 
-export class UpdateDealDto {
+export class UpdateAdminDealDto {
   @ApiProperty({ enum: DealStatus })
   @IsNotEmptyRu()
   @IsEnum(DealStatus)
@@ -37,4 +37,16 @@ export class UpdateDealDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   special_price?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: 0.01,
+    description: "Итоговая сумма сделки при завершении",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  final_deal_sum?: number | null;
 }

@@ -99,6 +99,7 @@ describe("DealService status state machine and deletion orchestration", () => {
       next,
       superAdmin,
       next === DealStatus.Registered ? registrationDeadline : undefined,
+      next === DealStatus.Win ? 123456.78 : undefined,
     );
 
     expect(deps.dealRepository.update).toHaveBeenCalledWith(
@@ -107,6 +108,9 @@ describe("DealService status state machine and deletion orchestration", () => {
         status: next,
         ...(next === DealStatus.Registered
           ? { registration_expires_at: registrationDeadline }
+          : {}),
+        ...(next === DealStatus.Win
+          ? { final_deal_sum: 123456.78 }
           : {}),
       },
     );
@@ -210,6 +214,48 @@ describe("DealService status state machine and deletion orchestration", () => {
         new Date("2020-01-01T00:00:00.000Z"),
       ),
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("requires and atomically stores the final sum when completing a deal", async () => {
+    const missingSum = prepareStatusUpdate(DealStatus.Registered);
+
+    await expect(
+      missingSum.service.updateDealStatus(
+        81,
+        DealStatus.Win,
+        superAdmin,
+      ),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Укажите итоговую сумму сделки",
+    });
+    expect(missingSum.dealRepository.update).not.toHaveBeenCalled();
+
+    const withSum = prepareStatusUpdate(DealStatus.Registered);
+    await withSum.service.updateDealStatus(
+      81,
+      DealStatus.Win,
+      superAdmin,
+      undefined,
+      987654.32,
+    );
+
+    expect(withSum.dealRepository.update).toHaveBeenCalledWith(
+      { id: 81, status: DealStatus.Registered },
+      { status: DealStatus.Win, final_deal_sum: 987654.32 },
+    );
+  });
+
+  it("allows completion when a positive final sum is already stored", async () => {
+    const deps = prepareStatusUpdate(DealStatus.Registered);
+    (deps.deal as any).final_deal_sum = "1000.50";
+
+    await deps.service.updateDealStatus(81, DealStatus.Win, superAdmin);
+
+    expect(deps.dealRepository.update).toHaveBeenCalledWith(
+      { id: 81, status: DealStatus.Registered },
+      { status: DealStatus.Win },
+    );
   });
 
   it("automatically cancels an expired registered deal once", async () => {
