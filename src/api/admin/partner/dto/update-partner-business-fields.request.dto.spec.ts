@@ -24,7 +24,7 @@ describe("UpdatePartnerBusinessFieldsRequestDto", () => {
       products_of_interest: "Storage",
       main_customers: "Enterprise",
       contact_email: "partner@example.com",
-      contact_phone: "+7 999 000-00-00",
+      contact_phone: "+7 (999) 000-00-00",
       responsible_manager_id: "7",
     });
 

@@ -1,16 +1,17 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsEmailRu, IsRussianPhoneRu } from "@decorators/validate";
 import {
   IsBoolean,
-  IsEmail,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateIf,
 } from "class-validator";
 
 export class UpdateAnyUserRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsEmailRu()
   @MaxLength(255)
   email?: string;
 
@@ -39,6 +40,8 @@ export class UpdateAnyUserRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @ValidateIf((_object, value) => value !== "")
+  @IsRussianPhoneRu()
   @MaxLength(255)
   phone?: string;
 

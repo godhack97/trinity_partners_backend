@@ -1,4 +1,4 @@
-import { IsNumberRu, MinLengthRu } from "@decorators/validate";
+import { IsNumberRu, IsRussianPhoneRu, MinLengthRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
 import { IsOptional } from "class-validator";
@@ -14,6 +14,7 @@ export class ProfilePartnerRequestDto {
 
   @ApiProperty()
   @Expose()
+  @IsRussianPhoneRu()
   phone: string;
 
   @ApiProperty()

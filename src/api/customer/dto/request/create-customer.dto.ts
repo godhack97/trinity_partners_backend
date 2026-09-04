@@ -1,8 +1,8 @@
-import { IsEmailRu, MinLengthRu } from "@decorators/validate";
+import { IsEmailRu, IsRussianPhoneRu, MinLengthRu } from "@decorators/validate";
 import { IsRussianInn } from "@decorators/validate/is-russian-inn";
 import { ApiProperty } from "@nestjs/swagger";
 import { Exclude, Transform } from "class-transformer";
-import { IsOptional, IsString } from "class-validator";
+import { IsOptional, IsString, ValidateIf } from "class-validator";
 import { normalizeLegacyRussianInn } from "@app/utils/russian-inn";
 
 export class CreateCustomerDto {
@@ -41,5 +41,7 @@ export class CreateCustomerDto {
   @ApiProperty()
   @IsOptional()
   @IsString()
+  @ValidateIf((_object, value) => value !== "")
+  @IsRussianPhoneRu()
   phone: string;
 }

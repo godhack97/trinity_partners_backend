@@ -25,4 +25,24 @@ describe("RegistrationCompanyRequestDto", () => {
 
     expect(errors.map(({ property }) => property)).toContain("partnership_type");
   });
+
+  it.each([
+    { email: "user@mail", invalidProperty: "email" },
+    { phone: "+79991234567", invalidProperty: "phone" },
+  ])("rejects registration contacts outside the mask", async ({ invalidProperty, ...payload }) => {
+    const dto = plainToInstance(RegistrationCompanyRequestDto, payload);
+    const errors = await validate(dto, { skipMissingProperties: true });
+
+    expect(errors.map(({ property }) => property)).toContain(invalidProperty);
+  });
+
+  it("accepts valid email and phone masks", async () => {
+    const dto = plainToInstance(RegistrationCompanyRequestDto, {
+      email: "user@example.ru",
+      phone: "+7 (999) 123-45-67",
+    });
+    const errors = await validate(dto, { skipMissingProperties: true });
+
+    expect(errors).toHaveLength(0);
+  });
 });

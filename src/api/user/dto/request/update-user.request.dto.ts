@@ -1,11 +1,12 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsEmailRu } from "@decorators/validate";
 import { Type } from "class-transformer";
-import { IsBoolean, IsEmail, IsInt, IsOptional, Min } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, Min } from "class-validator";
 
 export class UpdateUserRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsEmailRu()
   email?: string;
 
   @ApiPropertyOptional()

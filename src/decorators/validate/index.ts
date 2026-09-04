@@ -469,6 +469,17 @@ export const IsPhoneNumberRu = (
     message: message.IsPhoneNumber,
   });
 };
+
+export const RUSSIAN_PHONE_PATTERN = /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/;
+
+export const IsRussianPhoneRu = (
+  validationOptions?: ValidationOptions,
+): PropertyDecorator => {
+  return Matches(RUSSIAN_PHONE_PATTERN, {
+    message: "$property должен быть в формате +7 (999) 999-99-99",
+    ...validationOptions,
+  });
+};
 export const IsMilitaryTimeRu = (
   validationOptions?: ValidationOptions,
 ): PropertyDecorator => {

@@ -1,5 +1,5 @@
 import { RoleTypes } from "@app/types/RoleTypes";
-import { IsStringRu } from "@decorators/validate";
+import { IsRussianPhoneRu, IsStringRu } from "@decorators/validate";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
 
@@ -31,6 +31,7 @@ export class ProfileUpdateRequestDto {
   @ApiProperty()
   @Expose(opts.first)
   @IsStringRu(opts.first)
+  @IsRussianPhoneRu(opts.first)
   phone: string;
 
 }

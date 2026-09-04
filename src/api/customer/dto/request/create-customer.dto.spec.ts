@@ -43,4 +43,25 @@ describe("CreateCustomerDto", () => {
     expect(dto).not.toHaveProperty("inn_normalized");
   });
 
+  it.each([
+    { email: "customer@example", phone: "+7 (999) 123-45-67" },
+    { email: "customer@example.com", phone: "+79991234567" },
+  ])("rejects contacts outside the email or phone mask", async (contacts) => {
+    const errors = await validate(
+      plainToInstance(CreateCustomerDto, { ...validCustomer, ...contacts }),
+    );
+
+    expect(
+      errors.some(({ property }) => property === "email" || property === "phone"),
+    ).toBe(true);
+  });
+
+  it("allows the optional phone to be empty", async () => {
+    const errors = await validate(
+      plainToInstance(CreateCustomerDto, { ...validCustomer, phone: "" }),
+    );
+
+    expect(errors).toHaveLength(0);
+  });
+
 });

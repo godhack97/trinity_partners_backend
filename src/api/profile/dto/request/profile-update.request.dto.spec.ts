@@ -18,7 +18,7 @@ describe("ProfileUpdateRequestDto company-field boundary", () => {
       validatePartner({
         photo_url: "https://example.test/avatar.png",
         job_title: "Руководитель",
-        phone: "+7 900 000-00-00",
+        phone: "+7 (900) 000-00-00",
       }),
     ).resolves.toHaveLength(0);
   });
@@ -35,9 +35,18 @@ describe("ProfileUpdateRequestDto company-field boundary", () => {
   ])("rejects legacy company field %s", async (field) => {
     const errors = await validatePartner({
       job_title: "Руководитель",
-      phone: "+7 900 000-00-00",
+      phone: "+7 (900) 000-00-00",
       [field]: "forbidden",
     });
     expect(errors.some(({ property }) => property === field)).toBe(true);
+  });
+
+  it("rejects a phone outside the input mask", async () => {
+    const errors = await validatePartner({
+      job_title: "Руководитель",
+      phone: "+7 900 000-00-00",
+    });
+
+    expect(errors.some(({ property }) => property === "phone")).toBe(true);
   });
 });

@@ -1,10 +1,10 @@
 import { PaginationRequestDto } from "@app/dto/pagination.request.dto";
+import { IsEmailRu, IsRussianPhoneRu } from "@decorators/validate";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { CompanyStatus, PartnershipType } from "@orm/entities";
 import { Transform, Type } from "class-transformer";
 import {
-  IsEmail,
   IsEnum,
   IsIn,
   IsInt,
@@ -95,7 +95,7 @@ export class UpdateCompanyContactsRequestDto {
   @ApiPropertyOptional({ maxLength: 255 })
   @IsOptional()
   @ValidateIf((_object, value) => value !== "")
-  @IsEmail()
+  @IsEmailRu()
   @MaxLength(255)
   @Transform(({ value }) =>
     typeof value === "string" ? value.trim().toLowerCase() : value,
@@ -105,6 +105,8 @@ export class UpdateCompanyContactsRequestDto {
   @ApiPropertyOptional({ maxLength: 64 })
   @IsOptional()
   @IsString()
+  @ValidateIf((_object, value) => value !== "")
+  @IsRussianPhoneRu()
   @MaxLength(64)
   @Transform(({ value }) =>
     typeof value === "string" ? value.trim() : value,

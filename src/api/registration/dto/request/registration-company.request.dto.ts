@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import {
   IsEmailRu,
   IsNotEmptyRu,
+  IsRussianPhoneRu,
   IsUrlRu,
   MinLengthRu,
 } from "@decorators/validate";
@@ -53,6 +54,7 @@ export class RegistrationCompanyRequestDto {
 
   @ApiProperty()
   @IsNotEmptyRu()
+  @IsRussianPhoneRu()
   phone: string;
 
   @ApiProperty()

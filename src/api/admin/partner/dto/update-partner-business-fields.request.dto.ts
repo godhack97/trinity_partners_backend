@@ -1,7 +1,7 @@
 import { Transform, Type } from "class-transformer";
+import { IsEmailRu, IsRussianPhoneRu } from "@decorators/validate";
 import {
   IsDateString,
-  IsEmail,
   IsEnum,
   IsInt,
   IsOptional,
@@ -59,7 +59,7 @@ export class UpdatePartnerBusinessFieldsRequestDto {
   @ApiPropertyOptional({ maxLength: 255, nullable: true })
   @Transform(emptyToNull)
   @IsOptional()
-  @IsEmail()
+  @IsEmailRu()
   @MaxLength(255)
   contact_email?: string | null;
 
@@ -67,6 +67,7 @@ export class UpdatePartnerBusinessFieldsRequestDto {
   @Transform(emptyToNull)
   @IsOptional()
   @IsString()
+  @IsRussianPhoneRu()
   @MaxLength(64)
   contact_phone?: string | null;
 

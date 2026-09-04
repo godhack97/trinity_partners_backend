@@ -1,5 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmailRu, IsNotEmptyRu } from "../../../../decorators/validate";
+import {
+  IsEmailRu,
+  IsNotEmptyRu,
+  IsRussianPhoneRu,
+} from "../../../../decorators/validate";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { IsBoolean, IsIn, IsOptional } from "class-validator";
 
@@ -30,6 +34,7 @@ export class RegistrationEmployeeRequestDto {
 
   @ApiProperty()
   @IsNotEmptyRu()
+  @IsRussianPhoneRu()
   phone: string;
 
   @ApiProperty()
