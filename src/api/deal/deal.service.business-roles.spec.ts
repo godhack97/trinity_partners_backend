@@ -305,7 +305,7 @@ describe("DealService business roles", () => {
     });
   });
 
-  it("сотрудник интегратора сохраняет право менять участников своей сделки", async () => {
+  it("интегратор может менять только дистрибьютора своей сделки", async () => {
     const { service } = makeService();
 
     await expect(
@@ -313,6 +313,35 @@ describe("DealService business roles", () => {
     ).resolves.toMatchObject({
       can_update_fields: true,
       can_assign_participants: true,
+      can_update_distributor: true,
+      can_update_integrator: false,
+    });
+  });
+
+  it("дистрибьютор может менять только интегратора своей сделки", async () => {
+    const distributorCompany = {
+      id: 10,
+      owner_id: 1,
+      name: "Дистрибьютор",
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Accept,
+    };
+    const { service } = makeService({
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockResolvedValue({
+          company_id: distributorCompany.id,
+          company: distributorCompany,
+        }),
+      },
+    });
+
+    await expect(
+      service.findOne(1, makeUser(2, [RoleTypes.CompanyAdmin])),
+    ).resolves.toMatchObject({
+      can_update_fields: true,
+      can_assign_participants: true,
+      can_update_distributor: false,
+      can_update_integrator: true,
     });
   });
 
@@ -574,7 +603,7 @@ describe("DealService business roles", () => {
     const { service, mocks } = makeService();
 
     await expect(
-      service.update(1, makeUser(2, [RoleTypes.CompanyAdmin]), {
+      service.update(1, makeUser(8, [RoleTypes.SuperAdmin]), {
         integrator_name: "Неизвестный интегратор",
         integrator_inn: "7700000099",
       } as any),
@@ -624,6 +653,51 @@ describe("DealService business roles", () => {
     },
   );
 
+  it("запрещает интегратору менять интегратора через прямой API", async () => {
+    const { service, mocks } = makeService();
+
+    await expect(
+      service.update(1, makeUser(2, [RoleTypes.CompanyAdmin]), {
+        integrator_company_id: 30,
+      } as any),
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(
+      mocks.dealRepository.updateDealAndCustomerSnapshot,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("запрещает дистрибьютору менять дистрибьютора через прямой API", async () => {
+    const distributorCompany = {
+      id: 10,
+      owner_id: 1,
+      name: "Дистрибьютор",
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Accept,
+    };
+    const { service, mocks } = makeService({
+      companyRepository: {
+        findById: jest.fn().mockResolvedValue(distributorCompany),
+      },
+      companyEmployeeRepository: {
+        findOne: jest.fn().mockResolvedValue({
+          company_id: distributorCompany.id,
+          company: distributorCompany,
+        }),
+      },
+    });
+
+    await expect(
+      service.update(1, makeUser(2, [RoleTypes.CompanyAdmin]), {
+        distributor_company_id: 20,
+      } as any),
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(
+      mocks.dealRepository.updateDealAndCustomerSnapshot,
+    ).not.toHaveBeenCalled();
+  });
+
   it("не позволяет рассинхронизировать реквизиты и canonical id интегратора", async () => {
     const integratorCompany = {
       id: 10,
@@ -640,7 +714,7 @@ describe("DealService business roles", () => {
     });
 
     await expect(
-      service.update(1, makeUser(2, [RoleTypes.CompanyAdmin]), {
+      service.update(1, makeUser(8, [RoleTypes.SuperAdmin]), {
         integrator_company_id: integratorCompany.id,
         integrator_name: "Подменённое название",
         integrator_inn: integratorCompany.inn,

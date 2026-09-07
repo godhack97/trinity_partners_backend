@@ -110,15 +110,26 @@ export class DealService {
     return this.hasRole(user, RoleTypes.SuperAdmin);
   }
 
-  private canAssignDealParticipants(
+  private getDealParticipantEditCapabilities(
     user: UserEntity,
     company?: CompanyEntity | null,
-  ): boolean {
-    if (this.isSuperAdmin(user)) return true;
-    if (company?.partnership_type === PartnershipType.Vendor) return false;
-    if (company?.partnership_type === PartnershipType.Integrator) return true;
+  ) {
+    if (this.isSuperAdmin(user)) {
+      return { canUpdateDistributor: true, canUpdateIntegrator: true };
+    }
+    if (company?.partnership_type === PartnershipType.Vendor) {
+      return { canUpdateDistributor: false, canUpdateIntegrator: false };
+    }
+    if (this.hasAnyRole(user, [RoleTypes.PartnerManager])) {
+      return { canUpdateDistributor: true, canUpdateIntegrator: true };
+    }
 
-    return this.hasAnyRole(user, [RoleTypes.PartnerManager]);
+    return {
+      canUpdateDistributor:
+        company?.partnership_type === PartnershipType.Integrator,
+      canUpdateIntegrator:
+        company?.partnership_type === PartnershipType.Distributor,
+    };
   }
 
   async getCount(auth_user: UserEntity): Promise<number> {
@@ -1167,6 +1178,8 @@ export class DealService {
         can_update_configurations: false,
         can_submit: false,
         can_assign_participants: false,
+        can_update_distributor: false,
+        can_update_integrator: false,
         can_request_deletion: false,
         can_comment: false,
         can_decide: false,
@@ -1655,7 +1668,7 @@ export class DealService {
       RoleTypes.SuperAdmin,
       RoleTypes.PartnerManager,
     ]);
-    const canAssignParticipants = this.canAssignDealParticipants(
+    const participantEditCapabilities = this.getDealParticipantEditCapabilities(
       auth_user,
       authUserCompany,
     );
@@ -1685,28 +1698,17 @@ export class DealService {
       }
     }
 
-    const changesParticipants =
-      updateDealDto.distributor_id !== undefined ||
-      updateDealDto.distributor_company_id !== undefined ||
-      updateDealDto.integrator_company_id !== undefined ||
-      updateDealDto.integrator_name !== undefined ||
-      updateDealDto.integrator_inn !== undefined;
-
-    if (
-      changesParticipants &&
-      authUserCompany?.partnership_type === PartnershipType.Vendor &&
-      !this.isSuperAdmin(auth_user)
-    ) {
-      throw new HttpException(
-        "У вас недостаточно прав для изменения участников сделки",
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
     if (
       updateDealDto.distributor_id !== undefined ||
       updateDealDto.distributor_company_id !== undefined
     ) {
+      if (!participantEditCapabilities.canUpdateDistributor) {
+        throw new HttpException(
+          "Изменять дистрибьютора может только интегратор или сотрудник Тринити",
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
       let distributorCompany: CompanyEntity | null = null;
       let distributor = null;
 
@@ -1751,18 +1753,6 @@ export class DealService {
           ));
       }
 
-      if (
-        !canAssignParticipants &&
-        creatorCompanySnapshot?.partnership_type ===
-          PartnershipType.Distributor &&
-        distributorCompany?.id !== creatorCompanySnapshot.id
-      ) {
-        throw new HttpException(
-          "Дистрибьютор не может изменить свою сторону сделки",
-          HttpStatus.FORBIDDEN,
-        );
-      }
-
       if (!distributorCompany) {
         throw new HttpException(
           "Укажите действующую компанию-дистрибьютора",
@@ -1781,6 +1771,13 @@ export class DealService {
       updateDealDto.integrator_inn !== undefined;
 
     if (changesIntegrator) {
+      if (!participantEditCapabilities.canUpdateIntegrator) {
+        throw new HttpException(
+          "Изменять интегратора может только дистрибьютор или сотрудник Тринити",
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
       const integratorCompany = updateDealDto.integrator_company_id
         ? await this.getAcceptedIntegratorCompany(
             updateDealDto.integrator_company_id,
@@ -1817,18 +1814,6 @@ export class DealService {
         throw new HttpException(
           "Интегратора нельзя изменить в зарегистрированной сделке",
           HttpStatus.CONFLICT,
-        );
-      }
-
-      if (
-        !canAssignParticipants &&
-        creatorCompanySnapshot?.partnership_type ===
-          PartnershipType.Integrator &&
-        integratorCompany.id !== creatorCompanySnapshot.id
-      ) {
-        throw new HttpException(
-          "Интегратор не может изменить свою сторону сделки",
-          HttpStatus.FORBIDDEN,
         );
       }
 
@@ -2760,23 +2745,29 @@ export class DealService {
     overrides: Record<string, boolean> = {},
   ) {
     const canDecide = await this.canUpdateDealStatus(deal, auth_user);
+    const canUpdateFields = await this.canUpdateDealFields(deal, auth_user);
+    const participantEditCapabilities =
+      this.getDealParticipantEditCapabilities(auth_user, authUserCompany);
+    const canUpdateDistributor =
+      canUpdateFields && participantEditCapabilities.canUpdateDistributor;
+    const canUpdateIntegrator =
+      canUpdateFields && participantEditCapabilities.canUpdateIntegrator;
     const canViewFinalDealSum = this.canViewFinalDealSum(
       auth_user,
       authUserCompany,
     );
     const capabilities = {
       can_update_status: canDecide,
-      can_update_fields: await this.canUpdateDealFields(deal, auth_user),
+      can_update_fields: canUpdateFields,
       can_update_configurations: this.canUpdateDealConfigurations(
         deal,
         auth_user,
       ),
       can_submit:
         deal.status === DealStatus.Draft && deal.creator_id === auth_user.id,
-      can_assign_participants: this.canAssignDealParticipants(
-        auth_user,
-        authUserCompany,
-      ),
+      can_assign_participants: canUpdateDistributor || canUpdateIntegrator,
+      can_update_distributor: canUpdateDistributor,
+      can_update_integrator: canUpdateIntegrator,
       can_request_deletion:
         deal.creator_id === auth_user.id && !deal.deletedAt,
       can_comment: await this.canCommentOnDeal(deal, auth_user),
@@ -2795,6 +2786,8 @@ export class DealService {
             can_update_configurations: false,
             can_submit: false,
             can_assign_participants: false,
+            can_update_distributor: false,
+            can_update_integrator: false,
             can_request_deletion: false,
             can_comment: false,
             can_decide: false,

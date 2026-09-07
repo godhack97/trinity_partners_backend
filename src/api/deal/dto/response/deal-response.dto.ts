@@ -307,6 +307,18 @@ export class DealResponseDto extends WithIdDto {
   can_assign_participants: boolean;
 
   @ApiProperty({
+    description: "Можно ли текущему пользователю менять дистрибьютора",
+  })
+  @Expose()
+  can_update_distributor: boolean;
+
+  @ApiProperty({
+    description: "Можно ли текущему пользователю менять интегратора",
+  })
+  @Expose()
+  can_update_integrator: boolean;
+
+  @ApiProperty({
     description: "Можно ли текущему пользователю запросить удаление сделки",
   })
   @Expose()
