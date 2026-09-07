@@ -66,6 +66,7 @@ describe("AdminDealService status state machine", () => {
     [DealStatus.Registered, DealStatus.Win],
     [DealStatus.Registered, DealStatus.Lose],
     [DealStatus.Registered, DealStatus.Moderation],
+    [DealStatus.Registered, DealStatus.Canceled],
     [DealStatus.Canceled, DealStatus.Moderation],
     [DealStatus.Win, DealStatus.Registered],
     [DealStatus.Lose, DealStatus.Registered],
@@ -100,7 +101,6 @@ describe("AdminDealService status state machine", () => {
 
   it.each([
     [DealStatus.Moderation, DealStatus.Win],
-    [DealStatus.Registered, DealStatus.Canceled],
     [DealStatus.Canceled, DealStatus.Registered],
     [DealStatus.Win, DealStatus.Lose],
   ])("rejects invalid transition %s -> %s", async (from, next) => {

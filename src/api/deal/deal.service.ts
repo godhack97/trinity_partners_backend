@@ -1562,6 +1562,7 @@ export class DealService {
       [DealStatus.Moderation]: [DealStatus.Registered, DealStatus.Canceled],
       [DealStatus.Registered]: [
         DealStatus.Moderation,
+        DealStatus.Canceled,
         DealStatus.Win,
         DealStatus.Lose,
       ],
