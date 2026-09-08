@@ -56,6 +56,7 @@ import { TicketsModule } from './api/tickets/tickets.module';
 import { EventsModule } from './api/events/events.module';
 import { RecommendedConfigsModule } from './api/recommended-configs/recommended-configs.module';
 import { DashboardModule } from './api/dashboard/dashboard.module';
+import { BugReportModule } from './api/bug-report/bug-report.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == "prod");
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
@@ -164,6 +165,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     EventsModule,
     RecommendedConfigsModule,
     DashboardModule,
+    BugReportModule,
   ],
   controllers: [AppController],
   providers: [
