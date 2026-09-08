@@ -1,7 +1,6 @@
 import { NotificationsReadDto } from "@api/notification/dto/notifications-read.dto";
-import { MailerService } from "@nestjs-modules/mailer";
+import { SmtpSettingsService } from "@api/admin/smtp-settings/smtp-settings.service";
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import {
   NotificationCategory,
   NotificationType,
@@ -53,8 +52,7 @@ export class NotificationService {
     private readonly userRepository: UserRepository,
     private readonly userSettingRepository: UserSettingRepository,
     private readonly notificationRepository: NotificationRepository,
-    private readonly mailerService: MailerService,
-    private readonly configService: ConfigService,
+    private readonly smtpSettingsService: SmtpSettingsService,
   ) {}
 
   actionByType = {
@@ -132,12 +130,10 @@ export class NotificationService {
   }
 
   async sendEmail(data: ActionDataType & { email: string }) {
-    const { email, title, text } = data,
-      email_from = this.configService.get("EMAIL_USERNAME");
+    const { email, title, text } = data;
 
     try {
-      return await this.mailerService.sendMail({
-        from: `${email_from}`,
+      return await this.smtpSettingsService.sendMail({
         to: email,
         subject: title,
         html: `${text}`,

@@ -57,6 +57,7 @@ import { EventsModule } from './api/events/events.module';
 import { RecommendedConfigsModule } from './api/recommended-configs/recommended-configs.module';
 import { DashboardModule } from './api/dashboard/dashboard.module';
 import { BugReportModule } from './api/bug-report/bug-report.module';
+import { SmtpSettingsModule } from './api/admin/smtp-settings/smtp-settings.module';
 
 const is_development = !(process.env.NODE_ENV?.trim() == "prod");
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
@@ -166,6 +167,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     RecommendedConfigsModule,
     DashboardModule,
     BugReportModule,
+    SmtpSettingsModule,
   ],
   controllers: [AppController],
   providers: [

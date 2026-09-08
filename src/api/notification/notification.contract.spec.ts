@@ -65,7 +65,6 @@ describe("notification contract", () => {
       {} as any,
       notificationRepository,
       {} as any,
-      {} as any,
     );
 
     await expect(service.getAll(42)).resolves.toEqual([
@@ -110,7 +109,6 @@ describe("notification contract", () => {
       {} as any,
       notificationRepository,
       {} as any,
-      {} as any,
     );
 
     await expect(service.readList(42, { ids: [9] })).resolves.toEqual([
@@ -136,7 +134,6 @@ describe("notification contract", () => {
       {} as any,
       {} as any,
       notificationRepository,
-      {} as any,
       {} as any,
     );
 
@@ -166,7 +163,6 @@ describe("notification contract", () => {
       {} as any,
       notificationRepository,
       {} as any,
-      {} as any,
     );
 
     await expect(
@@ -184,7 +180,6 @@ describe("notification contract", () => {
     const service = new NotificationService(
       { findById: jest.fn().mockResolvedValue({ id: 42, email: "u@test.ru" }) } as any,
       { findBy: jest.fn().mockResolvedValue([]) } as any,
-      {} as any,
       {} as any,
       {} as any,
     );
@@ -220,7 +215,6 @@ describe("notification contract", () => {
       {} as any,
       {} as any,
       notificationRepository,
-      {} as any,
       {} as any,
     );
     const send = jest.spyOn(service, "send");

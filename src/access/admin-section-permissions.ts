@@ -95,9 +95,13 @@ export const ADMIN_SECTION_PERMISSIONS: AdminSectionPermission[] = [
   },
   {
     name: "system.admin-settings.manage",
-    displayName: "Роли и права доступа",
-    description: "Создание ролей и настройка их прав. Выдавайте только доверенным администраторам.",
-    paths: ["/api/role", "/api/admin/permissions"],
+    displayName: "Системные настройки",
+    description: "Управление ролями, правами доступа и общей SMTP-отправкой партнёрского портала. Выдавайте только доверенным администраторам.",
+    paths: [
+      "/api/role",
+      "/api/admin/permissions",
+      "/api/admin/smtp-settings",
+    ],
     defaultRoles: [],
   },
 ];

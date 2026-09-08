@@ -6,7 +6,7 @@ import {
 } from "@api/email-confirmer/types";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { createHash } from "@app/utils/password";
-import { MailerService } from "@nestjs-modules/mailer";
+import { SmtpSettingsService } from "@api/admin/smtp-settings/smtp-settings.service";
 import {
   BadRequestException,
   HttpException,
@@ -22,15 +22,11 @@ import * as querystring from "node:querystring";
 @Injectable()
 export class EmailConfirmerService {
   constructor(
-    private readonly mailerService: MailerService,
+    private readonly smtpSettingsService: SmtpSettingsService,
     private readonly configService: ConfigService,
     private readonly resetHashRepository: ResetHashRepository,
     private readonly userRepository: UserRepository,
   ) {}
-
-  get mail() {
-    return this.configService.get("EMAIL_USERNAME");
-  }
 
   get hostname() {
     return this.configService.get("FRONTEND_HOSTNAME");
@@ -137,8 +133,7 @@ export class EmailConfirmerService {
         ? `${template}--img-as-url.hbs`
         : `${template}--img-as-base64.hbs`;
 
-      return await this.mailerService.sendMail({
-        from: `${this.mail}`,
+      return await this.smtpSettingsService.sendMail({
         to: email,
         subject,
         template: templateVariation,
