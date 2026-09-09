@@ -54,10 +54,10 @@
     "class-validator": "^0.14.3",
     "handlebars": "^4.7.9",
     "hbs": "^4.2.0",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "mysql2": "^3.11.0",
     "nanoid": "^3.3.4",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "^9.1.1",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.0",
@@ -118,5 +118,9 @@
   "resolutions": {
     "wrap-ansi": "7.0.0",
     "string-width": "4.1.0"
+  },
+  "overrides": {
+    "multer": "$multer",
+    "qs": "6.16.0"
   }
 }
