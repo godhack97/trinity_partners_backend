@@ -171,5 +171,11 @@ describe('AdminPartnerService company status transitions', () => {
       expect.stringContaining('cmp.responsible_manager_id = :managerId'),
       { managerId: 143 },
     );
+    expect(queryBuilder.leftJoinAndMapOne).toHaveBeenCalledWith(
+      'owner.info',
+      'users_info',
+      'owner_info',
+      'owner_info.user_id = owner.id',
+    );
   });
 });

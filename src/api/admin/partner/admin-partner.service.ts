@@ -351,6 +351,7 @@ export default class AdminPartnerService {
       .leftJoinAndMapOne("cmp.owner", "users", "owner", "owner.id = cmp.owner_id")
       .leftJoinAndMapOne(
         "owner.info",
+        "users_info",
         "owner_info",
         "owner_info.user_id = owner.id",
       )
