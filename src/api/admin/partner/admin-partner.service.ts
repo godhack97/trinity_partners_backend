@@ -364,24 +364,28 @@ export default class AdminPartnerService {
 
     if (!this.hasRole(auth_user, RoleTypes.SuperAdmin)) {
       qb.andWhere(
-        "(cmp.validated_by_manager_id = :managerId OR owner.manager_id = :managerId)",
+        `(cmp.responsible_manager_id = :managerId
+          OR cmp.validated_by_manager_id = :managerId
+          OR owner.manager_id = :managerId)`,
         { managerId: auth_user.id },
       );
     }
 
     const requests = await qb.getMany();
 
-    return requests.map((request) => ({
-      id: request.id,
-      status: request.status,
-      request_type:
-        request.status === CompanyEmployeeStatus.InviteTrinityPending
-          ? "Приглашение администратором"
-          : "Самостоятельная регистрация",
-      created_at: request.created_at,
-      company: request.company,
-      employee: request.employee,
-    }));
+    return requests
+      .filter((request) => request.company && request.employee)
+      .map((request) => ({
+        id: request.id,
+        status: request.status,
+        request_type:
+          request.status === CompanyEmployeeStatus.InviteTrinityPending
+            ? "Приглашение администратором"
+            : "Самостоятельная регистрация",
+        created_at: request.created_at,
+        company: request.company,
+        employee: request.employee,
+      }));
   }
 
   private hasRole(user: UserEntity, roleName: RoleTypes): boolean {

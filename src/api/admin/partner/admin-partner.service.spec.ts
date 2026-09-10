@@ -9,6 +9,7 @@ describe('AdminPartnerService company status transitions', () => {
   };
   const dealRepository = {};
   const companyEmployeeRepository = {
+    createQueryBuilder: jest.fn(),
     findOneBy: jest.fn(),
     update: jest.fn(),
   };
@@ -128,5 +129,47 @@ describe('AdminPartnerService company status transitions', () => {
       service.updateBusinessFields(404, { name: 'Unknown' }),
     ).rejects.toMatchObject({ status: 404 });
     expect(companyRepository.update).not.toHaveBeenCalled();
+  });
+
+  test('loads employee requests assigned through the canonical responsible manager', async () => {
+    const queryBuilder = {
+      leftJoinAndMapOne: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([
+        {
+          id: 165,
+          status: 'trinity_pending',
+          created_at: new Date('2026-09-10T00:00:00.000Z'),
+          company: { id: 93, name: 'Компания 93' },
+          employee: { id: 198, email: 'vtvardov@test.ru' },
+        },
+        {
+          id: 166,
+          status: 'trinity_pending',
+          company: { id: 94 },
+          employee: null,
+        },
+      ]),
+    };
+    companyEmployeeRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await expect(
+      service.getEmployeeRequests({
+        id: 143,
+        role: { name: 'partner_manager' },
+        roles: [],
+      } as any),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 165,
+        employee: expect.objectContaining({ email: 'vtvardov@test.ru' }),
+      }),
+    ]);
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('cmp.responsible_manager_id = :managerId'),
+      { managerId: 143 },
+    );
   });
 });
