@@ -17,7 +17,7 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
   }
 
   public async findAllCompanyEmployeesWithUsersAndInfo() {
-    return await this.repo.find({
+    const companyEmployees = await this.repo.find({
       relations: [
         "employee",
         "employee.role",
@@ -26,10 +26,12 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
         "employee.user_info",
       ],
     });
+
+    return this.withExistingEmployees(companyEmployees);
   }
 
   public async findCompanyEmployeesByCompanyId(company_id: number) {
-    return await this.repo.find({
+    const companyEmployees = await this.repo.find({
       where: {
         company_id,
         // status: Not(In([ CompanyEmployeeStatus.Deleted, CompanyEmployeeStatus.Reject ])),
@@ -42,11 +44,13 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
         "employee.user_info",
       ],
     });
+
+    return this.withExistingEmployees(companyEmployees);
   }
 
   public async findCompanyEmployeesByCompanyIds(companyIds: number[]) {
     if (!companyIds.length) return [];
-    return await this.repo.find({
+    const companyEmployees = await this.repo.find({
       where: { company_id: In(companyIds) },
       relations: [
         "employee",
@@ -56,5 +60,13 @@ export class CompanyEmployeeRepository extends Repository<CompanyEmployeeEntity>
         "employee.user_info",
       ],
     });
+
+    return this.withExistingEmployees(companyEmployees);
+  }
+
+  private withExistingEmployees(companyEmployees: CompanyEmployeeEntity[]) {
+    return companyEmployees.filter(
+      (companyEmployee) => companyEmployee.employee,
+    );
   }
 }
