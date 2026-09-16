@@ -5,7 +5,12 @@ import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.serv
 import { EmailConfirmerMethod } from "@api/email-confirmer/types";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { createCredentials } from "@app/utils/password";
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from "@nestjs/common";
 import { UserNotificationType, UserSettingType } from "@orm/entities";
 import {
   RoleRepository,
@@ -17,6 +22,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { INTERNAL_ADMIN_ROLE_NAMES } from "./internal-admin-roles";
 import { AdminRoleCountsResponseDto } from "@api/admin/counts/dto/admin-counts.response.dto";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
 
@@ -153,6 +159,12 @@ export class AdminUserAdminService {
       throw new HttpException("Пользователь не найден!", HttpStatus.NOT_FOUND);
     }
 
+    if (isBuiltInSuperAdminEmail(isUserAdmin.email)) {
+      throw new ForbiddenException(
+        "Роль главного администратора зафиксирована и не может быть изменена",
+      );
+    }
+
     const { role } = data;
 
     if (role === RoleTypes.TechnicalSpecialist) {
@@ -187,6 +199,13 @@ export class AdminUserAdminService {
   }
 
   async delete(id: number): Promise<void> {
+    const user = await this.userRepository.findById(id);
+    if (isBuiltInSuperAdminEmail(user?.email)) {
+      throw new ForbiddenException(
+        "Главного администратора нельзя удалить или архивировать",
+      );
+    }
+
     const result = await this.userRepository.softDelete(id);
 
     if (result.affected === 0) {

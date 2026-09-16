@@ -14,6 +14,8 @@ import { CompanyEmployeeEntity } from "./company-employee.entity";
 import { CompanyEntity } from "@orm/entities/company.entity";
 import { UserInfoEntity } from "@orm/entities/user-info.entity";
 import { UserRoleEntity } from "./user-roles.entity";
+import { RoleTypes } from "@app/types/RoleTypes";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 
 @Entity({
   name: "users",
@@ -130,9 +132,25 @@ export class UserEntity extends BasisEntity {
   } | null;
 
   get roles(): RoleEntity[] {
-    if (this.user_roles && this.user_roles.length > 0) {
-      return this.user_roles.map(ur => ur.role);
+    const roles =
+      this.user_roles && this.user_roles.length > 0
+        ? this.user_roles.map((userRole) => userRole.role).filter(Boolean)
+        : this.role
+          ? [this.role]
+          : [];
+
+    if (
+      isBuiltInSuperAdminEmail(this.email) &&
+      !roles.some((role) => role.name === RoleTypes.SuperAdmin)
+    ) {
+      roles.push(
+        Object.assign(new RoleEntity(), {
+          name: RoleTypes.SuperAdmin,
+          display_name: "Главный администратор",
+        }),
+      );
     }
-    return this.role ? [this.role] : [];
+
+    return roles;
   }
 }

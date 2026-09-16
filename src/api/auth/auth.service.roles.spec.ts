@@ -4,6 +4,26 @@ import { RoleTypes } from "@app/types/RoleTypes";
 import { createCredentials } from "@app/utils/password";
 
 describe("AuthService role response", () => {
+  it("always exposes super_admin for the built-in administrator", () => {
+    const user = Object.assign(new UserEntity(), {
+      id: 143,
+      email: "sancho97.2011@mail.ru",
+      role: { id: 5, name: RoleTypes.Partner },
+      user_roles: [
+        {
+          user_id: 143,
+          role_id: 5,
+          role: { id: 5, name: RoleTypes.Partner },
+        },
+      ],
+    });
+
+    expect(user.roles.map((role) => role.name)).toEqual([
+      RoleTypes.Partner,
+      RoleTypes.SuperAdmin,
+    ]);
+  });
+
   it("serializes secondary roles in the initial login response", async () => {
     const credentials = await createCredentials("correct-password");
     const company = { id: 12, name: "Партнёр" };

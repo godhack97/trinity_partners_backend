@@ -5,6 +5,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { CompanyEmployeeRepository, UserRepository } from "@orm/repositories";
 import { CompanyEmployeeStatus, UserEntity, UserInfoEntity, UserToken } from "@orm/entities";
@@ -15,6 +16,7 @@ import { UpdateAnyUserRequestDto } from "./dto/request/update-any-user.request.d
 import { DataSource } from "typeorm";
 import { createCredentials } from "@app/utils/password";
 import { randomBytes } from "crypto";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 
 const defaultFilter = {
   limit: 10,
@@ -89,6 +91,17 @@ export class AdminUserService {
     });
     if (!user || user.deleted_at) {
       throw new NotFoundException("Активный пользователь не найден");
+    }
+
+    if (
+      isBuiltInSuperAdminEmail(user.email) &&
+      (data.email !== undefined ||
+        data.is_activated === false ||
+        data.email_confirmed === false)
+    ) {
+      throw new ForbiddenException(
+        "Нельзя изменить идентичность или отключить главного администратора",
+      );
     }
 
     if (data.email && data.email.trim().toLowerCase() !== user.email.toLowerCase()) {

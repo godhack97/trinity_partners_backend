@@ -15,6 +15,7 @@ import {
   hashSessionToken,
   normalizeSessionClientId,
 } from "src/utils/session-token";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 
 const ERROR_MSG = `Пользователь не прошел аутентификацию!`;
 
@@ -78,7 +79,11 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException(ERROR_MSG);
 
     // Проверяем что пользователь активен
-    if (!userToken.user.is_activated && !allowRestricted)
+    if (
+      !userToken.user.is_activated &&
+      !isBuiltInSuperAdminEmail(userToken.user.email) &&
+      !allowRestricted
+    )
       throw new UnauthorizedException('Пользователь не активирован');
 
     // Устанавливаем пользователя в запрос для совместимости с существующим кодом

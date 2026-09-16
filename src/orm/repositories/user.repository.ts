@@ -1,9 +1,13 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, MoreThan, Repository } from "typeorm";
 import { UserEntity } from "../entities/user.entity";
 import { UserToken } from "../entities/user-token.entity";
 import { hashSessionToken } from "../../utils/session-token";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
+
+const BUILT_IN_ADMIN_MUTATION_ERROR =
+  "Главного администратора нельзя удалить, отключить или лишить роли";
 
 @Injectable()
 export class UserRepository {
@@ -72,6 +76,7 @@ export class UserRepository {
   }
 
   public async softDelete(id: number) {
+    await this.assertUserCanBeDeleted(id);
     return await this.repo.softDelete(id);
   }
 
@@ -80,6 +85,7 @@ export class UserRepository {
   }
 
   public async delete(id: number) {
+    await this.assertUserCanBeDeleted(id);
     return await this.repo.delete(id);
   }
 
@@ -100,6 +106,7 @@ export class UserRepository {
   }
 
   public async update(id: number, data: Partial<UserEntity>) {
+    await this.assertProtectedFieldsCanBeUpdated(id, data);
     return await this.repo.update(id, data);
   }
 
@@ -194,6 +201,33 @@ export class UserRepository {
   }
 
   public async updateUser(id: number, data: Partial<UserEntity>) {
+    await this.assertProtectedFieldsCanBeUpdated(id, data);
     return await this.repo.update(id, data);
+  }
+
+  private async assertUserCanBeDeleted(id: number): Promise<void> {
+    const user = await this.repo.findOne({ where: { id }, withDeleted: true });
+    if (isBuiltInSuperAdminEmail(user?.email)) {
+      throw new ForbiddenException(BUILT_IN_ADMIN_MUTATION_ERROR);
+    }
+  }
+
+  private async assertProtectedFieldsCanBeUpdated(
+    id: number,
+    data: Partial<UserEntity>,
+  ): Promise<void> {
+    const changesProtectedIdentity =
+      data.email !== undefined ||
+      data.role_id !== undefined ||
+      data.role !== undefined ||
+      data.deleted_at !== undefined ||
+      data.is_activated === false;
+
+    if (!changesProtectedIdentity) return;
+
+    const user = await this.repo.findOne({ where: { id }, withDeleted: true });
+    if (isBuiltInSuperAdminEmail(user?.email)) {
+      throw new ForbiddenException(BUILT_IN_ADMIN_MUTATION_ERROR);
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { CompanyEmployeeStatus } from "@orm/entities";
 import { AdminUserService } from "./admin-user.service";
 
@@ -25,6 +25,7 @@ const createQueryBuilder = () => {
 describe("AdminUserService", () => {
   const userRepository = {
     findByIdWithCompanyEmployees: jest.fn(),
+    findOne: jest.fn(),
     update: jest.fn(),
   };
   const companyEmployeeRepository = {
@@ -156,5 +157,21 @@ describe("AdminUserService", () => {
       service.updateCompanyEmployee(12, { is_activated: true }),
     ).rejects.toMatchObject({ status: 404 });
     expect(userRepository.update).not.toHaveBeenCalled();
+  });
+
+  it("does not disable or rename the built-in administrator", async () => {
+    userRepository.findOne.mockResolvedValue({
+      id: 143,
+      email: "sancho97.2011@mail.ru",
+      deleted_at: null,
+    });
+
+    await expect(
+      service.updateAnyUser(143, {
+        email: "renamed@example.test",
+        is_activated: false,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 });

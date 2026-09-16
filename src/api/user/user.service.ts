@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Injectable,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 
 import { ForbiddenInnRepository } from "src/orm/repositories/forbidden-inn.repository";
@@ -38,6 +39,7 @@ import {
 } from "../registration/dto/request/registration-super-admin.request.dto";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 
 const USER_SECRET = "Неправильно введен СЕКРЕТ";
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
@@ -169,6 +171,13 @@ export class UserService {
   }
 
   async updateRole(id: number, updateRoleDto: any) {
+    const user = await this.userRepository.findById(id);
+    if (isBuiltInSuperAdminEmail(user?.email)) {
+      throw new ForbiddenException(
+        "Роль главного администратора зафиксирована и не может быть изменена",
+      );
+    }
+
     await this.userRepository.update(id, {
       role_id: updateRoleDto.role_id
     });
@@ -196,6 +205,12 @@ export class UserService {
     const user = await this.userRepository.findById(id);
     if (!user) {
       throw new HttpException("Пользователь не найден", HttpStatus.NOT_FOUND);
+    }
+
+    if (isBuiltInSuperAdminEmail(user.email)) {
+      throw new ForbiddenException(
+        "Роли главного администратора зафиксированы и не могут быть изменены",
+      );
     }
 
     const roles = await this.roleRepository.find({
