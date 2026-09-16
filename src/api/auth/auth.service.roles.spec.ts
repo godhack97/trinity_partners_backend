@@ -1,8 +1,62 @@
 import { AuthService } from "./auth.service";
 import { UserEntity } from "@orm/entities/user.entity";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { createCredentials } from "@app/utils/password";
 
 describe("AuthService role response", () => {
+  it("serializes secondary roles in the initial login response", async () => {
+    const credentials = await createCredentials("correct-password");
+    const company = { id: 12, name: "Партнёр" };
+    const user = Object.assign(new UserEntity(), {
+      id: 143,
+      email: "partner-admin@example.test",
+      ...credentials,
+      failed_login_attempts: 0,
+      login_blocked_until: null,
+      role: { id: 5, name: RoleTypes.Partner },
+      user_roles: [
+        {
+          user_id: 143,
+          role_id: 1,
+          role: { id: 1, name: RoleTypes.SuperAdmin },
+        },
+      ],
+      company_employee: null,
+      lazy_owner_company: Promise.resolve(company),
+    });
+    const userRepository = {
+      findByEmailWithPermissions: jest.fn().mockResolvedValue(user),
+      update: jest.fn(),
+    };
+    const userTokenRepository = {
+      findOneBy: jest.fn().mockResolvedValue(null),
+      create: jest.fn((value) => value),
+      save: jest.fn((value) => value),
+    };
+    const service = new AuthService(
+      userRepository as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      userTokenRepository as any,
+    );
+
+    const response = await service.login(
+      {
+        email: user.email,
+        password: "correct-password",
+      },
+      "admin-test",
+    );
+    const serialized = JSON.parse(JSON.stringify(response));
+
+    expect(serialized.user.roles).toEqual([
+      expect.objectContaining({ name: RoleTypes.SuperAdmin }),
+    ]);
+  });
+
   it("exposes secondary roles returned by the UserEntity getter", async () => {
     const user = Object.assign(new UserEntity(), {
       id: 17,

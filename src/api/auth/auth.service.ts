@@ -103,7 +103,16 @@ export class AuthService {
       user.owner_company = await user.lazy_owner_company;
     }
 
-    return { token, user };
+    return {
+      token,
+      user: {
+        ...user,
+        // `roles` is a prototype getter on UserEntity and is otherwise omitted
+        // by JSON serialization. The admin client needs secondary roles on the
+        // initial login response before it decides whether to keep the token.
+        roles: user.roles,
+      },
+    };
   }
 
   private assertLoginIsNotBlocked(user: any) {
