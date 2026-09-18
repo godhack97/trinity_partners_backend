@@ -25,6 +25,12 @@ export class SmtpSettingsController {
     return this.smtpSettingsService.verify(data);
   }
 
+  @Get("health")
+  @ApiOperation({ summary: "Проверить активное SMTP-подключение" })
+  health() {
+    return this.smtpSettingsService.verifyActiveConnection();
+  }
+
   @Put()
   @LogAction("smtp_settings_update", "smtp_settings")
   @ApiOperation({ summary: "Проверить и сохранить настройки SMTP" })

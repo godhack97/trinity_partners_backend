@@ -21,6 +21,7 @@ const makeService = () => {
     {} as any,
     { get: jest.fn() } as any,
     {} as any,
+    { recordForUser: jest.fn() } as any,
   );
   const deal = {
     id: 7,

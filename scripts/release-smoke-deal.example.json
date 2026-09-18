@@ -1,0 +1,15 @@
+{
+  "distributor_company_id": 1,
+  "integrator_company_id": 2,
+  "customer": {
+    "first_name": "Иван",
+    "last_name": "Иванов",
+    "inn": "7707083893",
+    "company_name": "ООО Релиз Смоук",
+    "email": "release-smoke@example.invalid",
+    "phone": "+7 (999) 000-00-00"
+  },
+  "deal_sum": 1,
+  "purchase_date": "2026-12-31T00:00:00.000Z",
+  "comment": "Автоматический release smoke; запись удаляется после проверки"
+}

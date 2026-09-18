@@ -114,6 +114,7 @@ function makeService(options: {
     {} as any,
     { get: jest.fn() } as any,
     {} as any,
+    { recordForUser: jest.fn() } as any,
   );
 
   return { service, dealRepository };

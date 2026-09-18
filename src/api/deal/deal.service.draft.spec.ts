@@ -87,6 +87,7 @@ describe("DealService draft submission", () => {
       configuratorDraftRepository as any,
       configService as any,
       notificationService as any,
+      { recordForUser: jest.fn() } as any,
     );
 
     return {

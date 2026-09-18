@@ -132,6 +132,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
       configuratorDraftRepository as any,
       configService as any,
       notificationService as any,
+      { recordForUser: jest.fn() } as any,
     ),
     mocks: {
       dealRepository,

@@ -34,7 +34,7 @@ export class AddEr225HtrM8Platform1780317100000
     }
 
     if (!serverId) {
-      const generations = await queryRunner.query(
+      let generations = await queryRunner.query(
         `
           SELECT id
           FROM cnf_server_generation
@@ -43,14 +43,31 @@ export class AddEr225HtrM8Platform1780317100000
           LIMIT 1
         `,
       );
-      const heights = await queryRunner.query(
-        `SELECT id FROM cnf_serverbox_height WHERE name = '2U' LIMIT 1`,
-      );
-
-      if (!generations?.[0]?.id || !heights?.[0]?.id) {
-        throw new Error(
-          "ER225HTR-M8 requires an M8 server generation and 2U server height",
+      if (!generations?.[0]?.id) {
+        const generationId = randomUUID();
+        await queryRunner.query(
+          `INSERT INTO cnf_server_generation (id, name) VALUES (?, 'Gen4/5/M8')`,
+          [generationId],
         );
+        generations = [{ id: generationId }];
+      }
+
+      let heights = await queryRunner.query(
+        `
+          SELECT id
+          FROM cnf_serverbox_height
+          WHERE name IN ('2U', 'U2')
+          ORDER BY name = '2U' DESC
+          LIMIT 1
+        `,
+      );
+      if (!heights?.[0]?.id) {
+        const heightId = randomUUID();
+        await queryRunner.query(
+          `INSERT INTO cnf_serverbox_height (id, name) VALUES (?, '2U')`,
+          [heightId],
+        );
+        heights = [{ id: heightId }];
       }
 
       const sorts = await queryRunner.query(

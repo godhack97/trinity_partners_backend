@@ -11,6 +11,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER } from "@nestjs/core";
 import { PermissionsGuard } from "@app/guards/permissions.guard";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import * as path from "node:path";
@@ -58,20 +59,48 @@ import { RecommendedConfigsModule } from './api/recommended-configs/recommended-
 import { DashboardModule } from './api/dashboard/dashboard.module';
 import { BugReportModule } from './api/bug-report/bug-report.module';
 import { SmtpSettingsModule } from './api/admin/smtp-settings/smtp-settings.module';
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { CsrfGuard } from "./guards/csrf.guard";
+import {
+  environmentFilePaths,
+  environmentValidationSchema,
+} from "../config/environment";
+import { ObservabilityModule } from "./observability/observability.module";
+import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
+import { LegalConsentModule } from "./api/legal-consent/legal-consent.module";
 
-const is_development = !(process.env.NODE_ENV?.trim() == "prod");
-const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
+const scheduledJobsEnabled =
+  String(process.env.SCHEDULED_JOBS_ENABLED || "true").toLowerCase() !== "false";
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: environmentFilePaths(),
+      validationSchema: environmentValidationSchema,
+      validationOptions: {
+        abortEarly: false,
+        allowUnknown: true,
+        convert: true,
+      },
+    }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => [
+        {
+          name: "default",
+          ttl: Number(configService.get("RATE_LIMIT_TTL_MS")),
+          limit: Number(configService.get("RATE_LIMIT_MAX")),
+        },
+      ],
+    }),
+    ObservabilityModule,
+    LegalConsentModule,
     AdminPermissionsModule,
     ForbiddenInnModule,
     LogsModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ".env",
-    }),
-    ScheduleModule.forRoot(),
+    ...(scheduledJobsEnabled ? [ScheduleModule.forRoot()] : []),
     TypeOrmModule.forFeature([UserAction]),
     TypeOrmModule.forRootAsync({
       imports: [
@@ -84,7 +113,7 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
       useFactory: (configService: ConfigService) => ({
         type: "mysql",
         host: configService.get("DATABASE_HOST"),
-        port: configService.get("DATABASE_PORT"),
+        port: Number(configService.get("DATABASE_PORT")),
         username: configService.get("DATABASE_USERNAME"),
         password: configService.get("DATABASE_PASSWORD"),
         database: configService.get("DATABASE_NAME"),
@@ -100,9 +129,6 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
     SendsayModule,
     MailerModule.forRootAsync({
       useFactory: async (configService: ConfigService) => {
-        console.log({
-          EMAIL_SECURE: configService.get("EMAIL_SECURE"),
-        });
         return {
           defaults: {
             from: "partner@trinity.ru",
@@ -110,12 +136,16 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
           transport: {
             host: configService.get("EMAIL_HOST"),
             port: parseInt(configService.get("EMAIL_PORT"), 10) || 2525, // всегда число
-            secure: configService.get("EMAIL_SECURE") === "true", // всегда boolean
+            secure:
+              configService.get("EMAIL_SECURE") === true ||
+              configService.get("EMAIL_SECURE") === "true",
             auth: {
               user: configService.get("EMAIL_USERNAME"),
               pass: configService.get("EMAIL_PASSWORD"),
             },
-            debug: configService.get("EMAIL_DEBUG") === "true", // всегда boolean
+            debug:
+              configService.get("EMAIL_DEBUG") === true ||
+              configService.get("EMAIL_DEBUG") === "true",
             logger: true,
           },
           //preview: true,
@@ -173,8 +203,20 @@ const envFilePath = `.env.${process.env.NODE_ENV?.trim() || "dev"}`;
   providers: [
     AppService,
     {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
     },
     {
       provide: APP_GUARD,

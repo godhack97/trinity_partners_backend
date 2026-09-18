@@ -1,8 +1,14 @@
 import { registerAs } from '@nestjs/config';
 import { config as dotenvConfig } from 'dotenv';
 import { DataSource, DataSourceOptions } from 'typeorm';
+import { resolve } from 'node:path';
 const envFilePath = `.env.${process.env.NODE_ENV?.trim() || 'prod'}`;
 dotenvConfig({ path: envFilePath });
+const compiled = __filename.endsWith('.js');
+const migrationRoot = compiled
+  ? resolve(__dirname, '..')
+  : resolve(__dirname, '..');
+const migrationExtension = compiled ? 'js' : 'ts';
 
 const config = {
   type: 'mysql',
@@ -17,9 +23,9 @@ const config = {
   // databases are unaffected because TypeORM skips migrations already recorded
   // in the migrations table.
   migrations: [
-    '1745997975688-CreateUserTokensTable.ts',
-    'migrations/*{.ts,.js}',
-    'src/migrations/*{.ts,.js}',
+    `${migrationRoot}/1745997975688-CreateUserTokensTable.${migrationExtension}`,
+    `${migrationRoot}/migrations/*.${migrationExtension}`,
+    `${migrationRoot}/src/migrations/*.${migrationExtension}`,
   ],
   autoLoadEntities: true,
   synchronize: false,

@@ -17,6 +17,7 @@ import {
 import * as nodemailer from "nodemailer";
 import { Repository } from "typeorm";
 import { SmtpSettingsDto } from "./dto/smtp-settings.dto";
+import { MetricsService } from "@app/observability/metrics.service";
 
 const SETTINGS_ID = 1;
 
@@ -39,6 +40,7 @@ export class SmtpSettingsService {
     private readonly repository: Repository<SmtpSettingEntity>,
     private readonly configService: ConfigService,
     private readonly mailerService: MailerService,
+    private readonly metricsService?: MetricsService,
   ) {}
 
   async getPublicSettings() {
@@ -73,6 +75,12 @@ export class SmtpSettingsService {
     const settings = await this.resolveSubmittedSettings(data);
     await this.verifyConnection(settings);
     return { success: true, message: "Подключение к SMTP успешно проверено" };
+  }
+
+  async verifyActiveConnection() {
+    const settings = await this.getActiveSettings();
+    await this.verifyConnection(settings);
+    return { success: true };
   }
 
   async save(data: SmtpSettingsDto) {
@@ -111,11 +119,18 @@ export class SmtpSettingsService {
       this.activeTransportFingerprint = fingerprint;
     }
 
-    return this.mailerService.sendMail({
-      ...options,
-      from: settings.username,
-      transporterName: this.runtimeTransportName,
-    });
+    try {
+      const result = await this.mailerService.sendMail({
+        ...options,
+        from: settings.username,
+        transporterName: this.runtimeTransportName,
+      });
+      this.metricsService?.recordIntegration("smtp", true);
+      return result;
+    } catch (error) {
+      this.metricsService?.recordIntegration("smtp", false);
+      throw error;
+    }
   }
 
   private async getActiveSettings(): Promise<ResolvedSmtpSettings> {
@@ -161,7 +176,9 @@ export class SmtpSettingsService {
     const transport = this.createTransport(settings);
     try {
       await transport.verify();
+      this.metricsService?.recordIntegration("smtp", true);
     } catch (error) {
+      this.metricsService?.recordIntegration("smtp", false);
       this.logger.warn(
         `SMTP connection check failed for ${settings.username}: ${this.errorCode(error)}`,
       );

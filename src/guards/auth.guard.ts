@@ -16,6 +16,7 @@ import {
   normalizeSessionClientId,
 } from "src/utils/session-token";
 import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
+import { extractRequestSession } from "@app/security/request-session";
 
 const ERROR_MSG = `Пользователь не прошел аутентификацию!`;
 
@@ -42,19 +43,16 @@ export class AuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const headers = request.headers;
-    const body = request.body || {};
-    const query = request.query || {};
-
-    const _token: string = headers.authorization || "";
+    const session = extractRequestSession(request);
 
     // Собираем client_id
-    const clientId = normalizeSessionClientId(
-      headers["origin"] || headers["client-id"],
-    );
+    const clientId = session?.source === "cookie"
+      ? "web:portal"
+      : normalizeSessionClientId(headers["client-id"] || headers["origin"]);
 
-    if (!_token || _token.length === 0)
+    if (!session)
       throw new UnauthorizedException(ERROR_MSG);
-    const token = _token.substring(7);
+    const token = session.token;
 
     // Ищем токен в таблице user_tokens по token + client_id
     const userToken = await this.userTokenRepository.findOne({
@@ -91,6 +89,14 @@ export class AuthGuard implements CanActivate {
     
     // Также устанавливаем в request.user для PermissionsGuard
     request["user"] = userToken.user;
+    request["auth_session_source"] = session.source;
+    request["auth_session_token"] = token;
+
+    // Legacy services still read the bearer header. Populate it internally for
+    // cookie-authenticated portal requests without exposing the token to JS.
+    if (session.source === "cookie") {
+      request.headers.authorization = `Bearer ${token}`;
+    }
 
     return true;
   }

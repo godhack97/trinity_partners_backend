@@ -7,12 +7,29 @@ import {
 } from "@decorators/validate";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsOptional, IsString } from "class-validator";
+import {
+  Equals,
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+} from "class-validator";
 import { ValidateNested } from "class-validator";
 import { DealConfigurationDto } from "./deal-configuration.dto";
 import { AddDealAttachmentDto } from "./add-deal-attachment.dto";
 
 export class CreateDealDto {
+  @ApiProperty({
+    description: "Подтверждение ознакомления с 44-ФЗ, 223-ФЗ и 275-ФЗ",
+  })
+  @IsBoolean()
+  @Equals(true)
+  federal_laws_accepted: boolean;
+
+  @ApiProperty({ example: "2026-09-17" })
+  @IsString()
+  federal_laws_policy_version: string;
+
   @ApiProperty()
   @IsOptional()
   @IsNumberRu()

@@ -12,6 +12,7 @@ import {
 } from "@orm/entities";
 import { CompanyRepository, CustomerRepository } from "@orm/repositories";
 import { EntityManager } from "typeorm";
+import { MetricsService } from "@app/observability/metrics.service";
 
 export interface Bitrix24LeadData {
   TITLE: string;
@@ -74,12 +75,28 @@ export class Bitrix24Service {
     private readonly configService: ConfigService,
     private readonly companyRepository: CompanyRepository,
     private readonly customerRepository: CustomerRepository,
+    private readonly metricsService?: MetricsService,
   ) {
     this.webhookUrl = this.configService.get<string>("BITRIX24_WEBHOOK_URL");
 
     if (!this.webhookUrl) {
       this.logger.warn("BITRIX24_WEBHOOK_URL не настроен в конфигурации");
     }
+
+    this.httpService.axiosRef?.interceptors?.response?.use(
+      (response) => {
+        if (String(response.config.url || "").startsWith(this.webhookUrl)) {
+          this.metricsService?.recordIntegration("bitrix", true);
+        }
+        return response;
+      },
+      (error) => {
+        if (String(error?.config?.url || "").startsWith(this.webhookUrl)) {
+          this.metricsService?.recordIntegration("bitrix", false);
+        }
+        return Promise.reject(error);
+      },
+    );
   }
 
   /**

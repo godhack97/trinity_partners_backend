@@ -32,6 +32,7 @@ import {
   UserSettingType,
   CompanyEntity,
   UserEntity,
+  LegalPolicyType,
 } from "@orm/entities";
 import {
   RegistrationSuperAdminDto,
@@ -40,6 +41,7 @@ import {
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 import { RoleTypes } from "@app/types/RoleTypes";
 import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
+import { LegalConsentService } from "@api/legal-consent/legal-consent.service";
 
 const USER_SECRET = "Неправильно введен СЕКРЕТ";
 const USER_EXISTS = "Пользователь с таким E-mail уже существует";
@@ -68,6 +70,7 @@ export class UserService {
     private readonly userTokenRepository: Repository<UserToken>,
     @InjectRepository(UserRoleEntity)
     private readonly userRoleRepository: Repository<UserRoleEntity>,
+    private readonly legalConsentService: LegalConsentService,
   ) { }
 
   async findRegistrationCompanyByInn(inn: string) {
@@ -133,6 +136,7 @@ export class UserService {
       role: roleEmployee,
       ...this.getLegalConsentPatch("employee_registration"),
     });
+    await this.recordRegistrationConsents(newUser.id, "employee_registration");
 
     if (businessRole && businessRole.id !== roleEmployee.id) {
       await this.userRoleRepository.save({
@@ -441,6 +445,7 @@ export class UserService {
       role: rolePartner,
       ...this.getLegalConsentPatch("company_registration"),
     });
+    await this.recordRegistrationConsents(newUser.id, "company_registration");
 
     await this.userRoleRepository.save({
       user_id: newUser.id,
@@ -525,6 +530,21 @@ export class UserService {
       legal_accepted_at: new Date(),
       legal_accepted_source: source,
     };
+  }
+
+  private async recordRegistrationConsents(userId: number, source: string) {
+    await Promise.all([
+      this.legalConsentService.recordForUser(
+        userId,
+        LegalPolicyType.UserAgreement,
+        source,
+      ),
+      this.legalConsentService.recordForUser(
+        userId,
+        LegalPolicyType.Privacy152Fz,
+        source,
+      ),
+    ]);
   }
 
   private async assertEmployeeEmailDomainMatchesCompany(

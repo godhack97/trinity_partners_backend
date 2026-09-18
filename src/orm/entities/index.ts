@@ -33,3 +33,4 @@ export * from "./ticket-message.entity";
 export * from "./event.entity";
 export * from "./recommended-config.entity";
 export * from "./smtp-setting.entity";
+export * from "./legal-consent.entity";

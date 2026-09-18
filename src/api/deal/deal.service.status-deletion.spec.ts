@@ -46,6 +46,7 @@ describe("DealService status state machine and deletion orchestration", () => {
       {} as any,
       { get: jest.fn().mockReturnValue("localhost") } as any,
       { send: jest.fn() } as any,
+      { recordForUser: jest.fn() } as any,
     );
 
     return { service, dealRepository, dealDeletionRequestRepository };

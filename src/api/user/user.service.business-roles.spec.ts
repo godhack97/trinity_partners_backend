@@ -89,6 +89,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
       notificationService as any,
       userTokenRepository as any,
       userRoleRepository as any,
+      { recordForUser: jest.fn() } as any,
     ),
     mocks: {
       forbiddenInnRepository,

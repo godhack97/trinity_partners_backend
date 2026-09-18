@@ -21,6 +21,7 @@ import {
   NotificationCategory,
   UserEntity,
   Bitrix24SyncStatus,
+  LegalPolicyType,
 } from "@orm/entities";
 import { CompanyEntity, PartnershipType } from "@orm/entities/company.entity";
 import { SearchDealDto } from "./dto/request/search-deal.dto";
@@ -45,6 +46,7 @@ import { AddDealConfigurationsDto } from "./dto/request/add-deal-configurations.
 import { UpdateDealDto } from "./dto/request/update-deal.dto";
 import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
 import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
+import { LegalConsentService } from "@api/legal-consent/legal-consent.service";
 
 type DealAccessScope =
   | { kind: "global" }
@@ -76,6 +78,7 @@ export class DealService {
     private readonly configuratorDraftRepository: ConfiguratorDraftRepository,
     private configService: ConfigService,
     private readonly notificationService: NotificationService,
+    private readonly legalConsentService: LegalConsentService,
   ) {}
 
   private get hostname(): string {
@@ -346,6 +349,20 @@ export class DealService {
     };
 
     const savedDeal = await this.dealRepository.save(dealData);
+    await Promise.all(
+      [
+        LegalPolicyType.FederalLaw44Fz,
+        LegalPolicyType.FederalLaw223Fz,
+        LegalPolicyType.FederalLaw275Fz,
+      ].map((policyType) =>
+        this.legalConsentService.recordForUser(
+          auth_user.id,
+          policyType,
+          `deal:${savedDeal.id}`,
+          createDealDto.federal_laws_policy_version,
+        ),
+      ),
+    );
     await this.linkConfiguratorDraftsToDeal(
       createDealDto.configurations,
       savedDeal.id,
