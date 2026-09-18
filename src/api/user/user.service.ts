@@ -275,7 +275,7 @@ export class UserService {
           employeeJobTitle: employeeInfo.user_info?.job_title,
           employeePhone: employeeInfo.user_info?.phone,
           registrationDate: new Date().toLocaleDateString("ru-RU"),
-          link: "https://partner.trinity.ru/",
+          link: "https://партнер.тринити.рф/",
         },
       });
 
@@ -332,7 +332,7 @@ export class UserService {
           employeeJobTitle: employeeInfo.user_info?.job_title,
           employeePhone: employeeInfo.user_info?.phone,
           registrationDate: new Date().toLocaleDateString("ru-RU"),
-          link: "https://partner.trinity.ru/",
+          link: "https://партнер.тринити.рф/",
         },
       });
 

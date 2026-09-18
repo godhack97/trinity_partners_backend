@@ -28,7 +28,7 @@ describe("BugReportService", () => {
       } as any,
       {
         message: "Не работает <кнопка>\nПосле нажатия",
-        pageUrl: "https://partner.trinity.ru/dashboard?a=1&b=2",
+        pageUrl: "https://партнер.тринити.рф/dashboard?a=1&b=2",
       },
       [screenshot],
       { userAgent: "Test <Browser>" },

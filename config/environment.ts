@@ -47,7 +47,7 @@ export const environmentValidationSchema = Joi.object({
     .try(Joi.boolean(), Joi.string().valid("true", "false"))
     .default(runtimeEnvironment() === "prod"),
   ALLOWED_ORIGINS: Joi.string().default(
-    "https://partner.trinity.ru,https://partner-admin.trinity.ru",
+    "https://xn--80akxggcl.xn--h1aaasnle.xn--p1ai,https://partner-admin.trinity.ru",
   ),
 
   RATE_LIMIT_TTL_MS: Joi.number().integer().min(1000).default(60_000),

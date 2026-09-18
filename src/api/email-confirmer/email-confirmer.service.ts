@@ -190,7 +190,7 @@ export class EmailConfirmerService {
         ...sendOpts,
         template: "request-company-receive",
         context: {
-          link: "https://partner.trinity.ru/",
+          link: "https://партнер.тринити.рф/",
         },
       });
       await this.notifyTrinityManagersAboutNewPartner({
@@ -204,7 +204,7 @@ export class EmailConfirmerService {
         ...sendOpts,
         template: "registration-employee",
         context: {
-          link: "https://partner.trinity.ru/",
+          link: "https://партнер.тринити.рф/",
         },
       });
     }
@@ -251,7 +251,7 @@ export class EmailConfirmerService {
         context: {
           partnerName,
           partnerEmail,
-          link: "https://partner.trinity.ru/",
+          link: "https://партнер.тринити.рф/",
         },
       });
     }

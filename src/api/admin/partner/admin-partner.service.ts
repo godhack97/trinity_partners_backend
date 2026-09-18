@@ -452,7 +452,7 @@ export default class AdminPartnerService {
       subject: "Подтверждение регистрации!",
       template: "request-company-approve",
       context: {
-        link: "https://partner.trinity.ru/",
+        link: "https://партнер.тринити.рф/",
       },
     });
 
@@ -514,7 +514,7 @@ export default class AdminPartnerService {
       subject: "Регистрация отклонена!",
       template: "request-company-reject",
       context: {
-        link: "https://partner.trinity.ru/",
+        link: "https://партнер.тринити.рф/",
       },
       //html: 'К сожалению, на данный момент доступ не одобрен. Если Вы не согласны с решением администратора или считаете. что произошла ошибка, свяжитесь с нами по почте: <a href="mailto:support@trinity.ru">support@trinity.ru</a>'
     });
@@ -558,7 +558,7 @@ export default class AdminPartnerService {
         subject: "Вас пригласили присоединиться к компании",
         template: "employee-add-to-company",
         context: {
-          link: "https://partner.trinity.ru/",
+          link: "https://партнер.тринити.рф/",
         },
       });
 
@@ -787,7 +787,7 @@ export default class AdminPartnerService {
       subject: title,
       template: "request-company-approve",
       context: {
-        link: "https://partner.trinity.ru/",
+        link: "https://партнер.тринити.рф/",
       },
     });
 

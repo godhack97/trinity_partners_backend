@@ -116,7 +116,7 @@ export class CompanyService {
       subject: "Вас добавили к списку сотрудников!",
       template: "employee-add-to-company",
       context: {
-        link: "https://partner.trinity.ru/",
+        link: "https://партнер.тринити.рф/",
       },
     });
 
@@ -217,7 +217,7 @@ export class CompanyService {
         employeeJobTitle: employee.user_info?.job_title,
         employeePhone: employee.user_info?.phone,
         registrationDate: new Date().toLocaleDateString("ru-RU"),
-        link: "https://partner.trinity.ru/",
+        link: "https://партнер.тринити.рф/",
       },
     });
 

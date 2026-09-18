@@ -252,7 +252,7 @@ export class CompanyManagementService {
           subject: "Подтверждение регистрации!",
           template: "request-company-approve",
           context: {
-            link: "https://partner.trinity.ru/",
+            link: "https://партнер.тринити.рф/",
             companyName: company.name,
           },
         },

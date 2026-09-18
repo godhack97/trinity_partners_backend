@@ -1,0 +1,110 @@
+services:
+  # Полностью отдельная test MariaDB. Порт 3306 не публикуется на host, поэтому
+  # она не пересекается ни с production Docker DB, ни со старой system MariaDB.
+  mariadb:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DATABASE_NAME:-trinity_test}
+      MARIADB_USER: ${DATABASE_USERNAME:-trinity_test}
+      MARIADB_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      MARIADB_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD:?DATABASE_ROOT_PASSWORD is required}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      # Named volume сохраняет test DB между deploy/recreate application image.
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Один согласованный application image содержит backend, portal и admin.
+  trinity-app:
+    build:
+      context: ${TRINITY_WORKSPACE_DIR:?TRINITY_WORKSPACE_DIR is required}
+      # Dockerfile хранится в backend Git-репозитории, но build context включает
+      # соседние frontend/admin репозитории.
+      dockerfile: nest-trinity-backend/deploy/docker/Dockerfile
+      args:
+        ADMIN_API_ORIGIN: ${ADMIN_API_ORIGIN:-https://partner-api-test.trinity.ru}
+        NEXT_PUBLIC_BACKEND_URL: /api
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+        NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+        REACT_APP_SENTRY_DSN: ${REACT_APP_SENTRY_DSN:-}
+        REACT_APP_SENTRY_ENVIRONMENT: test
+        REACT_APP_SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    image: trinity-partners-test:${TRINITY_IMAGE_TAG:-test-local}
+    restart: unless-stopped
+    depends_on:
+      # Миграции и backend стартуют только после готовности test MariaDB.
+      mariadb:
+        condition: service_healthy
+    env_file:
+      # Старый test backend env предоставляет обязательные legacy-параметры;
+      # безопасные test overrides ниже имеют более высокий приоритет.
+      - ${TRINITY_WORKSPACE_DIR}/nest-trinity-backend/.env.prod
+    environment:
+      NODE_ENV: prod
+      PORT: 9131
+      HOSTNAME: partner-api-test.trinity.ru
+      FRONTEND_HOSTNAME: partner-test.trinity.ru
+      BACKEND_HOSTNAME: partner-api-test.trinity.ru
+      DATABASE_HOST: mariadb
+      DATABASE_PORT: 3306
+      DATABASE_NAME: ${DATABASE_NAME:-trinity_test}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-trinity_test}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      # Любые внешние side effects в test отключены: SMTP и Bitrix направлены на
+      # закрытый localhost-порт, cron/outbox scheduler не запускается.
+      EMAIL_HOST: 127.0.0.1
+      EMAIL_PORT: 9
+      EMAIL_USERNAME: test-disabled
+      EMAIL_PASSWORD: test-disabled
+      EMAIL_SECURE: "false"
+      EMAIL_DEBUG: "false"
+      BITRIX24_WEBHOOK_URL: http://127.0.0.1:9/rest/
+      SCHEDULED_JOBS_ENABLED: "false"
+      # Test использует собственные secrets и cookie names, поэтому test-login
+      # не может перезаписать production session в том же браузере.
+      LOGIN_CAPTCHA_SECRET: ${LOGIN_CAPTCHA_SECRET:?LOGIN_CAPTCHA_SECRET is required}
+      CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET is required}
+      AUTH_SESSION_TTL_DAYS: ${AUTH_SESSION_TTL_DAYS:-7}
+      SESSION_COOKIE_NAME: trinity_test_session
+      CSRF_COOKIE_NAME: trinity_test_csrf
+      CSRF_COOKIE_DOMAIN: .trinity.ru
+      COOKIE_SECURE: "true"
+      ALLOWED_ORIGINS: https://partner-test.trinity.ru,https://admin-test.trinity.ru
+      # Лимиты test чуть выше production, чтобы не мешать ручным smoke-тестам.
+      RATE_LIMIT_TTL_MS: ${RATE_LIMIT_TTL_MS:-60000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      LOGIN_RATE_LIMIT_MAX: ${LOGIN_RATE_LIMIT_MAX:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: logs
+      LOG_RETENTION_FILES: ${LOG_RETENTION_FILES:-14}
+      METRICS_TOKEN: ${METRICS_TOKEN:?METRICS_TOKEN is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: test
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      BACKEND_PROXY_ORIGIN: http://127.0.0.1:9131
+      UPLOAD_DIR: public
+      READY_DISK_MIN_FREE_BYTES: ${READY_DISK_MIN_FREE_BYTES:-1073741824}
+    ports:
+      # Все порты доступны только локальному Nginx сервера, не публичной сети.
+      - "127.0.0.1:${PORTAL_PORT:-9140}:9130"
+      - "127.0.0.1:${BACKEND_PORT:-9141}:9131"
+      - "127.0.0.1:${ADMIN_PORT:-9145}:9135"
+    volumes:
+      # Test runtime data изолированы префиксом Compose project `trinity-test`.
+      - trinity-public:/app/nest-trinity-backend/public
+      - trinity-upload:/app/nest-trinity-backend/upload
+      - trinity-logs:/app/nest-trinity-backend/logs
+
+# Все volumes принадлежат только test Compose project. `docker compose down -v`
+# применять нельзя, если test-данные требуется сохранить.
+volumes:
+  mariadb-data:
+  trinity-public:
+  trinity-upload:
+  trinity-logs:

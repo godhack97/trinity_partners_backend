@@ -26,7 +26,7 @@ export class AppController {
     //     template: 'registration-employee--img-as-url.hbs',
     //     context: {
     //       link: 'asdasda',
-    //       URL: 'partner.trinity.ru'
+    //       URL: 'партнер.тринити.рф'
     //     }
     //   })
     //   console.log({
