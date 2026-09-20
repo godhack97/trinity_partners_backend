@@ -175,6 +175,11 @@ export class AdminUserService {
     if (!user || user.deleted_at) {
       throw new NotFoundException("Активный пользователь не найден");
     }
+    if (isBuiltInSuperAdminEmail(user.email)) {
+      throw new ForbiddenException(
+        "Пароль системного администратора нельзя сбросить",
+      );
+    }
 
     const temporaryPassword = randomBytes(12).toString("base64url");
     const credentials = await createCredentials(temporaryPassword);

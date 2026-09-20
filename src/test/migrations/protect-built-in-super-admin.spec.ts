@@ -22,6 +22,16 @@ describe("ProtectBuiltInSuperAdmin1780320900000", () => {
     expect(parameters).not.toContain("231654");
   });
 
+  it("does not overwrite the password of an existing administrator", async () => {
+    const calls = await runUp();
+    const updateExistingAdmin = calls.find(([statement]) =>
+      statement.includes("UPDATE users built_in_admin"),
+    );
+
+    expect(updateExistingAdmin).toBeDefined();
+    expect(updateExistingAdmin[0]).not.toMatch(/built_in_admin\.(password|salt)/);
+  });
+
   it("protects the user, assignment and system role at database level", async () => {
     const calls = await runUp();
     const sql = calls.map(([statement]) => statement).join("\n");

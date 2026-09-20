@@ -183,6 +183,19 @@ describe("AdminUserService", () => {
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
+  it("does not reset the built-in administrator password", async () => {
+    userRepository.findOne.mockResolvedValue({
+      id: 143,
+      email: "sancho97.2011@mail.ru",
+      deleted_at: null,
+    });
+
+    await expect(service.resetPassword(143)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
   it("shows only archived users when the archive filter is selected", async () => {
     const qb = createQueryBuilder();
     userRepository.createQueryBuilder.mockReturnValue(qb);
