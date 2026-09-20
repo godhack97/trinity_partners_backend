@@ -1,6 +1,7 @@
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
+import { AfterLoad, Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { DealEntity, UserEntity } from ".";
+import { UserIdentityEntity } from "./user-identity.entity";
 
 export enum DealDeletionStatus {
   PENDING = "pending",
@@ -29,6 +30,13 @@ export class DealDeletionRequestEntity extends BasisEntity {
   @JoinColumn({ name: "requester_id" })
   requester: UserEntity;
 
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "requester_id", referencedColumnName: "id" })
+  requester_identity?: UserIdentityEntity;
+
   @Column({ type: "text" })
   deletion_reason: string;
 
@@ -46,6 +54,23 @@ export class DealDeletionRequestEntity extends BasisEntity {
   @JoinColumn({ name: "processed_by_id" })
   processed_by?: UserEntity;
 
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "processed_by_id", referencedColumnName: "id" })
+  processed_by_identity?: UserIdentityEntity;
+
   @Column({ type: "timestamp", nullable: true })
   processed_at?: Date;
+
+  @AfterLoad()
+  useHistoricalUsers() {
+    if (!this.requester && this.requester_identity) {
+      this.requester = this.requester_identity.toHistoricalUser();
+    }
+    if (!this.processed_by && this.processed_by_identity) {
+      this.processed_by = this.processed_by_identity.toHistoricalUser();
+    }
+  }
 }

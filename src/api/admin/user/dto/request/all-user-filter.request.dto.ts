@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -9,6 +10,11 @@ import {
 } from "class-validator";
 
 export class AllUserFilterRequestDto {
+  @ApiPropertyOptional({ enum: ["active", "deleted", "all"], default: "active" })
+  @IsOptional()
+  @IsIn(["active", "deleted", "all"])
+  deletion_state?: "active" | "deleted" | "all";
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

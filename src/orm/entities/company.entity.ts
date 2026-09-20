@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  AfterLoad,
   JoinColumn,
   JoinTable,
   ManyToOne,
@@ -9,6 +10,7 @@ import {
 } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { UserEntity } from "./user.entity";
+import { UserIdentityEntity } from "./user-identity.entity";
 
 export enum CompanyStatus {
   Pending = "pending",
@@ -85,6 +87,13 @@ export class CompanyEntity extends BasisEntity {
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: "owner_id" })
   owner: UserEntity;
+
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "owner_id", referencedColumnName: "id" })
+  owner_identity?: UserIdentityEntity;
 
   @OneToOne(() => UserEntity, (user: UserEntity) => user.id)
   @JoinColumn({ name: "validated_by_manager_id" })
@@ -181,4 +190,11 @@ export class CompanyEntity extends BasisEntity {
 
   @Column({ type: "date", nullable: true, comment: "Срок действия сертификата" })
   certificate_expiry: Date | null;
+
+  @AfterLoad()
+  useHistoricalOwner() {
+    if (!this.owner && this.owner_identity) {
+      this.owner = this.owner_identity.toHistoricalUser();
+    }
+  }
 }

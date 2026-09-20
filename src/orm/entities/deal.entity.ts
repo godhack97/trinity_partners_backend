@@ -1,7 +1,8 @@
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
+import { AfterLoad, Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { CompanyEntity, CustomerEntity, DistributorEntity, UserEntity } from ".";
 import { DeleteDateColumn } from "typeorm";
+import { UserIdentityEntity } from "./user-identity.entity";
 
 export enum DealStatus {
   Draft = "draft",
@@ -173,6 +174,13 @@ export class DealEntity extends BasisEntity {
   @JoinColumn({ name: "creator_id" })
   partner: UserEntity;
 
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "creator_id", referencedColumnName: "id" })
+  creator_identity?: UserIdentityEntity;
+
   @Column({ type: "int", unsigned: true, nullable: true })
   responsible_manager_id?: number | null;
 
@@ -285,4 +293,11 @@ export class DealEntity extends BasisEntity {
 
   @DeleteDateColumn({ name: "deleted_at" })
   deletedAt?: Date;
+
+  @AfterLoad()
+  useHistoricalCreator() {
+    if (!this.partner && this.creator_identity) {
+      this.partner = this.creator_identity.toHistoricalUser();
+    }
+  }
 }

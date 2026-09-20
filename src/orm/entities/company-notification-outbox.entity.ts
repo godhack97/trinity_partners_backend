@@ -1,7 +1,8 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne } from "typeorm";
+import { AfterLoad, Column, Entity, Index, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { CompanyEntity } from "./company.entity";
 import { UserEntity } from "./user.entity";
+import { UserIdentityEntity } from "./user-identity.entity";
 
 export enum CompanyNotificationOutboxChannel {
   Email = "email",
@@ -35,6 +36,13 @@ export class CompanyNotificationOutboxEntity extends BasisEntity {
   @JoinColumn({ name: "user_id" })
   user?: UserEntity | null;
 
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "user_id", referencedColumnName: "id" })
+  user_identity?: UserIdentityEntity | null;
+
   @Column({ length: 191 })
   delivery_key: string;
 
@@ -61,4 +69,11 @@ export class CompanyNotificationOutboxEntity extends BasisEntity {
 
   @Column({ length: 128, nullable: true })
   last_error?: string | null;
+
+  @AfterLoad()
+  useHistoricalUser() {
+    if (!this.user && this.user_identity) {
+      this.user = this.user_identity.toHistoricalUser();
+    }
+  }
 }

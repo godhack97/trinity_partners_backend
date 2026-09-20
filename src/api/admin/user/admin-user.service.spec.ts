@@ -1,5 +1,9 @@
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
-import { CompanyEmployeeStatus } from "@orm/entities";
+import {
+  CompanyEmployeeStatus,
+  UserEntity,
+  UserIdentityEntity,
+} from "@orm/entities";
 import { AdminUserService } from "./admin-user.service";
 
 const createQueryBuilder = () => {
@@ -8,6 +12,8 @@ const createQueryBuilder = () => {
     "innerJoinAndSelect",
     "innerJoin",
     "leftJoinAndSelect",
+    "leftJoinAndMapOne",
+    "withDeleted",
     "where",
     "distinct",
     "andWhere",
@@ -24,6 +30,7 @@ const createQueryBuilder = () => {
 
 describe("AdminUserService", () => {
   const userRepository = {
+    createQueryBuilder: jest.fn(),
     findByIdWithCompanyEmployees: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
@@ -35,6 +42,7 @@ describe("AdminUserService", () => {
   };
   const dataSource = {
     transaction: jest.fn(),
+    getRepository: jest.fn(),
   };
 
   const service = new AdminUserService(
@@ -173,5 +181,71 @@ describe("AdminUserService", () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it("shows only archived users when the archive filter is selected", async () => {
+    const qb = createQueryBuilder();
+    userRepository.createQueryBuilder.mockReturnValue(qb);
+
+    await service.findAllUsers({ deletion_state: "deleted" });
+
+    expect(qb.withDeleted).toHaveBeenCalled();
+    expect(qb.andWhere).toHaveBeenCalledWith("user.deleted_at IS NOT NULL");
+  });
+
+  it("allows permanent deletion only to the built-in administrator", async () => {
+    await expect(
+      service.permanentlyDeleteAnyUser(12, {
+        id: 8,
+        email: "another-admin@example.test",
+      } as UserEntity),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(userRepository.findOne).not.toHaveBeenCalled();
+  });
+
+  it("physically removes an archived account while keeping its identity", async () => {
+    userRepository.findOne.mockResolvedValue({
+      id: 12,
+      email: "history@example.test",
+      deleted_at: new Date(),
+      user_info: {
+        first_name: "История",
+        last_name: "Пользователя",
+        phone: "+79990000000",
+        job_title: "Архитектор",
+      },
+      role: { id: 2, name: "partner", display_name: "Партнёр" },
+      user_roles: [],
+    });
+    const identityRepository = { update: jest.fn().mockResolvedValue({ affected: 1 }) };
+    const accountRepository = { delete: jest.fn().mockResolvedValue({ affected: 1 }) };
+    const manager = {
+      query: jest.fn().mockResolvedValue({ affectedRows: 1 }),
+      getRepository: jest.fn((entity) => {
+        if (entity === UserIdentityEntity) return identityRepository;
+        if (entity === UserEntity) return accountRepository;
+        throw new Error("Unexpected repository");
+      }),
+    };
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.permanentlyDeleteAnyUser(12, {
+        id: 143,
+        email: "sancho97.2011@mail.ru",
+      } as UserEntity),
+    ).resolves.toMatchObject({ success: true });
+
+    expect(identityRepository.update).toHaveBeenCalledWith(
+      12,
+      expect.objectContaining({
+        email: "history@example.test",
+        first_name: "История",
+        permanently_deleted_at: expect.any(Date),
+        deleted_by_user_id: 143,
+      }),
+    );
+    expect(accountRepository.delete).toHaveBeenCalledWith(12);
   });
 });

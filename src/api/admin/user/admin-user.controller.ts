@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -8,7 +9,7 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { AdminUserService } from "./admin-user.service";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
 import { PaginationResponseDto } from "@app/dto/pagination.response.dto";
@@ -19,6 +20,8 @@ import { AllUserFilterRequestDto } from "./dto/request/all-user-filter.request.d
 import { UpdateAnyUserRequestDto } from "./dto/request/update-any-user.request.dto";
 import { LogAction } from "@app/logs/log-action.decorator";
 import { StrictRoles } from "@decorators/StrictRoles";
+import { AuthUser } from "@decorators/auth-user";
+import { UserEntity } from "@orm/entities";
 
 @ApiTags("user")
 @ApiBearerAuth()
@@ -47,6 +50,36 @@ export class AdminUserController {
     @Body() body: UpdateAnyUserRequestDto,
   ) {
     return this.adminUserRequest.updateAnyUser(id, body);
+  }
+
+  @Delete("all/:id")
+  @ApiOperation({ operationId: "AdminUser_softDelete" })
+  @StrictRoles([RoleTypes.SuperAdmin])
+  @LogAction("admin_user_soft_delete", "users")
+  softDeleteAnyUser(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() actor: UserEntity,
+  ) {
+    return this.adminUserRequest.softDeleteAnyUser(id, actor);
+  }
+
+  @Post("all/:id/restore")
+  @ApiOperation({ operationId: "AdminUser_restore" })
+  @StrictRoles([RoleTypes.SuperAdmin])
+  @LogAction("admin_user_restore", "users")
+  restoreAnyUser(@Param("id", ParseIntPipe) id: number) {
+    return this.adminUserRequest.restoreAnyUser(id);
+  }
+
+  @Delete("all/:id/permanent")
+  @ApiOperation({ operationId: "AdminUser_permanentlyDelete" })
+  @StrictRoles([RoleTypes.SuperAdmin])
+  @LogAction("admin_user_permanent_delete", "users")
+  permanentlyDeleteAnyUser(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() actor: UserEntity,
+  ) {
+    return this.adminUserRequest.permanentlyDeleteAnyUser(id, actor);
   }
 
   @Post("all/:id/reset-password")

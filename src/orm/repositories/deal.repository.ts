@@ -153,6 +153,7 @@ export class DealRepository extends Repository<DealEntity> {
       .leftJoinAndSelect("deal.integrator_company", "integrator_company")
       .leftJoinAndSelect("deal.customer", "customer")
       .leftJoinAndSelect("deal.partner", "partner")
+      .leftJoinAndSelect("deal.creator_identity", "creator_identity")
       .leftJoinAndSelect("deal.creator_company", "creator_company")
       .leftJoinAndSelect("partner.role", "role")
       .leftJoinAndSelect("partner.user_info", "partner_user_info")
@@ -647,6 +648,7 @@ export class DealRepository extends Repository<DealEntity> {
       .leftJoinAndSelect("deal.integrator_company", "integrator_company")
       .leftJoinAndSelect("deal.customer", "customer")
       .leftJoinAndSelect("deal.partner", "partner")
+      .leftJoinAndSelect("deal.creator_identity", "creator_identity")
       .leftJoinAndSelect("deal.creator_company", "creator_company")
       .leftJoinAndSelect("partner.role", "role")
       .leftJoinAndSelect("partner.user_info", "partner_user_info")
@@ -743,6 +745,8 @@ export class DealRepository extends Repository<DealEntity> {
     for (let i = 0; i < result.entities.length; i++) {
       const deal = result.entities[i];
       const raw = result.raw[i];
+
+      deal.useHistoricalCreator();
 
       const partner = deal.partner;
       if (partner && partner.lazy_owner_company) {

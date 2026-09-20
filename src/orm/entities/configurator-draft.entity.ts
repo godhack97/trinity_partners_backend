@@ -1,6 +1,7 @@
-import { Column, DeleteDateColumn, Entity, JoinColumn, ManyToOne } from "typeorm";
+import { AfterLoad, Column, DeleteDateColumn, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { UserEntity } from "./user.entity";
+import { UserIdentityEntity } from "./user-identity.entity";
 
 @Entity({
   name: "configurator_drafts",
@@ -16,6 +17,13 @@ export class ConfiguratorDraftEntity extends BasisEntity {
   @JoinColumn({ name: "creator_id" })
   creator: UserEntity;
 
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "creator_id", referencedColumnName: "id" })
+  creator_identity?: UserIdentityEntity;
+
   @Column({ nullable: true })
   shared_by_id?: number;
 
@@ -24,6 +32,13 @@ export class ConfiguratorDraftEntity extends BasisEntity {
   })
   @JoinColumn({ name: "shared_by_id" })
   shared_by?: UserEntity;
+
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "shared_by_id", referencedColumnName: "id" })
+  shared_by_identity?: UserIdentityEntity;
 
   @Column({ nullable: true })
   deal_id?: number;
@@ -48,4 +63,14 @@ export class ConfiguratorDraftEntity extends BasisEntity {
 
   @DeleteDateColumn({ name: "deleted_at" })
   deletedAt?: Date;
+
+  @AfterLoad()
+  useHistoricalUsers() {
+    if (!this.creator && this.creator_identity) {
+      this.creator = this.creator_identity.toHistoricalUser();
+    }
+    if (!this.shared_by && this.shared_by_identity) {
+      this.shared_by = this.shared_by_identity.toHistoricalUser();
+    }
+  }
 }

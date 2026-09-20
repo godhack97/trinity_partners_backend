@@ -16,6 +16,7 @@ export * from "./reset-hash.entity";
 export * from "./role.entity";
 export * from "./role-permission.entity";
 export * from "./user.entity";
+export * from "./user-identity.entity";
 export * from "./user-info.entity";
 export * from "./user-roles.entity";
 export * from "./user-setting.entity";

@@ -8,7 +8,13 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { CompanyEmployeeRepository, UserRepository } from "@orm/repositories";
-import { CompanyEmployeeStatus, UserEntity, UserInfoEntity, UserToken } from "@orm/entities";
+import {
+  CompanyEmployeeStatus,
+  UserEntity,
+  UserIdentityEntity,
+  UserInfoEntity,
+  UserToken,
+} from "@orm/entities";
 import { UserFilterRequestDto } from "./dto/request/user-filter-request.dto";
 import { UpdateCompanyEmployeeRequestDto } from "./dto/request/update-company-employee.request.dto";
 import { AllUserFilterRequestDto } from "./dto/request/all-user-filter.request.dto";
@@ -16,7 +22,10 @@ import { UpdateAnyUserRequestDto } from "./dto/request/update-any-user.request.d
 import { DataSource } from "typeorm";
 import { createCredentials } from "@app/utils/password";
 import { randomBytes } from "crypto";
-import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
+import {
+  BUILT_IN_SUPER_ADMIN_EMAIL,
+  isBuiltInSuperAdminEmail,
+} from "@app/security/built-in-super-admin";
 
 const defaultFilter = {
   limit: 10,
@@ -36,6 +45,7 @@ export class AdminUserService {
     const limit = Math.min(filters.limit || 50, 200);
     const query = this.userRepository
       .createQueryBuilder("user")
+      .withDeleted()
       .leftJoinAndSelect("user.user_info", "user_info")
       .leftJoinAndSelect("user.role", "primary_role")
       .leftJoinAndSelect("user.user_roles", "user_roles")
@@ -49,6 +59,13 @@ export class AdminUserService {
         "owner_company.owner_id = user.id",
       )
       .distinct(true);
+
+    const deletionState = filters.deletion_state || "active";
+    if (deletionState === "active") {
+      query.andWhere("user.deleted_at IS NULL");
+    } else if (deletionState === "deleted") {
+      query.andWhere("user.deleted_at IS NOT NULL");
+    }
 
     if (filters.search) {
       query.andWhere(
@@ -174,6 +191,123 @@ export class AdminUserService {
       success: true,
       temporary_password: temporaryPassword,
       message: "Временный пароль создан. Он показывается только один раз.",
+    };
+  }
+
+  async softDeleteAnyUser(id: number, actor: UserEntity) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+    if (!user) throw new NotFoundException("Пользователь не найден");
+    if (user.deleted_at) {
+      throw new BadRequestException("Пользователь уже удалён");
+    }
+    this.assertDeletionTargetAllowed(user, actor);
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(UserToken).delete({ user_id: id });
+      await manager.getRepository(UserEntity).softDelete(id);
+    });
+
+    return { success: true, message: "Пользователь перемещён в архив" };
+  }
+
+  async restoreAnyUser(id: number) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+    if (!user) throw new NotFoundException("Пользователь не найден");
+    if (!user.deleted_at) {
+      throw new BadRequestException("Пользователь не находится в архиве");
+    }
+
+    const result = await this.dataSource
+      .getRepository(UserEntity)
+      .restore(id);
+    if (!result.affected) throw new NotFoundException("Пользователь не найден");
+
+    return { success: true, message: "Пользователь восстановлен" };
+  }
+
+  async permanentlyDeleteAnyUser(id: number, actor: UserEntity) {
+    if (!isBuiltInSuperAdminEmail(actor?.email)) {
+      throw new ForbiddenException(
+        `Физическое удаление доступно только ${BUILT_IN_SUPER_ADMIN_EMAIL}`,
+      );
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: ["user_info", "role", "user_roles", "user_roles.role"],
+      withDeleted: true,
+    });
+    if (!user) throw new NotFoundException("Пользователь не найден");
+    this.assertDeletionTargetAllowed(user, actor);
+    if (!user.deleted_at) {
+      throw new BadRequestException(
+        "Перед физическим удалением переместите пользователя в архив",
+      );
+    }
+
+    const roles = new Map<string, { id?: number; name: string; display_name?: string }>();
+    if (user.role) roles.set(user.role.name, user.role);
+    for (const userRole of user.user_roles || []) {
+      if (userRole.role) roles.set(userRole.role.name, userRole.role);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(UserIdentityEntity).update(id, {
+        email: user.email,
+        first_name: user.user_info?.first_name || null,
+        last_name: user.user_info?.last_name || null,
+        phone: user.user_info?.phone || null,
+        job_title: user.user_info?.job_title || null,
+        roles_snapshot: Array.from(roles.values()).map((role) => ({
+          id: role.id,
+          name: role.name,
+          display_name: role.display_name,
+        })),
+        permanently_deleted_at: new Date(),
+        deleted_by_user_id: actor.id,
+        deleted_by_email: actor.email,
+      });
+
+      // Operational assignments must be released. Historical ownership and
+      // authorship keep the same numeric ID, now backed by user_identities.
+      await manager.query(
+        "UPDATE companies SET responsible_manager_id = NULL WHERE responsible_manager_id = ?",
+        [id],
+      );
+      await manager.query(
+        `UPDATE companies
+         SET review_locked_by_user_id = NULL,
+             review_locked_at = NULL,
+             review_lock_reason = NULL
+         WHERE review_locked_by_user_id = ?`,
+        [id],
+      );
+      await manager.query(
+        "UPDATE deals SET responsible_manager_id = NULL WHERE responsible_manager_id = ?",
+        [id],
+      );
+      await manager.query(
+        "UPDATE tickets SET assignee_id = NULL WHERE assignee_id = ?",
+        [id],
+      );
+      await manager.query(
+        "UPDATE company_employees SET status = ? WHERE employee_id = ?",
+        [CompanyEmployeeStatus.Deleted, id],
+      );
+
+      const result = await manager.getRepository(UserEntity).delete(id);
+      if (!result.affected) throw new NotFoundException("Пользователь не найден");
+    });
+
+    return {
+      success: true,
+      message: "Аккаунт физически удалён, исторические данные сохранены",
     };
   }
 
@@ -364,5 +498,14 @@ export class AdminUserService {
         null,
       lastActivity: user.lastActivity,
     };
+  }
+
+  private assertDeletionTargetAllowed(user: UserEntity, actor: UserEntity) {
+    if (isBuiltInSuperAdminEmail(user.email)) {
+      throw new ForbiddenException("Главного администратора нельзя удалить");
+    }
+    if (actor?.id === user.id) {
+      throw new ForbiddenException("Нельзя удалить собственный аккаунт");
+    }
   }
 }

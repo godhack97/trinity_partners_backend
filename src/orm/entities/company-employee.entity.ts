@@ -1,7 +1,8 @@
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
+import { AfterLoad, Column, Entity, JoinColumn, ManyToOne, OneToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { UserEntity } from "./user.entity";
 import { CompanyEntity } from "./company.entity";
+import { UserIdentityEntity } from "./user-identity.entity";
 
 export enum CompanyEmployeeStatus {
   Invited = "invited",
@@ -32,10 +33,24 @@ export class CompanyEmployeeEntity extends BasisEntity {
   @JoinColumn({ name: "employee_id" })
   employee: UserEntity;
 
+  @ManyToOne(() => UserIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "employee_id", referencedColumnName: "id" })
+  employee_identity?: UserIdentityEntity;
+
   @Column({
     type: "enum",
     enum: CompanyEmployeeStatus,
     default: CompanyEmployeeStatus.Pending,
   })
   status: CompanyEmployeeStatus;
+
+  @AfterLoad()
+  useHistoricalEmployee() {
+    if (!this.employee && this.employee_identity) {
+      this.employee = this.employee_identity.toHistoricalUser();
+    }
+  }
 }
