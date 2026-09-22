@@ -47,10 +47,15 @@ IMAGE_TAG="$3"
 DRY_RUN="$4"
 ENV_FILE="${WORKSPACE}/.env.docker"
 COMPOSE_OVERRIDE="${WORKSPACE}/docker-compose.prod.yml"
+DATABASE_CONTAINER="trinity-mariadb-1"
+EXPECTED_DATABASE_VOLUME="trinity_mariadb-data"
+MIN_FREE_BYTES_BEFORE_BUILD=$((18 * 1024 * 1024 * 1024))
+MIN_FREE_BYTES_BEFORE_CUTOVER=$((2 * 1024 * 1024 * 1024))
 # switched показывает, успели ли мы начать cutover. previous_tag нужен только
 # для автоматического возврата предыдущего application image.
 switched=false
 previous_tag=""
+database_container_id=""
 
 fail() {
   echo "Production deploy failed: $*" >&2
@@ -58,7 +63,7 @@ fail() {
 }
 
 # Проверяем минимальный набор server dependencies до git pull и сборки.
-for command_name in git docker curl flock grep sed; do
+for command_name in git docker curl df flock grep sed sort tail tr; do
   command -v "$command_name" >/dev/null 2>&1 \
     || fail "missing command on server: ${command_name}"
 done
@@ -79,6 +84,76 @@ compose=(
   -f "${WORKSPACE}/docker-compose.yml"
   -f "$COMPOSE_OVERRIDE"
 )
+
+available_bytes() {
+  df --output=avail -B1 "$WORKSPACE" | tail -n 1 | tr -d '[:space:]'
+}
+
+assert_free_space() {
+  local stage="$1"
+  local minimum="$2"
+  local available
+
+  available="$(available_bytes)"
+  [[ "$available" =~ ^[0-9]+$ ]] \
+    || fail "cannot determine free disk space during ${stage}"
+  ((available >= minimum)) \
+    || fail "insufficient disk space during ${stage}: ${available} bytes available, ${minimum} required"
+  echo "Disk space check passed during ${stage}: ${available} bytes available"
+}
+
+database_volume_name() {
+  docker inspect -f \
+    '{{range .Mounts}}{{if eq .Destination "/var/lib/mysql"}}{{.Name}}{{end}}{{end}}' \
+    "$DATABASE_CONTAINER"
+}
+
+capture_database_identity() {
+  local volume_name
+
+  database_container_id="$(docker inspect -f '{{.Id}}' "$DATABASE_CONTAINER")"
+  volume_name="$(database_volume_name)"
+  [[ -n "$database_container_id" ]] || fail "cannot determine MariaDB container ID"
+  [[ "$volume_name" == "$EXPECTED_DATABASE_VOLUME" ]] \
+    || fail "MariaDB uses unexpected volume: ${volume_name:-none}"
+  echo "Verified MariaDB container ${database_container_id} with volume ${volume_name}"
+}
+
+assert_database_identity_unchanged() {
+  local current_container_id
+  local current_volume_name
+
+  current_container_id="$(docker inspect -f '{{.Id}}' "$DATABASE_CONTAINER")"
+  current_volume_name="$(database_volume_name)"
+  [[ "$current_container_id" == "$database_container_id" ]] \
+    || fail "MariaDB container changed during application deployment"
+  [[ "$current_volume_name" == "$EXPECTED_DATABASE_VOLUME" ]] \
+    || fail "MariaDB volume changed during application deployment"
+  echo "MariaDB container and volume remained unchanged"
+}
+
+# Удаляем только application images, которые не используются ни одним
+# container. Image текущего приложения остаётся доступным для rollback.
+prune_unused_application_images() {
+  local image_ref
+  local -a image_refs=()
+
+  mapfile -t image_refs < <(
+    docker image ls --filter 'reference=trinity-partners:*' \
+      --format '{{.Repository}}:{{.Tag}}' | sort -u
+  )
+  for image_ref in "${image_refs[@]}"; do
+    if ! docker ps -aq --filter "ancestor=${image_ref}" | grep -q .; then
+      echo "Removing unused application image ${image_ref}"
+      docker image rm "$image_ref"
+    fi
+  done
+}
+
+prune_build_cache() {
+  echo "Removing unused Docker build cache"
+  docker builder prune --all --force >/dev/null
+}
 
 # Обновляет один серверный репозиторий строго fast-forward. Tracked-изменения
 # на сервере не затираются и не stash-ятся автоматически: deploy остановится.
@@ -176,6 +251,7 @@ cd "$WORKSPACE"
 export TRINITY_IMAGE_TAG="$IMAGE_TAG"
 # До git pull валидируем уже установленную production-конфигурацию и секреты.
 "${compose[@]}" config --quiet </dev/null
+capture_database_identity
 
 # В dry-run серверное состояние не меняется: нет pull, build или restart.
 if [[ "$DRY_RUN" == "true" ]]; then
@@ -194,9 +270,20 @@ if [[ "$previous_image" == trinity-partners:* ]]; then
   previous_tag="${previous_image#trinity-partners:}"
 fi
 
+# Прошлые failed images и build cache не должны отнимать место у новой сборки.
+# Работающий image сохраняется, поскольку Docker считает его используемым.
+prune_unused_application_images
+prune_build_cache
+assert_free_space "pre-build" "$MIN_FREE_BYTES_BEFORE_BUILD"
+
 echo "Building ${IMAGE_TAG}"
 # --pull обновляет базовые images; сборка ещё не затрагивает работающий portal.
 "${compose[@]}" build --pull trinity-app </dev/null
+
+# BuildKit сохраняет десятки гигабайт промежуточных stages. Освобождаем их до
+# recreate, чтобы новый container мог записать runtime-файлы и открыть порты.
+prune_build_cache
+assert_free_space "pre-cutover" "$MIN_FREE_BYTES_BEFORE_CUTOVER"
 
 echo "Switching production application container"
 # Флаг устанавливается ДО up: даже частично неудавшийся recreate должен вызвать
@@ -221,6 +308,7 @@ assert_status 200 https://partner-admin.trinity.ru/
 assert_status 401 https://partner-api.trinity.ru/api/docs
 assert_status 403 https://partner-api.trinity.ru/metrics
 check_next_assets
+assert_database_identity_unchanged
 
 # Сохраняем диагностический вывод успешного релиза в terminal оператора.
 "${compose[@]}" ps </dev/null
