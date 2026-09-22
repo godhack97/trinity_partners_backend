@@ -19,14 +19,18 @@ const env = {
   EMAIL_FROM: "partner@trinity.ru",
 };
 
-const createService = (stored: SmtpSettingEntity | null = null) => {
+const createService = (
+  stored: SmtpSettingEntity | null = null,
+  envOverrides: Partial<typeof env> = {},
+) => {
+  const activeEnv = { ...env, ...envOverrides };
   const repository = {
     findOneBy: jest.fn().mockResolvedValue(stored),
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
   };
   const configService = {
-    get: jest.fn((key: keyof typeof env) => env[key]),
+    get: jest.fn((key: keyof typeof activeEnv) => activeEnv[key]),
   };
   const mailerService = {
     addTransporter: jest.fn(),
@@ -129,6 +133,29 @@ describe("SmtpSettingsService", () => {
         to: "user@example.com",
         transporterName: "runtime-smtp-settings",
       }),
+    );
+  });
+
+  it("uses a valid SMTP mailbox as the sender when EMAIL_FROM is not set", async () => {
+    const { service, mailerService } = createService(null, { EMAIL_FROM: "" });
+
+    await service.sendMail({ to: "user@example.com", subject: "Test" });
+
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "portal@example.com" }),
+    );
+  });
+
+  it("falls back to the portal sender for a technical SMTP login", async () => {
+    const { service, mailerService } = createService(null, {
+      EMAIL_FROM: "",
+      EMAIL_USERNAME: "portal@smtpgate",
+    });
+
+    await service.sendMail({ to: "user@example.com", subject: "Test" });
+
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "partner@trinity.ru" }),
     );
   });
 });

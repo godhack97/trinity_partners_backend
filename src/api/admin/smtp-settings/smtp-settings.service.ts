@@ -123,7 +123,7 @@ export class SmtpSettingsService {
     try {
       const result = await this.mailerService.sendMail({
         ...options,
-        from: this.senderAddress(),
+        from: this.senderAddress(settings),
         transporterName: this.runtimeTransportName,
       });
       this.metricsService?.recordIntegration("smtp", true);
@@ -218,10 +218,20 @@ export class SmtpSettingsService {
     };
   }
 
-  private senderAddress() {
-    return String(
-      this.configService.get("EMAIL_FROM") || DEFAULT_SENDER_ADDRESS,
+  private senderAddress(settings: ResolvedSmtpSettings) {
+    const configured = String(
+      this.configService.get("EMAIL_FROM") || "",
     ).trim();
+    if (configured) return configured;
+
+    // Большинство SMTP-серверов ожидают совпадение From с авторизованным
+    // почтовым ящиком. Технические логины без полноценного домена (например,
+    // user@smtpgate) адресами отправителя не являются и требуют fallback.
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.username)) {
+      return settings.username;
+    }
+
+    return DEFAULT_SENDER_ADDRESS;
   }
 
   private encryptionKey() {

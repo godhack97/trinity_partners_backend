@@ -31,7 +31,7 @@ export const environmentValidationSchema = Joi.object({
   EMAIL_PORT: Joi.number().port().required(),
   EMAIL_USERNAME: Joi.string().required(),
   EMAIL_PASSWORD: Joi.string().required(),
-  EMAIL_FROM: Joi.string().email().default("partner@trinity.ru"),
+  EMAIL_FROM: Joi.string().email().allow("").default(""),
   EMAIL_SECURE: booleanValue,
   EMAIL_DEBUG: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid("true", "false"))
