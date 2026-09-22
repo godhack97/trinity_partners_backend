@@ -9,7 +9,9 @@ import {
 } from "@nestjs/common";
 import { CompanyEmployeeRepository, UserRepository } from "@orm/repositories";
 import {
+  CompanyEmployeeEntity,
   CompanyEmployeeStatus,
+  CompanyEntity,
   UserEntity,
   UserIdentityEntity,
   UserInfoEntity,
@@ -103,35 +105,58 @@ export class AdminUserService {
   async updateAnyUser(id: number, data: UpdateAnyUserRequestDto) {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ["user_info"],
+      relations: ["user_info", "company_employee", "company_employee.company"],
       withDeleted: true,
     });
     if (!user || user.deleted_at) {
       throw new NotFoundException("Активный пользователь не найден");
     }
 
+    const normalizedEmail = data.email?.trim().toLowerCase();
+    const emailChanges =
+      normalizedEmail !== undefined && normalizedEmail !== user.email.toLowerCase();
     if (
       isBuiltInSuperAdminEmail(user.email) &&
-      (data.email !== undefined ||
-        data.is_activated === false ||
-        data.email_confirmed === false)
+      (emailChanges || data.is_activated === false || data.email_confirmed === false)
     ) {
       throw new ForbiddenException(
         "Нельзя изменить идентичность или отключить главного администратора",
       );
     }
 
-    if (data.email && data.email.trim().toLowerCase() !== user.email.toLowerCase()) {
+    if (normalizedEmail && emailChanges) {
       const existing = await this.userRepository.findOne({
-        where: { email: data.email.trim().toLowerCase() },
+        where: { email: normalizedEmail },
         withDeleted: true,
       });
       if (existing) throw new ConflictException("Пользователь с таким email уже существует");
     }
 
+    const ownedCompany = await this.dataSource.getRepository(CompanyEntity).findOne({
+      where: { owner_id: id },
+    });
+    if (
+      data.company_id !== undefined &&
+      ownedCompany &&
+      data.company_id !== ownedCompany.id
+    ) {
+      throw new BadRequestException(
+        "Нельзя изменить компанию владельца. Сначала передайте права владельца компании",
+      );
+    }
+
+    if (data.company_id !== undefined && data.company_id !== null) {
+      const companyExists = await this.dataSource
+        .getRepository(CompanyEntity)
+        .existsBy({ id: data.company_id });
+      if (!companyExists) {
+        throw new NotFoundException("Компания не найдена");
+      }
+    }
+
     await this.dataSource.transaction(async (manager) => {
       const userPatch: Partial<UserEntity> = {};
-      if (data.email !== undefined) userPatch.email = data.email.trim().toLowerCase();
+      if (normalizedEmail !== undefined) userPatch.email = normalizedEmail;
       if (data.is_activated !== undefined) userPatch.is_activated = data.is_activated;
       if (data.email_confirmed !== undefined) userPatch.email_confirmed = data.email_confirmed;
       if (Object.keys(userPatch).length) {
@@ -158,6 +183,35 @@ export class AdminUserService {
             last_name: data.last_name || "",
             phone: data.phone || null,
             job_title: data.job_title || null,
+          });
+        }
+      }
+
+      if (data.company_id !== undefined && !ownedCompany) {
+        const membershipRepository = manager.getRepository(CompanyEmployeeEntity);
+        const memberships = await membershipRepository.find({
+          where: { employee_id: id },
+          order: { id: "ASC" },
+        });
+        if (memberships.length > 1) {
+          throw new ConflictException(
+            "У пользователя найдено несколько привязок к компаниям. Исправьте данные перед редактированием",
+          );
+        }
+
+        if (data.company_id === null) {
+          if (memberships.length) {
+            await membershipRepository.remove(memberships);
+          }
+        } else if (memberships.length) {
+          await membershipRepository.update(memberships[0].id, {
+            company_id: data.company_id,
+          });
+        } else {
+          await membershipRepository.save({
+            company_id: data.company_id,
+            employee_id: id,
+            status: CompanyEmployeeStatus.Accept,
           });
         }
       }
@@ -501,6 +555,12 @@ export class AdminUserService {
         user.owner_company ||
         user.company_employee?.company ||
         null,
+      company_relation_type: user.owner_company
+        ? "owner"
+        : user.company_employee
+          ? "employee"
+          : null,
+      company_employee_status: user.company_employee?.status || null,
       lastActivity: user.lastActivity,
     };
   }

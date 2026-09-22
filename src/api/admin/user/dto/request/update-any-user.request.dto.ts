@@ -2,13 +2,24 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsEmailRu, IsRussianPhoneRu } from "@decorators/validate";
 import {
   IsBoolean,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateIf,
 } from "class-validator";
 
 export class UpdateAnyUserRequestDto {
+  @ApiPropertyOptional({
+    nullable: true,
+    description: "Компания пользователя. null снимает привязку к компании",
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  company_id?: number | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsEmailRu()

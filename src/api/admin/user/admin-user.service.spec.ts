@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import {
   CompanyEmployeeStatus,
+  CompanyEmployeeEntity,
+  CompanyEntity,
   UserEntity,
   UserIdentityEntity,
 } from "@orm/entities";
@@ -33,6 +35,7 @@ describe("AdminUserService", () => {
     createQueryBuilder: jest.fn(),
     findByIdWithCompanyEmployees: jest.fn(),
     findOne: jest.fn(),
+    findByIdWithPermissions: jest.fn(),
     update: jest.fn(),
   };
   const companyEmployeeRepository = {
@@ -44,6 +47,10 @@ describe("AdminUserService", () => {
     transaction: jest.fn(),
     getRepository: jest.fn(),
   };
+  const companyRepository = {
+    findOne: jest.fn(),
+    existsBy: jest.fn(),
+  };
 
   const service = new AdminUserService(
     userRepository as any,
@@ -53,6 +60,10 @@ describe("AdminUserService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    dataSource.getRepository.mockImplementation((entity) => {
+      if (entity === CompanyEntity) return companyRepository;
+      throw new Error("Unexpected repository");
+    });
   });
 
   it("counts the same company employee rows shown by the unfiltered screen", async () => {
@@ -180,6 +191,58 @@ describe("AdminUserService", () => {
         is_activated: false,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it("assigns a user without a company to the selected company", async () => {
+    userRepository.findOne.mockResolvedValue({
+      id: 12,
+      email: "employee@example.test",
+      deleted_at: null,
+      user_info: null,
+    });
+    userRepository.findByIdWithPermissions.mockResolvedValue({
+      id: 12,
+      email: "employee@example.test",
+      user_roles: [],
+    });
+    companyRepository.findOne.mockResolvedValue(null);
+    companyRepository.existsBy.mockResolvedValue(true);
+    const membershipRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      save: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) => {
+        if (entity === CompanyEmployeeEntity) return membershipRepository;
+        throw new Error("Unexpected repository");
+      }),
+    };
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await service.updateAnyUser(12, { company_id: 7 });
+
+    expect(membershipRepository.save).toHaveBeenCalledWith({
+      company_id: 7,
+      employee_id: 12,
+      status: CompanyEmployeeStatus.Accept,
+    });
+  });
+
+  it("does not reassign a company owner through the user form", async () => {
+    userRepository.findOne.mockResolvedValue({
+      id: 12,
+      email: "owner@example.test",
+      deleted_at: null,
+      user_info: null,
+    });
+    companyRepository.findOne.mockResolvedValue({ id: 4, owner_id: 12 });
+
+    await expect(
+      service.updateAnyUser(12, { company_id: 7 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
