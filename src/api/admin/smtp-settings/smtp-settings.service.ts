@@ -20,6 +20,7 @@ import { SmtpSettingsDto } from "./dto/smtp-settings.dto";
 import { MetricsService } from "@app/observability/metrics.service";
 
 const SETTINGS_ID = 1;
+const DEFAULT_SENDER_ADDRESS = "partner@trinity.ru";
 
 type ResolvedSmtpSettings = {
   host: string;
@@ -122,7 +123,7 @@ export class SmtpSettingsService {
     try {
       const result = await this.mailerService.sendMail({
         ...options,
-        from: settings.username,
+        from: this.senderAddress(),
         transporterName: this.runtimeTransportName,
       });
       this.metricsService?.recordIntegration("smtp", true);
@@ -215,6 +216,12 @@ export class SmtpSettingsService {
       username: String(this.configService.get("EMAIL_USERNAME") || "").trim(),
       password: String(this.configService.get("EMAIL_PASSWORD") || ""),
     };
+  }
+
+  private senderAddress() {
+    return String(
+      this.configService.get("EMAIL_FROM") || DEFAULT_SENDER_ADDRESS,
+    ).trim();
   }
 
   private encryptionKey() {

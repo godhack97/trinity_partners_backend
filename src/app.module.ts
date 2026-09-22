@@ -131,7 +131,7 @@ const scheduledJobsEnabled =
       useFactory: async (configService: ConfigService) => {
         return {
           defaults: {
-            from: "partner@trinity.ru",
+            from: configService.get("EMAIL_FROM"),
           },
           transport: {
             host: configService.get("EMAIL_HOST"),

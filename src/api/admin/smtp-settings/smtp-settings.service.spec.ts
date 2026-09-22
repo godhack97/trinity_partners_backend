@@ -16,6 +16,7 @@ const env = {
   EMAIL_SECURE: "true",
   EMAIL_USERNAME: "portal@example.com",
   EMAIL_PASSWORD: "existing-secret",
+  EMAIL_FROM: "partner@trinity.ru",
 };
 
 const createService = (stored: SmtpSettingEntity | null = null) => {
@@ -124,7 +125,7 @@ describe("SmtpSettingsService", () => {
     expect(mailerService.addTransporter).toHaveBeenCalledTimes(1);
     expect(mailerService.sendMail).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: "portal@example.com",
+        from: "partner@trinity.ru",
         to: "user@example.com",
         transporterName: "runtime-smtp-settings",
       }),
