@@ -134,6 +134,23 @@ export class SmtpSettingsService {
     }
   }
 
+  async sendEnvironmentMail(
+    options: Parameters<MailerService["sendMail"]>[0],
+  ) {
+    const settings = this.getEnvironmentSettings();
+    try {
+      const result = await this.mailerService.sendMail({
+        ...options,
+        from: this.senderAddress(settings),
+      });
+      this.metricsService?.recordIntegration("smtp", true);
+      return result;
+    } catch (error) {
+      this.metricsService?.recordIntegration("smtp", false);
+      throw error;
+    }
+  }
+
   private async getActiveSettings(): Promise<ResolvedSmtpSettings> {
     const stored = await this.repository.findOneBy({ id: SETTINGS_ID });
     if (!stored) return this.getEnvironmentSettings();

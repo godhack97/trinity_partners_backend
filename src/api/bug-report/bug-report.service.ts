@@ -47,7 +47,10 @@ export class BugReportService {
     const submittedAt = new Date();
     const messageHtml = escapeHtml(dto.message).replace(/\r?\n/g, "<br>");
 
-    await this.smtpSettingsService.sendMail({
+    // Bug reports use the server-managed delivery transport. The SMTP account
+    // editable in the admin UI is intended for general portal notifications
+    // and may accept a message without ultimately delivering it to support.
+    await this.smtpSettingsService.sendEnvironmentMail({
       to: BUG_REPORT_RECIPIENT,
       replyTo: user.email,
       subject: `[Партнёрский портал] Сообщение о баге от пользователя #${user.id}`,

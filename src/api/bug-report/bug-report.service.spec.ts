@@ -5,9 +5,11 @@ import { BugReportService } from "./bug-report.service";
 
 describe("BugReportService", () => {
   it("sends an escaped bug report to the configured support mailbox", async () => {
-    const sendMail = jest.fn().mockResolvedValue({ messageId: "test" });
+    const sendEnvironmentMail = jest
+      .fn()
+      .mockResolvedValue({ messageId: "test" });
     const service = new BugReportService(
-      { sendMail } as unknown as SmtpSettingsService,
+      { sendEnvironmentMail } as unknown as SmtpSettingsService,
     );
     const screenshot = {
       originalname: "ошибка.png",
@@ -34,7 +36,7 @@ describe("BugReportService", () => {
       { userAgent: "Test <Browser>" },
     );
 
-    expect(sendMail).toHaveBeenCalledWith(
+    expect(sendEnvironmentMail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: BUG_REPORT_RECIPIENT,
         replyTo: "partner@example.com",
@@ -43,7 +45,7 @@ describe("BugReportService", () => {
       }),
     );
 
-    const mail = sendMail.mock.calls[0][0];
+    const mail = sendEnvironmentMail.mock.calls[0][0];
     expect(mail.text).toContain("Не работает <кнопка>");
     expect(mail.html).toContain("Не работает &lt;кнопка&gt;<br>После нажатия");
     expect(mail.html).toContain("Test &lt;Browser&gt;");
@@ -58,9 +60,9 @@ describe("BugReportService", () => {
   });
 
   it("rejects attachments whose total size exceeds 15 MB", async () => {
-    const sendMail = jest.fn();
+    const sendEnvironmentMail = jest.fn();
     const service = new BugReportService(
-      { sendMail } as unknown as SmtpSettingsService,
+      { sendEnvironmentMail } as unknown as SmtpSettingsService,
     );
 
     await expect(
@@ -74,6 +76,6 @@ describe("BugReportService", () => {
         ],
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(sendMail).not.toHaveBeenCalled();
+    expect(sendEnvironmentMail).not.toHaveBeenCalled();
   });
 });

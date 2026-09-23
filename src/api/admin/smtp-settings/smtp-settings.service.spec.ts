@@ -158,4 +158,23 @@ describe("SmtpSettingsService", () => {
       expect.objectContaining({ from: "partner@trinity.ru" }),
     );
   });
+
+  it("routes server-managed mail through the environment transporter", async () => {
+    const { service, mailerService } = createService(null, {
+      EMAIL_FROM: "",
+      EMAIL_USERNAME: "portal@smtpgate",
+    });
+
+    await service.sendEnvironmentMail({
+      to: "support@example.com",
+      subject: "Bug report",
+    });
+
+    expect(mailerService.addTransporter).not.toHaveBeenCalled();
+    expect(mailerService.sendMail).toHaveBeenCalledWith({
+      from: "partner@trinity.ru",
+      to: "support@example.com",
+      subject: "Bug report",
+    });
+  });
 });
