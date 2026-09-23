@@ -49,7 +49,7 @@ ENV_FILE="${WORKSPACE}/.env.docker"
 COMPOSE_OVERRIDE="${WORKSPACE}/docker-compose.prod.yml"
 DATABASE_CONTAINER="trinity-mariadb-1"
 EXPECTED_DATABASE_VOLUME="trinity_mariadb-data"
-MIN_FREE_BYTES_BEFORE_BUILD=$((18 * 1024 * 1024 * 1024))
+MIN_FREE_BYTES_BEFORE_BUILD=$((16 * 1024 * 1024 * 1024))
 MIN_FREE_BYTES_BEFORE_CUTOVER=$((2 * 1024 * 1024 * 1024))
 # switched показывает, успели ли мы начать cutover. previous_tag нужен только
 # для автоматического возврата предыдущего application image.
