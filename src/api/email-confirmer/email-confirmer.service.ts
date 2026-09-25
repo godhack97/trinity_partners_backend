@@ -112,25 +112,19 @@ export class EmailConfirmerService {
     });
   }
 
-  async emailSend({ email, subject, template, context, text = undefined }) {
-    return await this._emailSend({ email, subject, template, context, text });
+  async emailSend({ email, subject, template, context }) {
+    return await this._emailSend({ email, subject, template, context });
   }
 
-  async emailSendOrThrow({
-    email,
-    subject,
-    template,
-    context,
-    text = undefined,
-  }) {
+  async emailSendOrThrow({ email, subject, template, context }) {
     return await this._emailSend(
-      { email, subject, template, context, text },
+      { email, subject, template, context },
       true,
     );
   }
 
   private async _emailSend(
-    { email, subject, template, context, text = undefined },
+    { email, subject, template, context },
     throwOnError = false,
   ) {
     try {
@@ -142,7 +136,6 @@ export class EmailConfirmerService {
       return await this.smtpSettingsService.sendMail({
         to: email,
         subject,
-        text,
         template: templateVariation,
         context: {
           ...context,
