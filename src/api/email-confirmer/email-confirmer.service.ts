@@ -2,6 +2,7 @@ import { emailSendConfig } from "@api/email-confirmer/config";
 import {
   ActionParams,
   ConfirmParams,
+  EmailConfirmerMethod,
   SendParams,
 } from "@api/email-confirmer/types";
 import { RoleTypes } from "@app/types/RoleTypes";
@@ -84,6 +85,7 @@ export class EmailConfirmerService {
     return await this._emailSend({
       email,
       ...emailSendConfig({ link })[method],
+      headers: this._deliveryHeaders(method, hash),
     });
   }
 
@@ -98,18 +100,30 @@ export class EmailConfirmerService {
     if (!resetHashEntity)
       throw new BadRequestException("Пользователь для отправки не найден!");
 
+    const hash = createHash();
+    Object.assign(resetHashEntity, {
+      hash,
+      email,
+      expire_date: this._createExpireDate(),
+    });
+    await this.resetHashRepository.save(resetHashEntity);
+
     const qs = querystring.stringify({
-      email: resetHashEntity.email,
-      verify: resetHashEntity.hash,
+      email,
+      verify: hash,
     });
 
     const hostname = this.hostname;
     const link = `https://${hostname}/${method}?${qs}`;
 
-    return await this._emailSend({
-      email,
-      ...emailSendConfig({ link })[method],
-    });
+    return await this._emailSend(
+      {
+        email,
+        ...emailSendConfig({ link })[method],
+        headers: this._deliveryHeaders(method, hash),
+      },
+      true,
+    );
   }
 
   async emailSend({ email, subject, template, context }) {
@@ -124,7 +138,7 @@ export class EmailConfirmerService {
   }
 
   private async _emailSend(
-    { email, subject, template, context },
+    { email, subject, template, context, headers = undefined },
     throwOnError = false,
   ) {
     try {
@@ -137,6 +151,7 @@ export class EmailConfirmerService {
         to: email,
         subject,
         template: templateVariation,
+        headers,
         context: {
           ...context,
           URL: this.hostname,
@@ -291,5 +306,14 @@ export class EmailConfirmerService {
     const yearString = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
     const timeString = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
     return `${yearString} ${timeString}`;
+  }
+
+  private _deliveryHeaders(method: string, hash: string) {
+    if (method !== EmailConfirmerMethod.EmailConfirmation) return undefined;
+
+    return {
+      "X-Campaign-Id": "registration_confirmation",
+      "X-Letter-Id": `registration_${hash}`,
+    };
   }
 }

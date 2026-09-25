@@ -34,7 +34,11 @@ const createService = (
   };
   const mailerService = {
     addTransporter: jest.fn(),
-    sendMail: jest.fn().mockResolvedValue({ messageId: "test" }),
+    sendMail: jest.fn().mockResolvedValue({
+      messageId: "test",
+      accepted: ["user@example.com"],
+      rejected: [],
+    }),
   };
 
   return {
@@ -176,5 +180,18 @@ describe("SmtpSettingsService", () => {
       to: "support@example.com",
       subject: "Bug report",
     });
+  });
+
+  it("fails when SMTP rejects every recipient", async () => {
+    const { service, mailerService } = createService();
+    mailerService.sendMail.mockResolvedValueOnce({
+      messageId: "rejected",
+      accepted: [],
+      rejected: ["user@example.com"],
+    });
+
+    await expect(
+      service.sendMail({ to: "user@example.com", subject: "Test" }),
+    ).rejects.toThrow("SMTP did not accept any recipients");
   });
 });

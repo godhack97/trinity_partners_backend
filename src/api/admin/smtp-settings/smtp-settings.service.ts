@@ -126,6 +126,19 @@ export class SmtpSettingsService {
         from: this.senderAddress(settings),
         transporterName: this.runtimeTransportName,
       });
+      const accepted = Array.isArray(result?.accepted) ? result.accepted : [];
+      const rejected = Array.isArray(result?.rejected) ? result.rejected : [];
+
+      if (
+        rejected.length > 0 ||
+        (Array.isArray(result?.accepted) && accepted.length === 0)
+      ) {
+        throw new Error("SMTP did not accept any recipients");
+      }
+
+      this.logger.log(
+        `SMTP accepted message ${String(result?.messageId || "unknown")} for ${accepted.length || 1} recipient(s)`,
+      );
       this.metricsService?.recordIntegration("smtp", true);
       return result;
     } catch (error) {
