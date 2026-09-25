@@ -8,6 +8,7 @@ import { RegistrationCompanyRequestDto } from "./dto/request/registration-compan
 import { RegistrationService } from "./registration.service";
 import { RegistrationSuperAdminWithSecretDto } from "./dto/request/registration-super-admin.request.dto";
 import { LogAction } from "src/logs/log-action.decorator";
+import { AllowRestrictedCompanyAccess } from "@decorators/AllowRestrictedCompanyAccess";
 
 @ApiTags("registration")
 @Controller("registration")
@@ -52,6 +53,7 @@ export class RegistrationController {
   }
 
   @Post("/resend")
+  @AllowRestrictedCompanyAccess()
   resend(@AuthUser() user: UserEntity) {
     return this.registrationService.resend(user);
   }
