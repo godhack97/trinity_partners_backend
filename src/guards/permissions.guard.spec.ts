@@ -17,7 +17,7 @@ const role = (name: RoleTypes, permissions: string[] = []) => ({
 });
 
 describe("PermissionsGuard business roles", () => {
-  it("не дает staff права базовой роли employee, если обе роли есть у пользователя", () => {
+  it("объединяет права всех ролей пользователя", () => {
     const guard = new PermissionsGuard({
       getAllAndOverride: jest.fn().mockReturnValue(["api.deals.read"]),
     } as any);
@@ -29,9 +29,20 @@ describe("PermissionsGuard business roles", () => {
       ],
     };
 
-    expect(() => guard.canActivate(makeContext(user))).toThrow(
-      ForbiddenException,
-    );
+    expect(guard.canActivate(makeContext(user))).toBe(true);
+  });
+
+  it("учитывает права основной роли вместе с дополнительными", () => {
+    const guard = new PermissionsGuard({
+      getAllAndOverride: jest.fn().mockReturnValue(["api.deals.write"]),
+    } as any);
+
+    const user = {
+      role: role(RoleTypes.Employee, ["api.deals.write"]),
+      roles: [role(RoleTypes.Staff, ["api.profile.read"])],
+    };
+
+    expect(guard.canActivate(makeContext(user))).toBe(true);
   });
 
   it("оставляет права выбранной бизнес-роли", () => {

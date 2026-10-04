@@ -431,13 +431,45 @@ describe("DealService business roles", () => {
     ).rejects.toBeInstanceOf(HttpException);
   });
 
-  it("обычный сотрудник не получает список сделок", async () => {
+  it("staff не перекрывает доступ к собственным сделкам основной роли employee", async () => {
     const { service, mocks } = makeService();
 
     await expect(service.findAll(makeUser(5, [RoleTypes.Staff]))).resolves.toEqual(
       [],
     );
-    expect(mocks.dealRepository.findDealsWithFilters).not.toHaveBeenCalled();
+    expect(mocks.dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
+      undefined,
+      [5],
+    );
+  });
+
+  it("роль staff не перекрывает доступ company_admin", async () => {
+    const { service, mocks } = makeService();
+
+    await expect(
+      service.findAll(
+        makeUser(1, [RoleTypes.Staff, RoleTypes.CompanyAdmin]),
+      ),
+    ).resolves.toHaveLength(1);
+    expect(mocks.dealRepository.findDealsWithFilters).toHaveBeenCalled();
+  });
+
+  it("technical_specialist не перекрывает права создателя из другой роли", async () => {
+    const { service } = makeService();
+
+    await expect(
+      service.findOne(
+        1,
+        makeUser(2, [
+          RoleTypes.TechnicalSpecialist,
+          RoleTypes.SalesManager,
+        ]),
+      ),
+    ).resolves.toMatchObject({
+      can_submit: true,
+      can_update_fields: true,
+      can_update_configurations: true,
+    });
   });
 
   it("для уведомлений использует канонического ответственного компании", async () => {

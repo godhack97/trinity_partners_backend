@@ -5,8 +5,10 @@ import { getAdminSectionPermission } from "@app/access/admin-section-permissions
 import { getPartnerPortalPermission } from "@app/access/partner-portal-permissions";
 
 const BUSINESS_ROLE_NAMES = [
+  RoleTypes.Partner,
   RoleTypes.CompanyAdmin,
   RoleTypes.SalesManager,
+  RoleTypes.TechnicalSpecialist,
   RoleTypes.Staff,
 ];
 
@@ -83,29 +85,12 @@ export class PermissionsGuard implements CanActivate {
 
   private getAllUserPermissions(user: any): string[] {
     const permissions = new Set<string>();
-    const roles = this.getEffectiveRoles(user);
+    const roles = [user.role, ...(user.roles || [])].filter(Boolean);
 
-    if (roles) {
-      roles.forEach(role => {
-        if (role.permissions) {
-          role.permissions.forEach(p => permissions.add(p.name));
-        }
-      });
-    }
+    roles.forEach(role => {
+      role.permissions?.forEach(p => permissions.add(p.name));
+    });
 
     return Array.from(permissions);
-  }
-
-  private getEffectiveRoles(user: any): any[] {
-    const roles = user.roles || [];
-    const hasBusinessRole = roles.some((role) =>
-      BUSINESS_ROLE_NAMES.includes(role.name),
-    );
-
-    if (!hasBusinessRole) {
-      return roles;
-    }
-
-    return roles.filter((role) => role.name !== RoleTypes.Employee);
   }
 }

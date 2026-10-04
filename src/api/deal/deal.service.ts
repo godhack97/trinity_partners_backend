@@ -880,10 +880,6 @@ export class DealService {
       return { kind: "global" };
     }
 
-    if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
-      return { kind: "none" };
-    }
-
     if (
       this.hasAnyRole(auth_user, [
         RoleTypes.EmployeeAdmin,
@@ -913,6 +909,10 @@ export class DealService {
 
     if (this.hasAnyRole(auth_user, [RoleTypes.Employee])) {
       return { kind: "self", userId: auth_user.id };
+    }
+
+    if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
+      return { kind: "none" };
     }
 
     return { kind: "none" };
@@ -1183,25 +1183,6 @@ export class DealService {
         : this.isSuperAdmin(auth_user)
           ? null
           : await this.getUserCompany(auth_user);
-
-    if (
-      !this.isSuperAdmin(auth_user) &&
-      !this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
-      this.hasAnyRole(auth_user, [RoleTypes.TechnicalSpecialist])
-    ) {
-      return this.withDealCapabilities(deal, auth_user, authUserCompany, {
-        can_update_status: false,
-        can_update_fields: false,
-        can_update_configurations: false,
-        can_submit: false,
-        can_assign_participants: false,
-        can_update_distributor: false,
-        can_update_integrator: false,
-        can_request_deletion: false,
-        can_comment: false,
-        can_decide: false,
-      });
-    }
 
     return this.withDealCapabilities(deal, auth_user, authUserCompany);
   }
@@ -2794,28 +2775,9 @@ export class DealService {
       can_view_final_deal_sum: canViewFinalDealSum,
     };
 
-    const technicalReadOnlyOverrides =
-      !this.isSuperAdmin(auth_user) &&
-      !this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
-      this.hasAnyRole(auth_user, [RoleTypes.TechnicalSpecialist])
-        ? {
-            can_update_status: false,
-            can_update_fields: false,
-            can_update_configurations: false,
-            can_submit: false,
-            can_assign_participants: false,
-            can_update_distributor: false,
-            can_update_integrator: false,
-            can_request_deletion: false,
-            can_comment: false,
-            can_decide: false,
-          }
-        : {};
-
     const result = Object.assign(
       deal,
       capabilities,
-      technicalReadOnlyOverrides,
       overrides,
     );
 
