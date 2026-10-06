@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IsNull, MoreThan, Repository } from "typeorm";
+import { IsNull, Like, MoreThan, Repository } from "typeorm";
 import { Request } from "express";
 import { ResetHashRepository } from "@orm/repositories/reset-hash.repository";
 import { UserRepository } from "src/orm/repositories/user.repository";
@@ -352,6 +352,8 @@ export class AuthService {
     const important_alerts = await this.importantAlertService.getActive(
       this.getUserCompanyId(user),
     );
+    const sessionClientId =
+      tokenEntity.client_id || normalizeSessionClientId(clientId);
 
     return {
       ...user,
@@ -359,6 +361,8 @@ export class AuthService {
       // copy prototype accessors, so expose the effective secondary roles
       // explicitly for role-aware portal navigation.
       roles: user.roles,
+      is_impersonated: sessionClientId.startsWith("web:portal:impersonated:"),
+      impersonated_by_user_id: this.impersonatingActorId(sessionClientId),
       notifications,
       notifications_unread,
       notifications_settings,
@@ -556,12 +560,21 @@ export class AuthService {
   }
 
   private findActiveSession(token: string, clientId: string) {
+    const normalizedClientId = normalizeSessionClientId(clientId);
     return this.userTokenRepository.findOneBy({
       token: hashSessionToken(token),
-      client_id: normalizeSessionClientId(clientId),
+      client_id:
+        normalizedClientId === "web:portal"
+          ? Like("web:portal%")
+          : normalizedClientId,
       revoked_at: IsNull(),
       expires_at: MoreThan(new Date()),
     });
+  }
+
+  private impersonatingActorId(clientId: string) {
+    const match = clientId.match(/^web:portal:impersonated:(\d+):/);
+    return match ? Number(match[1]) : null;
   }
 
   private async revokeUserSessions(userId: number) {

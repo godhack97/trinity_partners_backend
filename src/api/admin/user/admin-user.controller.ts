@@ -22,13 +22,17 @@ import { LogAction } from "@app/logs/log-action.decorator";
 import { StrictRoles } from "@decorators/StrictRoles";
 import { AuthUser } from "@decorators/auth-user";
 import { UserEntity } from "@orm/entities";
+import { ImpersonationService } from "@api/auth/impersonation.service";
 
 @ApiTags("user")
 @ApiBearerAuth()
 @Controller("admin/user")
 @Roles([RoleTypes.SuperAdmin])
 export class AdminUserController {
-  constructor(private readonly adminUserRequest: AdminUserService) {}
+  constructor(
+    private readonly adminUserRequest: AdminUserService,
+    private readonly impersonationService: ImpersonationService,
+  ) {}
 
   @Get()
   @ApiResponse({ type: PaginationResponseDto })
@@ -87,6 +91,16 @@ export class AdminUserController {
   @LogAction("admin_user_password_reset", "users")
   resetPassword(@Param("id", ParseIntPipe) id: number) {
     return this.adminUserRequest.resetPassword(id);
+  }
+
+  @Post("all/:id/impersonate")
+  @StrictRoles([RoleTypes.SuperAdmin])
+  @ApiOperation({ summary: "Создать одноразовый вход в портал от имени пользователя" })
+  impersonate(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() actor: UserEntity,
+  ) {
+    return this.impersonationService.issue(actor, id);
   }
 
   @Patch(":id")

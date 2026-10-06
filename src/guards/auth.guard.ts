@@ -9,7 +9,7 @@ import { ALLOW_RESTRICTED_COMPANY_ACCESS } from "@decorators/AllowRestrictedComp
 import { Reflector } from "@nestjs/core";
 import { UserRepository } from "src/orm/repositories/user.repository";
 import { UserToken } from "src/orm/entities/user-token.entity";
-import { IsNull, MoreThan, Repository } from "typeorm";
+import { IsNull, Like, MoreThan, Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import {
   hashSessionToken,
@@ -58,7 +58,7 @@ export class AuthGuard implements CanActivate {
     const userToken = await this.userTokenRepository.findOne({
       where: {
         token: hashSessionToken(token),
-        client_id: clientId,
+        client_id: session.source === "cookie" ? Like("web:portal%") : clientId,
         revoked_at: IsNull(),
         expires_at: MoreThan(new Date()),
       },

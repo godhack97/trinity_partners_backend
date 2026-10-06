@@ -118,9 +118,13 @@ const seedPrincipals = async (databaseName) => {
         `,
         ["!", "admin-access-smoke", `${role}@admin-access-smoke.invalid`, roleId],
       );
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await connection.query(
-        "INSERT INTO user_tokens (user_id, client_id, token) VALUES (?, ?, ?)",
-        [result.insertId, ORIGIN, token],
+        `INSERT INTO user_tokens
+          (user_id, client_id, token, expires_at, revoked_at)
+         VALUES (?, 'web:admin', ?, ?, NULL)`,
+        [result.insertId, tokenHash, expiresAt],
       );
       tokens[role] = token;
     }

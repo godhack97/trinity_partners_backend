@@ -32,6 +32,14 @@ export class CompanyEmployeesWithCompanyResponseDto extends CompanyEmployeesResp
   company: PartnerResponseDto;
 }
 export class AuthCheckResponseDto extends UserResponseDto {
+  @ApiProperty({ required: false })
+  @Expose()
+  is_impersonated?: boolean;
+
+  @ApiProperty({ required: false, nullable: true })
+  @Expose()
+  impersonated_by_user_id?: number | null;
+
   @ApiProperty()
   @Expose()
   @Type(() => CompanyEmployeesWithCompanyResponseDto)

@@ -32,6 +32,8 @@ import {
 } from "@app/security/request-session";
 import { normalizeSessionClientId } from "@app/utils/session-token";
 import { Throttle } from "@nestjs/throttler";
+import { ImpersonationService } from "./impersonation.service";
+import { ImpersonationExchangeRequestDto } from "./dto/request/impersonation-exchange.request.dto";
 
 @Controller("auth")
 @ApiTags("auth")
@@ -39,6 +41,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly impersonationService: ImpersonationService,
   ) {}
 
   private extractClientId(query: any, body: any, headers: any): string {
@@ -49,6 +52,20 @@ export class AuthController {
       headers["Client-Id"] ||
       headers["origin"]
     );
+  }
+
+  @Post("impersonate")
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: "Обмен одноразового кода на сессию портала" })
+  async impersonate(
+    @Body() dto: ImpersonationExchangeRequestDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.impersonationService.exchange(dto.code, req);
+    this.setPortalCookies(response, result.token);
+    return { success: true, user: result.user };
   }
 
   @Post("login")

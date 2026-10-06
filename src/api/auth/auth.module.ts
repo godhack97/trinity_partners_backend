@@ -12,6 +12,8 @@ import { EmailConfirmModule } from "@api/email-confirmer/email-confirmer.module"
 import { ImportantAlertModule } from "@api/important-alert/important-alert.module";
 import { NotificationModule } from "@api/notification/notification.module";
 import { NewsModule } from "@api/news/news.module";
+import { LogsModule } from "@app/logs/logs.module";
+import { ImpersonationService } from "./impersonation.service";
 
 @Module({
   imports: [
@@ -20,9 +22,10 @@ import { NewsModule } from "@api/news/news.module";
     ImportantAlertModule,
     NotificationModule,
     NewsModule,
+    LogsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, UserRepository],
-  exports: [AuthService],
+  providers: [AuthService, ImpersonationService, UserRepository],
+  exports: [AuthService, ImpersonationService],
 })
 export class AuthModule {}
