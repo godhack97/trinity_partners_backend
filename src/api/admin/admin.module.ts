@@ -16,13 +16,13 @@ import { NewsModule } from "../news/news.module";
 import { HttpModule } from "@nestjs/axios";
 import { Bitrix24Module } from "../../integrations/bitrix24/bitrix24.module";
 import { LogsListModule } from "@api/logs-list/logs.module";
+import { DealModule } from "@api/deal/deal.module";
 
 import { NotificationService } from "@api/notification/notification.service";
 import { AdminUserAdminService } from "@api/admin/user/admin/admin-user-admin.service";
 import { EmailConfirmerService } from "@api/email-confirmer/email-confirmer.service";
 import { ConfiguratorService } from "@api/configurator/configurator.service";
 import { DistributorService } from "@api/distributor/distributor.service";
-import { DealService } from "@api/deal/deal.service";
 import { Bitrix24Service } from "../../integrations/bitrix24/bitrix24.service";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 
@@ -36,6 +36,7 @@ import { UserRoleEntity } from "@orm/entities/user-roles.entity";
     AdminConfiguratorModule,
     AdminImageModule,
     AdminDealModule,
+    DealModule,
     AdminDistributorModule,
     AdminImportantAlertModule,
     HttpModule,
@@ -45,7 +46,6 @@ import { UserRoleEntity } from "@orm/entities/user-roles.entity";
   providers: [
     Bitrix24Service,
     DistributorService,
-    DealService,
     AdminUserAdminService,
     EmailConfirmerService,
     AdminService,

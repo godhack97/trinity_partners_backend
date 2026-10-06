@@ -2522,6 +2522,11 @@ export class DealService {
           title: `В сделке №${deal.deal_num} приближается дата закупки`,
           text,
           category: NotificationCategory.Deal,
+          delivery_key: this.getPurchaseNotificationDeliveryKey(
+            deal,
+            `reminder-${daysBefore}`,
+            userId,
+          ),
           actions: [
             {
               label: "Актуализировать",
@@ -2546,6 +2551,11 @@ export class DealService {
           title: `В сделке №${deal.deal_num} дата закупки просрочена`,
           text: `В сделке №${deal.deal_num} дата закупки просрочена: ${purchaseDate}.`,
           category: NotificationCategory.Deal,
+          delivery_key: this.getPurchaseNotificationDeliveryKey(
+            deal,
+            "overdue",
+            userId,
+          ),
           actions: [
             {
               label: "Актуализировать",
@@ -2585,6 +2595,17 @@ export class DealService {
         });
       }),
     );
+  }
+
+  private getPurchaseNotificationDeliveryKey(
+    deal: any,
+    notificationKind: string,
+    userId: number,
+  ) {
+    const purchaseDate = new Date(deal.purchase_date)
+      .toISOString()
+      .slice(0, 10);
+    return `deal:${deal.id}:purchase:${purchaseDate}:${notificationKind}:user:${userId}`;
   }
 
   private async notifyDealAttachmentAdded(
@@ -2687,6 +2708,7 @@ export class DealService {
     if (
       options.includeDistributor !== false &&
       distributorCompany &&
+      distributorCompany.id !== creatorCompany?.id &&
       distributorCanSeeDeal
     ) {
       const companyAdminIds = await this.getCompanyAdminUserIds(distributorCompany.id);
@@ -2703,7 +2725,7 @@ export class DealService {
         })
       : null;
 
-    if (integratorCompany) {
+    if (integratorCompany && integratorCompany.id !== creatorCompany?.id) {
       const companyAdminIds = await this.getCompanyAdminUserIds(integratorCompany.id);
       companyAdminIds.forEach((userId) => recipientIds.add(userId));
     }

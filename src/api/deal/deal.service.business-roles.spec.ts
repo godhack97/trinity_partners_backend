@@ -49,6 +49,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
   };
   const companyRepository = {
     find: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockResolvedValue(null),
     findByOwnerId: jest.fn().mockResolvedValue(null),
     findUniqueAcceptedByUserId: jest.fn(),
     findById: jest.fn().mockResolvedValue({ id: 10, owner_id: 1 }),
@@ -139,6 +140,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
       companyRepository,
       companyEmployeeRepository,
       userRepository,
+      notificationService,
     },
   };
 };
@@ -519,6 +521,118 @@ describe("DealService business roles", () => {
     expect(
       mocks.companyRepository.findAcceptedDistributorByName,
     ).not.toHaveBeenCalled();
+  });
+
+  it("не рассылает уведомления коллегам компании-создателя", async () => {
+    const creatorCompany = {
+      id: 90,
+      partnership_type: PartnershipType.Integrator,
+      status: CompanyStatus.Accept,
+    };
+    const { service, mocks } = makeService({
+      companyRepository: {
+        findOne: jest.fn().mockResolvedValue(creatorCompany),
+      },
+      userRepository: {
+        findByIdWithUserInfo: jest.fn().mockResolvedValue({ id: 191 }),
+      },
+    });
+    jest
+      .spyOn(service as any, "findTrinityDealAdminIds")
+      .mockResolvedValue([]);
+    jest
+      .spyOn(service as any, "getDealCreatorCompany")
+      .mockResolvedValue(creatorCompany);
+    const companyAdmins = jest
+      .spyOn(service as any, "getCompanyAdminUserIds")
+      .mockResolvedValue([190]);
+
+    await expect(
+      (service as any).getDealStatusNotificationRecipientIds({
+        id: 210,
+        creator_id: 191,
+        creator_company_id: 90,
+        integrator_company_id: 90,
+        status: DealStatus.Moderation,
+      }),
+    ).resolves.toEqual([191]);
+
+    expect(companyAdmins).not.toHaveBeenCalled();
+    expect(mocks.companyRepository.findOne).toHaveBeenCalled();
+  });
+
+  it("рассылает уведомления администраторам компании-контрагента", async () => {
+    const creatorCompany = {
+      id: 91,
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Accept,
+    };
+    const integratorCompany = {
+      id: 90,
+      partnership_type: PartnershipType.Integrator,
+      status: CompanyStatus.Accept,
+    };
+    const { service } = makeService({
+      companyRepository: {
+        findOne: jest.fn().mockResolvedValue(integratorCompany),
+      },
+      userRepository: {
+        findByIdWithUserInfo: jest.fn().mockResolvedValue({ id: 191 }),
+      },
+    });
+    jest
+      .spyOn(service as any, "findTrinityDealAdminIds")
+      .mockResolvedValue([]);
+    jest
+      .spyOn(service as any, "getDealCreatorCompany")
+      .mockResolvedValue(creatorCompany);
+    jest
+      .spyOn(service as any, "getCompanyAdminUserIds")
+      .mockResolvedValue([190]);
+
+    await expect(
+      (service as any).getDealStatusNotificationRecipientIds({
+        id: 210,
+        creator_id: 191,
+        creator_company_id: 91,
+        integrator_company_id: 90,
+        status: DealStatus.Moderation,
+      }),
+    ).resolves.toEqual([191, 190]);
+  });
+
+  it("защищает cron-уведомления от повторной доставки", async () => {
+    const { service, mocks } = makeService({
+      notificationService: {
+        send: jest.fn().mockResolvedValue(undefined),
+      },
+    });
+    jest
+      .spyOn(service as any, "getDealStatusNotificationRecipientIds")
+      .mockResolvedValue([190]);
+    const deal = {
+      id: 210,
+      deal_num: "191-2026/07/06-1",
+      purchase_date: new Date("2026-09-02T03:00:00.000Z"),
+    };
+
+    await (service as any).sendPurchaseDateReminderWebNotifications(deal, 0);
+    await (service as any).sendPurchaseDateOverdueWebNotifications(deal);
+
+    expect(mocks.notificationService.send).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        user_id: 190,
+        delivery_key: "deal:210:purchase:2026-09-02:reminder-0:user:190",
+      }),
+    );
+    expect(mocks.notificationService.send).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        user_id: 190,
+        delivery_key: "deal:210:purchase:2026-09-02:overdue:user:190",
+      }),
+    );
   });
 
   it("администратор компании открывает сделку сотрудника своей компании", async () => {
