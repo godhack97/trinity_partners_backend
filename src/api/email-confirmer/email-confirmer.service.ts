@@ -138,24 +138,40 @@ export class EmailConfirmerService {
   }
 
   private async _emailSend(
-    { email, subject, template, context, headers = undefined },
+    {
+      email,
+      subject,
+      template = undefined,
+      context = undefined,
+      text = undefined,
+      html = undefined,
+      headers = undefined,
+    },
     throwOnError = false,
   ) {
     try {
       const isGmail = email.includes("gmail");
-      const templateVariation = isGmail
-        ? `${template}--img-as-url.hbs`
-        : `${template}--img-as-base64.hbs`;
+      const templateVariation = template
+        ? isGmail
+          ? `${template}--img-as-url.hbs`
+          : `${template}--img-as-base64.hbs`
+        : undefined;
 
       return await this.smtpSettingsService.sendMail({
         to: email,
         subject,
-        template: templateVariation,
+        ...(templateVariation ? { template: templateVariation } : {}),
+        ...(text ? { text } : {}),
+        ...(html ? { html } : {}),
         headers,
-        context: {
-          ...context,
-          URL: this.hostname,
-        },
+        ...(templateVariation
+          ? {
+              context: {
+                ...context,
+                URL: this.hostname,
+              },
+            }
+          : {}),
       });
     } catch (error) {
       Logger.error(error);

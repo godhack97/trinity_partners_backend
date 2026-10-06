@@ -89,4 +89,20 @@ describe("EmailConfirmerService resend", () => {
       }),
     ).rejects.toThrow("SMTP rejected message");
   });
+
+  it("sends recovery links as plain text so SMTP cannot replace an HTML href", async () => {
+    const { service, smtpSettingsService } = createService();
+
+    await service.resend({
+      user_id: 42,
+      email: "user@example.com",
+      method: EmailConfirmerMethod.Recovery,
+    });
+
+    const mail = smtpSettingsService.sendMail.mock.calls[0][0];
+    expect(mail.text).toContain("https://partner.example.com/recovery?");
+    expect(mail.text).toContain("Ссылка действует 1 час");
+    expect(mail).not.toHaveProperty("html");
+    expect(mail).not.toHaveProperty("template");
+  });
 });

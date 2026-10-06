@@ -14,6 +14,7 @@ import { AdminDealService } from "@api/admin/deal/admin-deal.service";
 import { AdminConfiguratorComponentController } from "@api/admin/configurator/component/admin-configurator-component.controller";
 import { AdminConfiguratorComponentService } from "@api/admin/configurator/component/admin-configurator-component.service";
 import { XlsxService } from "@api/admin/configurator/component/xlsx.service";
+import { ImpersonationService } from "@api/auth/impersonation.service";
 
 describe("Admin controller HTTP contracts", () => {
   let app: INestApplication;
@@ -44,6 +45,7 @@ describe("Admin controller HTTP contracts", () => {
       providers: [
         { provide: AdminPartnerService, useValue: partnerService },
         { provide: AdminUserService, useValue: userService },
+        { provide: ImpersonationService, useValue: { issue: jest.fn() } },
         { provide: AdminDealService, useValue: dealService },
         {
           provide: AdminConfiguratorComponentService,
