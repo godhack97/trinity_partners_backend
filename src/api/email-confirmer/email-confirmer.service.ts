@@ -82,11 +82,14 @@ export class EmailConfirmerService {
       expire_date,
     });
 
-    return await this._emailSend({
-      email,
-      ...emailSendConfig({ link })[method],
-      headers: this._deliveryHeaders(method, hash),
-    });
+    return await this._emailSend(
+      {
+        email,
+        ...emailSendConfig({ link })[method],
+        headers: this._deliveryHeaders(method, hash),
+      },
+      method === EmailConfirmerMethod.Recovery,
+    );
   }
 
   async resend(data: SendParams) {
@@ -157,7 +160,7 @@ export class EmailConfirmerService {
           : `${template}--img-as-base64.hbs`
         : undefined;
 
-      return await this.smtpSettingsService.sendMail({
+      const mail = {
         to: email,
         subject,
         ...(templateVariation ? { template: templateVariation } : {}),
@@ -172,7 +175,13 @@ export class EmailConfirmerService {
               },
             }
           : {}),
-      });
+      };
+
+      if (text && !templateVariation) {
+        return await this.smtpSettingsService.sendTextMail(mail);
+      }
+
+      return await this.smtpSettingsService.sendMail(mail);
     } catch (error) {
       Logger.error(error);
       if (throwOnError) throw error;

@@ -140,6 +140,36 @@ describe("SmtpSettingsService", () => {
     );
   });
 
+  it("sends text-only mail without the Handlebars mailer adapter", async () => {
+    const sendMail = jest.fn().mockResolvedValue({
+      messageId: "text-message",
+      accepted: ["user@example.com"],
+      rejected: [],
+    });
+    const close = jest.fn();
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({
+      sendMail,
+      close,
+    });
+    const { service, mailerService } = createService();
+
+    await service.sendTextMail({
+      to: "user@example.com",
+      subject: "Recovery",
+      text: "https://partner.example.com/recovery?verify=token",
+    });
+
+    expect(mailerService.sendMail).not.toHaveBeenCalled();
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: "partner@trinity.ru",
+        to: "user@example.com",
+        text: expect.stringContaining("/recovery?"),
+      }),
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it("uses a valid SMTP mailbox as the sender when EMAIL_FROM is not set", async () => {
     const { service, mailerService } = createService(null, { EMAIL_FROM: "" });
 

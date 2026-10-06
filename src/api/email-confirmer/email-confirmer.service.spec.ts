@@ -23,6 +23,11 @@ describe("EmailConfirmerService resend", () => {
         rejected: [],
         messageId: "message-id",
       }),
+      sendTextMail: jest.fn().mockResolvedValue({
+        accepted: ["user@example.com"],
+        rejected: [],
+        messageId: "text-message-id",
+      }),
     };
     const configService = {
       get: jest.fn().mockReturnValue("partner.example.com"),
@@ -99,10 +104,26 @@ describe("EmailConfirmerService resend", () => {
       method: EmailConfirmerMethod.Recovery,
     });
 
-    const mail = smtpSettingsService.sendMail.mock.calls[0][0];
+    const mail = smtpSettingsService.sendTextMail.mock.calls[0][0];
     expect(mail.text).toContain("https://partner.example.com/recovery?");
     expect(mail.text).toContain("Ссылка действует 1 час");
     expect(mail).not.toHaveProperty("html");
     expect(mail).not.toHaveProperty("template");
+    expect(smtpSettingsService.sendMail).not.toHaveBeenCalled();
+  });
+
+  it("does not report a successful recovery request when SMTP fails", async () => {
+    const { service, smtpSettingsService } = createService();
+    smtpSettingsService.sendTextMail.mockRejectedValueOnce(
+      new Error("SMTP recovery failed"),
+    );
+
+    await expect(
+      service.send({
+        user_id: 42,
+        email: "user@example.com",
+        method: EmailConfirmerMethod.Recovery,
+      }),
+    ).rejects.toThrow("SMTP recovery failed");
   });
 });

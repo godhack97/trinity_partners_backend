@@ -147,6 +147,38 @@ export class SmtpSettingsService {
     }
   }
 
+  async sendTextMail(options: nodemailer.SendMailOptions) {
+    const settings = await this.getActiveSettings();
+    const transport = this.createTransport(settings);
+
+    try {
+      const result = await transport.sendMail({
+        ...options,
+        from: this.senderAddress(settings),
+      });
+      const accepted = Array.isArray(result?.accepted) ? result.accepted : [];
+      const rejected = Array.isArray(result?.rejected) ? result.rejected : [];
+
+      if (
+        rejected.length > 0 ||
+        (Array.isArray(result?.accepted) && accepted.length === 0)
+      ) {
+        throw new Error("SMTP did not accept any recipients");
+      }
+
+      this.logger.log(
+        `SMTP accepted text message ${String(result?.messageId || "unknown")} for ${accepted.length || 1} recipient(s)`,
+      );
+      this.metricsService?.recordIntegration("smtp", true);
+      return result;
+    } catch (error) {
+      this.metricsService?.recordIntegration("smtp", false);
+      throw error;
+    } finally {
+      transport.close();
+    }
+  }
+
   async sendEnvironmentMail(
     options: Parameters<MailerService["sendMail"]>[0],
   ) {
