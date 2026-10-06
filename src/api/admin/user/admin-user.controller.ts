@@ -23,6 +23,8 @@ import { StrictRoles } from "@decorators/StrictRoles";
 import { AuthUser } from "@decorators/auth-user";
 import { UserEntity } from "@orm/entities";
 import { ImpersonationService } from "@api/auth/impersonation.service";
+import { ADMIN_USER_IMPERSONATION_PERMISSION } from "@app/access/admin-user-impersonation";
+import { StrictPermissions } from "@decorators/StrictPermissions";
 
 @ApiTags("user")
 @ApiBearerAuth()
@@ -41,7 +43,8 @@ export class AdminUserController {
   }
 
   @Get("all")
-  @StrictRoles([RoleTypes.SuperAdmin])
+  @Roles([])
+  @StrictPermissions(ADMIN_USER_IMPERSONATION_PERMISSION)
   findAllUsers(@Query() filters: AllUserFilterRequestDto) {
     return this.adminUserRequest.findAllUsers(filters);
   }
@@ -94,7 +97,8 @@ export class AdminUserController {
   }
 
   @Post("all/:id/impersonate")
-  @StrictRoles([RoleTypes.SuperAdmin])
+  @Roles([])
+  @StrictPermissions(ADMIN_USER_IMPERSONATION_PERMISSION)
   @ApiOperation({ summary: "Создать одноразовый вход в портал от имени пользователя" })
   impersonate(
     @Param("id", ParseIntPipe) id: number,

@@ -11,8 +11,8 @@ import { IsNull, Like, MoreThan, Repository } from "typeorm";
 import { UserEntity, UserToken } from "@orm/entities";
 import { UserRepository } from "@orm/repositories/user.repository";
 import { UserActionsService } from "@app/logs/user-actions.service";
-import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 import { createSessionToken, hashSessionToken } from "@app/utils/session-token";
+import { canImpersonateUsers } from "@app/access/admin-user-impersonation";
 
 const EXCHANGE_TTL_MS = 90 * 1000;
 const IMPERSONATED_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -29,9 +29,9 @@ export class ImpersonationService {
   ) {}
 
   async issue(actor: Partial<UserEntity>, targetUserId: number) {
-    if (!actor?.id || !isBuiltInSuperAdminEmail(actor.email)) {
+    if (!actor?.id || !canImpersonateUsers(actor)) {
       throw new ForbiddenException(
-        "Вход от имени пользователя доступен только главному администратору",
+        "Нет права входа от имени пользователя",
       );
     }
 

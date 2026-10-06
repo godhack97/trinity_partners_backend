@@ -12,6 +12,9 @@ import { UsersController } from '@api/users/users.controller';
 import { DealController } from '@api/deal/deal.controller';
 import { AdminPermissionsController } from './permissions/admin-permissions.controller';
 import { Bitrix24AdminController } from '@integrations/bitrix24/bitrix24-admin.controller';
+import { AdminUserController } from './user/admin-user.controller';
+import { PERMISSIONS_KEY } from '@decorators/permissions.decorator';
+import { ADMIN_USER_IMPERSONATION_PERMISSION } from '@app/access/admin-user-impersonation';
 
 const OPENAPI_EXTENSION_METADATA = 'swagger/apiExtension';
 
@@ -20,6 +23,9 @@ const handlerRoles = (controller: any, method: string): RoleTypes[] | undefined 
 
 const controllerRoles = (controller: any): RoleTypes[] | undefined =>
   Reflect.getMetadata(ACCEPTED_ROLES, controller);
+
+const handlerPermissions = (controller: any, method: string): string[] | undefined =>
+  Reflect.getMetadata(PERMISSIONS_KEY, controller.prototype[method]);
 
 const handlerOpenApiAccess = (controller: any, method: string) =>
   Reflect.getMetadata(
@@ -100,6 +106,17 @@ describe('administrative access metadata', () => {
   test('keeps direct deal deletion as an explicit super-admin bypass', () => {
     expect(handlerRoles(DealController, 'remove')).toEqual([
       RoleTypes.SuperAdmin,
+    ]);
+  });
+
+  test('uses the dedicated permission for user listing and impersonation', () => {
+    expect(handlerRoles(AdminUserController, 'findAllUsers')).toEqual([]);
+    expect(handlerPermissions(AdminUserController, 'findAllUsers')).toEqual([
+      ADMIN_USER_IMPERSONATION_PERMISSION,
+    ]);
+    expect(handlerRoles(AdminUserController, 'impersonate')).toEqual([]);
+    expect(handlerPermissions(AdminUserController, 'impersonate')).toEqual([
+      ADMIN_USER_IMPERSONATION_PERMISSION,
     ]);
   });
 

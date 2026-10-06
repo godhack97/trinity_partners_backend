@@ -4,7 +4,14 @@ import { ImpersonationService } from "./impersonation.service";
 
 describe("ImpersonationService", () => {
   const target = { id: 42, email: "target@example.test" };
-  const actor = { id: 143, email: "sancho97.2011@mail.ru" };
+  const actor = {
+    id: 143,
+    email: "delegated-admin@example.test",
+    role: {
+      name: "content_manager",
+      permissions: [{ name: "system.admin-users.impersonate" }],
+    },
+  } as any;
   const userRepository = {
     findByIdWithPermissions: jest.fn(),
   };
@@ -30,11 +37,32 @@ describe("ImpersonationService", () => {
     userTokenRepository.update.mockResolvedValue({ affected: 1 });
   });
 
-  it("allows only the built-in administrator to issue a code", async () => {
+  it("rejects an administrator without the impersonation permission", async () => {
     await expect(
-      service.issue({ id: 7, email: "another-admin@example.test" }, target.id),
+      service.issue({
+        id: 7,
+        email: "another-admin@example.test",
+        role: { name: "content_manager", permissions: [] } as any,
+      }, target.id),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(userTokenRepository.save).not.toHaveBeenCalled();
+  });
+
+  it("accepts the impersonation permission from a secondary role", async () => {
+    const delegatedActor = {
+      id: 8,
+      role: { name: "employee_admin", permissions: [] },
+      roles: [
+        {
+          name: "content_manager",
+          permissions: [{ name: "system.admin-users.impersonate" }],
+        },
+      ],
+    } as any;
+
+    await expect(service.issue(delegatedActor, target.id)).resolves.toEqual(
+      expect.objectContaining({ code: expect.any(String) }),
+    );
   });
 
   it("stores only a hash of the short-lived exchange code and audits the target", async () => {

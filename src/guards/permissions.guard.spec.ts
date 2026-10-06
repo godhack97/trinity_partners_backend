@@ -1,6 +1,7 @@
 import { ForbiddenException } from "@nestjs/common";
 import { PermissionsGuard } from "./permissions.guard";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { STRICT_PERMISSIONS } from "@decorators/StrictPermissions";
 
 const makeContext = (user: any, path = "", method = "GET") =>
   ({
@@ -89,6 +90,72 @@ describe("PermissionsGuard business roles", () => {
       guard.canActivate(
         makeContext(user, "/api/configurator-drafts/42", "PUT"),
       ),
+    ).toBe(true);
+  });
+
+  it("не заменяет явное право общим правом раздела", () => {
+    const guard = new PermissionsGuard({
+      getAllAndOverride: jest
+        .fn()
+        .mockImplementation((key) =>
+          key === STRICT_PERMISSIONS
+            ? ["system.admin-users.impersonate"]
+            : key === "permissions"
+              ? ["system.admin-users.impersonate"]
+              : undefined,
+        ),
+    } as any);
+    const user = {
+      role: role(RoleTypes.ContentManager, ["system.admin-employees.write"]),
+    };
+
+    expect(() =>
+      guard.canActivate(
+        makeContext(user, "/api/admin/user/all/42/impersonate", "POST"),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it("принимает явное право из дополнительной роли", () => {
+    const guard = new PermissionsGuard({
+      getAllAndOverride: jest
+        .fn()
+        .mockImplementation((key) =>
+          key === STRICT_PERMISSIONS
+            ? ["system.admin-users.impersonate"]
+            : key === "permissions"
+              ? ["system.admin-users.impersonate"]
+              : undefined,
+        ),
+    } as any);
+    const user = {
+      role: role(RoleTypes.ContentManager, []),
+      roles: [
+        role(RoleTypes.EmployeeAdmin, ["system.admin-users.impersonate"]),
+      ],
+    };
+
+    expect(
+      guard.canActivate(
+        makeContext(user, "/api/admin/user/all/42/impersonate", "POST"),
+      ),
+    ).toBe(true);
+  });
+
+  it("сохраняет совместимость обычного права с правом раздела", () => {
+    const guard = new PermissionsGuard({
+      getAllAndOverride: jest
+        .fn()
+        .mockImplementation((key) =>
+          key === "permissions" ? ["api.roles.write"] : undefined,
+        ),
+    } as any);
+    const user = {
+      role: role(RoleTypes.ContentManager, ["system.admin-settings.write"]),
+    };
+
+    expect(
+      guard.canActivate(makeContext(user, "/api/role/42", "PATCH")),
     ).toBe(true);
   });
 });

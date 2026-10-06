@@ -1,4 +1,5 @@
 import { PARTNER_PORTAL_PERMISSION_NAMES } from "./partner-portal-permissions";
+import { ADMIN_USER_IMPERSONATION_PERMISSION } from "./admin-user-impersonation";
 
 export interface AdminSectionPermission {
   name: string;
@@ -113,6 +114,7 @@ export const ASSIGNABLE_PERMISSION_NAMES = [
     ),
   ),
   ...PARTNER_PORTAL_PERMISSION_NAMES,
+  ADMIN_USER_IMPERSONATION_PERMISSION,
 ];
 
 const ACTION_META: Record<

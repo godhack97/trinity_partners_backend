@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { RoleTypes } from '@app/types/RoleTypes';
 import { getAdminSectionPermission } from "@app/access/admin-section-permissions";
 import { getPartnerPortalPermission } from "@app/access/partner-portal-permissions";
+import { STRICT_PERMISSIONS } from "@decorators/StrictPermissions";
 
 const BUSINESS_ROLE_NAMES = [
   RoleTypes.Partner,
@@ -21,6 +22,10 @@ export class PermissionsGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+    const strictPermissions = this.reflector.getAllAndOverride<string[]>(
+      STRICT_PERMISSIONS,
+      [context.getHandler(), context.getClass()],
+    );
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
@@ -56,15 +61,18 @@ export class PermissionsGuard implements CanActivate {
       request.method,
     );
 
-    const hasPermission =
-      (portalPermission && userPermissions.includes(portalPermission)) ||
-      (sectionPermission &&
-        (userPermissions.includes(sectionPermission.required) ||
-          userPermissions.includes(sectionPermission.legacy))) ||
-      (!!requiredPermissions?.length &&
-        requiredPermissions.every(permission =>
-          userPermissions.includes(permission)
-        ));
+    const hasPermission = strictPermissions?.length
+      ? strictPermissions.every((permission) =>
+          userPermissions.includes(permission),
+        )
+      : (portalPermission && userPermissions.includes(portalPermission)) ||
+        (sectionPermission &&
+          (userPermissions.includes(sectionPermission.required) ||
+            userPermissions.includes(sectionPermission.legacy))) ||
+        (!!requiredPermissions?.length &&
+          requiredPermissions.every((permission) =>
+            userPermissions.includes(permission),
+          ));
 
     if (!hasPermission) {
       throw new ForbiddenException('Недостаточно прав для выполнения операции');
