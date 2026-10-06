@@ -1,6 +1,7 @@
 import { AfterLoad, Column, Entity, Index, JoinColumn, ManyToOne } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { CompanyEntity } from "./company.entity";
+import { CompanyIdentityEntity } from "./company-identity.entity";
 import { UserEntity } from "./user.entity";
 import { UserIdentityEntity } from "./user-identity.entity";
 
@@ -28,6 +29,13 @@ export class CompanyNotificationOutboxEntity extends BasisEntity {
   @ManyToOne(() => CompanyEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "company_id" })
   company: CompanyEntity;
+
+  @ManyToOne(() => CompanyIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "company_id", referencedColumnName: "id" })
+  company_identity?: CompanyIdentityEntity;
 
   @Column({ nullable: true, unsigned: true })
   user_id?: number | null;
@@ -72,6 +80,9 @@ export class CompanyNotificationOutboxEntity extends BasisEntity {
 
   @AfterLoad()
   useHistoricalUser() {
+    if (!this.company && this.company_identity) {
+      this.company = this.company_identity.toHistoricalCompany();
+    }
     if (!this.user && this.user_identity) {
       this.user = this.user_identity.toHistoricalUser();
     }

@@ -1,5 +1,6 @@
 import {
   Column,
+  DeleteDateColumn,
   Entity,
   AfterLoad,
   JoinColumn,
@@ -36,6 +37,9 @@ export enum PartnerLevel {
   name: "companies",
 })
 export class CompanyEntity extends BasisEntity {
+  @DeleteDateColumn()
+  deleted_at: Date | null;
+
   @Column()
   inn: string;
 

@@ -45,6 +45,9 @@ describe("CompanyManagementService access policy", () => {
       can_resume: false,
       can_edit_contacts: false,
       can_assign_manager: false,
+      can_soft_delete: false,
+      can_restore: false,
+      can_permanently_delete: false,
     });
   });
 
@@ -127,10 +130,12 @@ describe("CompanyManagementService access policy", () => {
 
   it("does not hide companies whose owner has not confirmed email", () => {
     const query: any = {
+      withDeleted: jest.fn(),
       leftJoinAndMapOne: jest.fn(),
       where: jest.fn(),
       andWhere: jest.fn(),
     };
+    query.withDeleted.mockReturnValue(query);
     query.leftJoinAndMapOne.mockReturnValue(query);
     query.where.mockReturnValue(query);
     query.andWhere.mockReturnValue(query);

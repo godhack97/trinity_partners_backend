@@ -3,6 +3,7 @@ import { BasisEntity } from "./basis.entity";
 import { CompanyEntity, CustomerEntity, DistributorEntity, UserEntity } from ".";
 import { DeleteDateColumn } from "typeorm";
 import { UserIdentityEntity } from "./user-identity.entity";
+import { CompanyIdentityEntity } from "./company-identity.entity";
 
 export enum DealStatus {
   Draft = "draft",
@@ -117,6 +118,14 @@ export class DealEntity extends BasisEntity {
   @JoinColumn({ name: "distributor_company_id" })
   distributor_company?: CompanyEntity | null;
 
+  @ManyToOne(() => CompanyIdentityEntity, {
+    eager: true,
+    nullable: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "distributor_company_id", referencedColumnName: "id" })
+  distributor_company_identity?: CompanyIdentityEntity | null;
+
   @Column({ nullable: true })
   integrator_company_id?: number;
 
@@ -141,6 +150,14 @@ export class DealEntity extends BasisEntity {
   @JoinColumn({ name: "integrator_company_id" })
   integrator_company?: CompanyEntity;
 
+  @ManyToOne(() => CompanyIdentityEntity, {
+    eager: true,
+    nullable: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "integrator_company_id", referencedColumnName: "id" })
+  integrator_company_identity?: CompanyIdentityEntity | null;
+
   @Column()
   customer_id: number;
 
@@ -162,6 +179,14 @@ export class DealEntity extends BasisEntity {
   })
   @JoinColumn({ name: "creator_company_id" })
   creator_company?: CompanyEntity | null;
+
+  @ManyToOne(() => CompanyIdentityEntity, {
+    eager: true,
+    nullable: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "creator_company_id", referencedColumnName: "id" })
+  creator_company_identity?: CompanyIdentityEntity | null;
 
   @Column({
     type: "enum",
@@ -298,6 +323,17 @@ export class DealEntity extends BasisEntity {
   useHistoricalCreator() {
     if (!this.partner && this.creator_identity) {
       this.partner = this.creator_identity.toHistoricalUser();
+    }
+    if (!this.creator_company && this.creator_company_identity) {
+      this.creator_company = this.creator_company_identity.toHistoricalCompany();
+    }
+    if (!this.integrator_company && this.integrator_company_identity) {
+      this.integrator_company =
+        this.integrator_company_identity.toHistoricalCompany();
+    }
+    if (!this.distributor_company && this.distributor_company_identity) {
+      this.distributor_company =
+        this.distributor_company_identity.toHistoricalCompany();
     }
   }
 }

@@ -7,6 +7,7 @@ import {
 } from "typeorm";
 import { BasisEntity } from "./basis.entity";
 import { CompanyEntity } from "./company.entity";
+import { CompanyIdentityEntity } from "./company-identity.entity";
 import { UserEntity } from "./user.entity";
 import { UserIdentityEntity } from "./user-identity.entity";
 
@@ -18,6 +19,9 @@ export enum CompanyLifecycleAction {
   Resumed = "resumed",
   ManagerAssigned = "manager_assigned",
   ContactsUpdated = "contacts_updated",
+  Archived = "archived",
+  Restored = "restored",
+  PermanentlyDeleted = "permanently_deleted",
   LegacyRejectedMigrated = "legacy_rejected_migrated",
   LegacyManagerAssignmentCleared = "legacy_manager_assignment_cleared",
 }
@@ -30,6 +34,13 @@ export class CompanyStatusHistoryEntity extends BasisEntity {
   @ManyToOne(() => CompanyEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "company_id" })
   company: CompanyEntity;
+
+  @ManyToOne(() => CompanyIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "company_id", referencedColumnName: "id" })
+  company_identity?: CompanyIdentityEntity;
 
   @Column({ length: 64 })
   action: CompanyLifecycleAction | string;
@@ -76,6 +87,9 @@ export class CompanyStatusHistoryEntity extends BasisEntity {
 
   @AfterLoad()
   useHistoricalUsers() {
+    if (!this.company && this.company_identity) {
+      this.company = this.company_identity.toHistoricalCompany();
+    }
     if (!this.actor && this.actor_identity) {
       this.actor = this.actor_identity.toHistoricalUser();
     }

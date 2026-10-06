@@ -1,5 +1,6 @@
 export * from "./basis.entity";
 export * from "./company-employee.entity";
+export * from "./company-identity.entity";
 export * from "./company.entity";
 export * from "./company-notification-outbox.entity";
 export * from "./company-status-history.entity";

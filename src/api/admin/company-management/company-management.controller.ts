@@ -3,6 +3,7 @@ import { Roles } from "@decorators/Roles";
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -134,5 +135,35 @@ export class CompanyManagementController {
     @AuthUser() actor: UserEntity,
   ) {
     return this.companies.assignManager(id, actor, body);
+  }
+
+  @Delete(":id")
+  @Roles([RoleTypes.SuperAdmin])
+  @LogAction("company_soft_delete", "companies")
+  softDelete(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() actor: UserEntity,
+  ) {
+    return this.companies.softDelete(id, actor);
+  }
+
+  @Post(":id/restore")
+  @Roles([RoleTypes.SuperAdmin])
+  @LogAction("company_restore", "companies")
+  restore(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() actor: UserEntity,
+  ) {
+    return this.companies.restore(id, actor);
+  }
+
+  @Delete(":id/permanent")
+  @Roles([RoleTypes.SuperAdmin])
+  @LogAction("company_permanent_delete", "companies")
+  permanentlyDelete(
+    @Param("id", ParseIntPipe) id: number,
+    @AuthUser() actor: UserEntity,
+  ) {
+    return this.companies.permanentlyDelete(id, actor);
   }
 }

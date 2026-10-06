@@ -32,6 +32,7 @@ import { RoleTypes } from "@app/types/RoleTypes";
 import {
   CompanyEntity,
   CompanyEmployeeStatus,
+  CompanyStatus,
   NotificationCategory,
 } from "@orm/entities";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
@@ -166,6 +167,30 @@ export class AuthService {
     ];
 
     if (roleNames.includes(RoleTypes.SuperAdmin)) return;
+
+    const companyRoles = [
+      RoleTypes.Partner,
+      RoleTypes.CompanyAdmin,
+      RoleTypes.Employee,
+      RoleTypes.SalesManager,
+      RoleTypes.Staff,
+    ];
+    if (
+      companyRoles.some((role) => roleNames.includes(role)) &&
+      !user.company_employee?.company
+    ) {
+      throw new HttpException(
+        "Компания пользователя удалена или недоступна",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (user.company_employee?.company?.status === CompanyStatus.Suspended) {
+      throw new HttpException(
+        "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     if (
       [

@@ -81,6 +81,12 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
         );
       }
 
+      if (!companyEmployee.company) {
+        throw new ForbiddenException(
+          "Компания пользователя удалена или недоступна",
+        );
+      }
+
       if (companyEmployee.company?.status === CompanyStatus.Suspended) {
         throw new ForbiddenException(
           "Доступ в портал приостановлен. Свяжитесь с вашим менеджером Тринити.",

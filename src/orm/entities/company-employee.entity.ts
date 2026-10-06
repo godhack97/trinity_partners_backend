@@ -2,6 +2,7 @@ import { AfterLoad, Column, Entity, JoinColumn, ManyToOne, OneToOne } from "type
 import { BasisEntity } from "./basis.entity";
 import { UserEntity } from "./user.entity";
 import { CompanyEntity } from "./company.entity";
+import { CompanyIdentityEntity } from "./company-identity.entity";
 import { UserIdentityEntity } from "./user-identity.entity";
 
 export enum CompanyEmployeeStatus {
@@ -26,6 +27,13 @@ export class CompanyEmployeeEntity extends BasisEntity {
   @JoinColumn({ name: "company_id" })
   company: CompanyEntity;
 
+  @ManyToOne(() => CompanyIdentityEntity, {
+    eager: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "company_id", referencedColumnName: "id" })
+  company_identity?: CompanyIdentityEntity;
+
   @Column()
   employee_id: number;
 
@@ -49,6 +57,9 @@ export class CompanyEmployeeEntity extends BasisEntity {
 
   @AfterLoad()
   useHistoricalEmployee() {
+    if (!this.company && this.company_identity) {
+      this.company = this.company_identity.toHistoricalCompany();
+    }
     if (!this.employee && this.employee_identity) {
       this.employee = this.employee_identity.toHistoricalUser();
     }

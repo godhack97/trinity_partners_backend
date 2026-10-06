@@ -33,6 +33,15 @@ export class CompanyCapabilitiesDto {
 
   @ApiProperty()
   can_assign_manager: boolean;
+
+  @ApiProperty()
+  can_soft_delete: boolean;
+
+  @ApiProperty()
+  can_restore: boolean;
+
+  @ApiProperty()
+  can_permanently_delete: boolean;
 }
 
 export class CompanyDealStatisticsDto {
@@ -67,6 +76,9 @@ export class CompanyListItemResponseDto {
 
   @ApiProperty()
   is_review_locked: boolean;
+
+  @ApiPropertyOptional()
+  deleted_at: Date | null;
 
   @ApiPropertyOptional({ type: CompanyManagerSummaryDto })
   responsible_manager: CompanyManagerSummaryDto | null;

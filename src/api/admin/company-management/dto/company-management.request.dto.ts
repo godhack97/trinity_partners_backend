@@ -25,6 +25,11 @@ export const MANAGED_COMPANY_STATUSES = [
 ] as const;
 
 export class CompanyListQueryDto extends PaginationRequestDto {
+  @ApiPropertyOptional({ enum: ["active", "deleted", "all"] })
+  @IsOptional()
+  @IsIn(["active", "deleted", "all"])
+  deletion_state?: "active" | "deleted" | "all";
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

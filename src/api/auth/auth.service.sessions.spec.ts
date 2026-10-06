@@ -1,4 +1,6 @@
 import { RoleTypes } from "@app/types/RoleTypes";
+import { CompanyEmployeeStatus } from "src/orm/entities/company-employee.entity";
+import { CompanyStatus } from "src/orm/entities/company.entity";
 import { hashSessionToken } from "src/utils/session-token";
 import * as passwordUtils from "src/utils/password";
 import { AuthService } from "./auth.service";
@@ -16,7 +18,10 @@ describe("AuthService sessions", () => {
       login_blocked_until: null,
       role: { name: RoleTypes.Employee },
       roles: [],
-      company_employee: null,
+      company_employee: {
+        status: CompanyEmployeeStatus.Accept,
+        company: { status: CompanyStatus.Accept },
+      },
     };
     const userRepository = {
       findByEmailWithPermissions: jest.fn().mockResolvedValue(user),

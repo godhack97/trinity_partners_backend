@@ -12,11 +12,13 @@ import {
   CompanyEmployeeEntity,
   CompanyEmployeeStatus,
   CompanyEntity,
+  CompanyIdentityEntity,
   CompanyLifecycleAction,
   CompanyStatus,
   CompanyStatusHistoryEntity,
   DealStatus,
   UserEntity,
+  UserToken,
 } from "@orm/entities";
 import {
   CompanyEmployeeRepository,
@@ -43,6 +45,10 @@ import {
   CompanyNotificationOutboxService,
   CompanyNotificationRecipient,
 } from "./company-notification-outbox.service";
+import {
+  BUILT_IN_SUPER_ADMIN_EMAIL,
+  isBuiltInSuperAdminEmail,
+} from "@app/security/built-in-super-admin";
 
 type CompanyStats = {
   employees: number;
@@ -66,6 +72,15 @@ export class CompanyManagementService {
     const currentPage = filters.current_page || 1;
     const limit = filters.limit || 12;
     const query = this.createCompanyQuery(actor);
+    const isSuperAdmin = this.getRoleNames(actor).includes(RoleTypes.SuperAdmin);
+    const deletionState = isSuperAdmin
+      ? filters.deletion_state || "active"
+      : "active";
+    if (deletionState === "active") {
+      query.andWhere("company.deleted_at IS NULL");
+    } else if (deletionState === "deleted") {
+      query.andWhere("company.deleted_at IS NOT NULL");
+    }
     const visibleTotal = await query.clone().getCount();
 
     if (filters.search) {
@@ -122,7 +137,7 @@ export class CompanyManagementService {
   }
 
   async detail(id: number, actor: UserEntity): Promise<CompanyDetailResponseDto> {
-    const company = await this.findCompany(id);
+    const company = await this.findCompany(id, true);
     this.assertCanView(company, actor);
     const stats = await this.getCompanyStats([company.id]);
     return this.toDetail(company, actor, stats.get(company.id));
@@ -562,6 +577,117 @@ export class CompanyManagementService {
     return this.detail(id, actor);
   }
 
+  async softDelete(id: number, actor: UserEntity) {
+    this.assertSuperAdmin(actor);
+    const company = await this.findCompany(id, true);
+    if (company.deleted_at) {
+      throw new BadRequestException("Компания уже находится в архиве");
+    }
+
+    await this.dataSource.transaction(async (entityManager) => {
+      await entityManager.getRepository(CompanyStatusHistoryEntity).save({
+        company_id: id,
+        action: CompanyLifecycleAction.Archived,
+        from_status: company.status,
+        to_status: company.status,
+        actor_user_id: actor.id,
+      });
+      await this.revokeCompanySessions(entityManager, company);
+      const result = await entityManager.getRepository(CompanyEntity).softDelete(id);
+      if (result.affected !== 1) {
+        throw new ConflictException("Состояние компании уже изменилось");
+      }
+    });
+
+    return { success: true, message: "Компания перемещена в архив" };
+  }
+
+  async restore(id: number, actor: UserEntity) {
+    this.assertSuperAdmin(actor);
+    const company = await this.findCompany(id, true);
+    if (!company.deleted_at) {
+      throw new BadRequestException("Компания не находится в архиве");
+    }
+
+    await this.dataSource.transaction(async (entityManager) => {
+      const result = await entityManager.getRepository(CompanyEntity).restore(id);
+      if (result.affected !== 1) {
+        throw new ConflictException("Состояние компании уже изменилось");
+      }
+      await entityManager.getRepository(CompanyStatusHistoryEntity).save({
+        company_id: id,
+        action: CompanyLifecycleAction.Restored,
+        from_status: company.status,
+        to_status: company.status,
+        actor_user_id: actor.id,
+      });
+    });
+
+    return { success: true, message: "Компания восстановлена" };
+  }
+
+  async permanentlyDelete(id: number, actor: UserEntity) {
+    if (!isBuiltInSuperAdminEmail(actor?.email)) {
+      throw new ForbiddenException(
+        `Физическое удаление доступно только ${BUILT_IN_SUPER_ADMIN_EMAIL}`,
+      );
+    }
+
+    const company = await this.findCompany(id, true);
+    if (!company.deleted_at) {
+      throw new BadRequestException(
+        "Перед физическим удалением переместите компанию в архив",
+      );
+    }
+
+    await this.dataSource.transaction(async (entityManager) => {
+      await entityManager.getRepository(CompanyIdentityEntity).update(id, {
+        name: company.name,
+        inn: company.inn,
+        partnership_type: company.partnership_type,
+        owner_user_id: company.owner_id,
+        profile_snapshot: {
+          status: company.status,
+          contact_email: company.contact_email || null,
+          contact_phone: company.contact_phone || null,
+          site_url: company.site_url || null,
+          company_business_line: company.company_business_line || null,
+          partner_level: company.partner_level || null,
+          certificate_expiry: company.certificate_expiry || null,
+          responsible_manager_id: company.responsible_manager_id || null,
+          approved_at: company.approved_at || null,
+        },
+        permanently_deleted_at: new Date(),
+        deleted_by_user_id: actor.id,
+        deleted_by_email: actor.email,
+      });
+      await entityManager.getRepository(CompanyStatusHistoryEntity).save({
+        company_id: id,
+        action: CompanyLifecycleAction.PermanentlyDeleted,
+        from_status: company.status,
+        to_status: company.status,
+        actor_user_id: actor.id,
+      });
+      await entityManager.getRepository(CompanyEmployeeEntity).update(
+        { company_id: id },
+        { status: CompanyEmployeeStatus.Deleted },
+      );
+      await entityManager.query(
+        "UPDATE important_alerts SET target_company_id = NULL WHERE target_company_id = ?",
+        [id],
+      );
+      const result = await entityManager.getRepository(CompanyEntity).delete(id);
+      if (result.affected !== 1) {
+        throw new NotFoundException("Компания не найдена");
+      }
+    });
+
+    return {
+      success: true,
+      message: "Компания физически удалена, исторические данные сохранены",
+    };
+  }
+
   async updateOwnContacts(
     actor: UserEntity,
     data: UpdateCompanyContactsRequestDto,
@@ -610,6 +736,7 @@ export class CompanyManagementService {
   private createCompanyQuery(actor: UserEntity) {
     const query = this.companyRepository
       .createQueryBuilder("company")
+      .withDeleted()
       .leftJoinAndMapOne(
         "company.owner",
         "users",
@@ -664,10 +791,16 @@ export class CompanyManagementService {
     return query;
   }
 
-  private async findCompany(id: number): Promise<CompanyEntity> {
-    const company = await this.createUnscopedCompanyQuery()
-      .where("company.id = :id", { id })
-      .getOne();
+  private async findCompany(
+    id: number,
+    includeDeleted = false,
+  ): Promise<CompanyEntity> {
+    const query = this.createUnscopedCompanyQuery().where(
+      "company.id = :id",
+      { id },
+    );
+    if (!includeDeleted) query.andWhere("company.deleted_at IS NULL");
+    const company = await query.getOne();
     if (!company) throw new NotFoundException("Компания не найдена");
     return company;
   }
@@ -690,6 +823,7 @@ export class CompanyManagementService {
         "(company.owner_id = :userId OR current_company_employee.employee_id = :userId)",
         { userId },
       )
+      .andWhere("company.deleted_at IS NULL")
       .orderBy("current_company_employee.id", "DESC")
       .getOne();
   }
@@ -697,6 +831,7 @@ export class CompanyManagementService {
   private createUnscopedCompanyQuery() {
     return this.companyRepository
       .createQueryBuilder("company")
+      .withDeleted()
       .leftJoinAndSelect("company.owner", "owner")
       .leftJoinAndSelect("owner.user_info", "owner_info")
       .leftJoinAndSelect(
@@ -713,6 +848,9 @@ export class CompanyManagementService {
 
   private assertCanView(company: CompanyEntity, actor: UserEntity) {
     const roles = this.getRoleNames(actor);
+    if (company.deleted_at && !roles.includes(RoleTypes.SuperAdmin)) {
+      throw new ForbiddenException("Архивная компания доступна только администратору");
+    }
     if (
       roles.includes(RoleTypes.SuperAdmin) ||
       roles.includes(RoleTypes.TechnicalSpecialist)
@@ -770,6 +908,7 @@ export class CompanyManagementService {
     const isResponsible =
       isPartnerManager && company.responsible_manager_id === actor.id;
     const canApprove =
+      !company.deleted_at &&
       company.status === CompanyStatus.Pending &&
       !company.review_locked_at &&
       (isSuperAdmin || isPartnerManager);
@@ -778,24 +917,33 @@ export class CompanyManagementService {
       can_approve: canApprove,
       can_lock_review:
         isSuperAdmin &&
+        !company.deleted_at &&
         company.status === CompanyStatus.Pending &&
         !company.review_locked_at,
       can_unlock_review:
         isSuperAdmin &&
+        !company.deleted_at &&
         company.status === CompanyStatus.Pending &&
         Boolean(company.review_locked_at),
       can_suspend:
+        !company.deleted_at &&
         company.status === CompanyStatus.Accept &&
         (isSuperAdmin || isResponsible),
       can_resume:
+        !company.deleted_at &&
         company.status === CompanyStatus.Suspended &&
         (isSuperAdmin || isResponsible),
       can_edit_contacts:
+        !company.deleted_at &&
         ownCompany &&
         company.status === CompanyStatus.Accept &&
         (company.owner_id === actor.id ||
           roles.includes(RoleTypes.CompanyAdmin)),
-      can_assign_manager: isSuperAdmin,
+      can_assign_manager: isSuperAdmin && !company.deleted_at,
+      can_soft_delete: isSuperAdmin && !company.deleted_at,
+      can_restore: isSuperAdmin && Boolean(company.deleted_at),
+      can_permanently_delete:
+        Boolean(company.deleted_at) && isBuiltInSuperAdminEmail(actor.email),
     };
   }
 
@@ -824,6 +972,7 @@ export class CompanyManagementService {
 
     const dealCounts = await this.companyRepository
       .createQueryBuilder("stats_company")
+      .withDeleted()
       .leftJoin(
         "company_employees",
         "stats_employee",
@@ -893,6 +1042,7 @@ export class CompanyManagementService {
       status: company.status,
       status_label: this.getStatusLabel(company.status),
       is_review_locked: Boolean(company.review_locked_at),
+      deleted_at: company.deleted_at || null,
       responsible_manager: this.toManager(company.responsible_manager),
       employees_count: stats?.employees || 0,
       deals: stats?.deals || { total: 0, active: 0, completed: 0 },
@@ -940,6 +1090,23 @@ export class CompanyManagementService {
   private assertSuperAdmin(actor: UserEntity): void {
     if (!this.getRoleNames(actor).includes(RoleTypes.SuperAdmin)) {
       throw new ForbiddenException("Действие доступно только администратору");
+    }
+  }
+
+  private async revokeCompanySessions(entityManager: any, company: CompanyEntity) {
+    const memberships = await entityManager
+      .getRepository(CompanyEmployeeEntity)
+      .find({ where: { company_id: company.id }, select: { employee_id: true } });
+    const userIds = Array.from(
+      new Set([company.owner_id, ...memberships.map(({ employee_id }) => employee_id)]),
+    ).filter(Boolean);
+    if (userIds.length) {
+      await entityManager
+        .getRepository(UserToken)
+        .createQueryBuilder()
+        .delete()
+        .where("user_id IN (:...userIds)", { userIds })
+        .execute();
     }
   }
 
