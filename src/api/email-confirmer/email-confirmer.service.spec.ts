@@ -95,8 +95,8 @@ describe("EmailConfirmerService resend", () => {
     ).rejects.toThrow("SMTP rejected message");
   });
 
-  it("sends recovery links as plain text so SMTP cannot replace an HTML href", async () => {
-    const { service, smtpSettingsService } = createService();
+  it("sends a recovery code without any URL for SMTP to rewrite", async () => {
+    const { service, resetHash, smtpSettingsService } = createService();
 
     await service.resend({
       user_id: 42,
@@ -105,8 +105,11 @@ describe("EmailConfirmerService resend", () => {
     });
 
     const mail = smtpSettingsService.sendTextMail.mock.calls[0][0];
-    expect(mail.text).toContain("https://partner.example.com/recovery?");
-    expect(mail.text).toContain("Ссылка действует 1 час");
+    expect(resetHash.hash).toMatch(/^[2-9A-HJ-NP-Z]{10}$/);
+    expect(mail.text).toContain(`Код восстановления пароля: ${resetHash.hash}`);
+    expect(mail.text).toContain("Код действует 1 час");
+    expect(mail.text).not.toMatch(/https?:\/\//);
+    expect(mail.text).not.toContain("partner.example.com");
     expect(mail).not.toHaveProperty("html");
     expect(mail).not.toHaveProperty("template");
     expect(smtpSettingsService.sendMail).not.toHaveBeenCalled();

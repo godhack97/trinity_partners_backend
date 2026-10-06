@@ -143,6 +143,7 @@ export class AuthController {
   @Post("change-forgot-password")
   @LogAction("auth_recovery_password", "users")
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: "Восстановление пароля" })
   @ApiResponse({ status: 201, description: "Пароль восстановлен" })
   async recoveryPassword(@Body() body) {

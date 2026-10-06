@@ -1,9 +1,11 @@
 export const emailSendConfig = ({
   link,
+  recoveryCode,
   partnerName,
   partnerEmail,
 }: {
   link?: string;
+  recoveryCode?: string;
   partnerName?: string;
   partnerEmail?: string;
 }) => ({
@@ -17,10 +19,9 @@ export const emailSendConfig = ({
   recovery: {
     subject: "Восстановление пароля",
     text:
-      `Чтобы восстановить пароль, откройте ссылку:\n\n${link}\n\n` +
-      "Ссылка действует 1 час. Если она не открывается по нажатию, " +
-      "скопируйте адрес целиком и вставьте его в браузер.",
-    link,
+      `Код восстановления пароля: ${recoveryCode}\n\n` +
+      "Введите этот код на странице восстановления пароля в портале.\n" +
+      "Код действует 1 час.",
   },
   "notify.new.partner": {
     subject: "Зарегистрирован новый партнёр",

@@ -1,10 +1,14 @@
 import * as crypto from "crypto";
 import * as argon2 from "argon2";
-import { nanoid } from "nanoid";
+import { customAlphabet, nanoid } from "nanoid";
 
 export const createUUID = () => crypto.randomUUID();
 
 export const createHash = () => nanoid(64);
+
+const recoveryCode = customAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 10);
+
+export const createRecoveryCode = () => recoveryCode();
 
 export const createSalt = () => crypto.randomBytes(16).toString("base64");
 

@@ -521,8 +521,12 @@ export class AuthService {
   }
 
   async recoveryPassword({ hash, email, password, repeat }) {
+    const submittedHash = String(hash || "").trim();
+    const normalizedHash = /^[2-9A-HJ-NP-Z]{10}$/i.test(submittedHash)
+      ? submittedHash.toUpperCase()
+      : submittedHash;
     const resetHashEntity = await this.resetHashRepository.findOneBy({
-      hash,
+      hash: normalizedHash,
       email,
     });
     if (!resetHashEntity) throw new UnauthorizedException();
@@ -543,7 +547,7 @@ export class AuthService {
     await this.revokeUserSessions(user.id);
 
     await this.emailConfirmerService.confirm({
-      hash,
+      hash: normalizedHash,
       email,
       method: EmailConfirmerMethod.Recovery,
     });

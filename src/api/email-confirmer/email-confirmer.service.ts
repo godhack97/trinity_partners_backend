@@ -6,7 +6,7 @@ import {
   SendParams,
 } from "@api/email-confirmer/types";
 import { RoleTypes } from "@app/types/RoleTypes";
-import { createHash } from "@app/utils/password";
+import { createHash, createRecoveryCode } from "@app/utils/password";
 import { SmtpSettingsService } from "@api/admin/smtp-settings/smtp-settings.service";
 import {
   BadRequestException,
@@ -64,7 +64,10 @@ export class EmailConfirmerService {
 
   async send(data: SendParams) {
     const { user_id, email, method } = data;
-    const hash = createHash();
+    const hash =
+      method === EmailConfirmerMethod.Recovery
+        ? createRecoveryCode()
+        : createHash();
     const qs = querystring.stringify({
       email,
       verify: hash,
@@ -85,7 +88,7 @@ export class EmailConfirmerService {
     return await this._emailSend(
       {
         email,
-        ...emailSendConfig({ link })[method],
+        ...emailSendConfig({ link, recoveryCode: hash })[method],
         headers: this._deliveryHeaders(method, hash),
       },
       method === EmailConfirmerMethod.Recovery,
@@ -103,7 +106,10 @@ export class EmailConfirmerService {
     if (!resetHashEntity)
       throw new BadRequestException("Пользователь для отправки не найден!");
 
-    const hash = createHash();
+    const hash =
+      method === EmailConfirmerMethod.Recovery
+        ? createRecoveryCode()
+        : createHash();
     Object.assign(resetHashEntity, {
       hash,
       email,
@@ -122,7 +128,7 @@ export class EmailConfirmerService {
     return await this._emailSend(
       {
         email,
-        ...emailSendConfig({ link })[method],
+        ...emailSendConfig({ link, recoveryCode: hash })[method],
         headers: this._deliveryHeaders(method, hash),
       },
       true,
