@@ -42,6 +42,21 @@ export class AuthGuard implements CanActivate {
     );
 
     const request = context.switchToHttp().getRequest();
+
+    // AuthGuard is registered globally, but several legacy controllers also
+    // declare it locally. The global pass has already authenticated the
+    // request and, for cookie sessions, populated a compatibility bearer
+    // header below. Re-running the guard would then misclassify an
+    // impersonated cookie session as a regular bearer session and look for the
+    // exact client_id "web:portal" instead of "web:portal:impersonated:*".
+    if (
+      request["auth_user"] &&
+      request["auth_session_source"] &&
+      request["auth_session_token"]
+    ) {
+      return true;
+    }
+
     const headers = request.headers;
     const session = extractRequestSession(request);
 
