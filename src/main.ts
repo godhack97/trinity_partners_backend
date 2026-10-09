@@ -11,6 +11,8 @@ import { swaggerSuperAdminMiddleware } from "./security/swagger-super-admin.midd
 import { StructuredLogger } from "./observability/structured-logger";
 import { MetricsService } from "./observability/metrics.service";
 import { httpObservabilityMiddleware } from "./observability/http-observability.middleware";
+import { ConfigService } from "@nestjs/config";
+import { parseAllowedOrigins } from "./security/cors-origins";
 
 async function bootstrap() {
   const logger = new StructuredLogger();
@@ -31,14 +33,15 @@ async function bootstrap() {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
 
-  const allowedOrigins = String(process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const configService = app.get(ConfigService);
+  const allowedOrigins = parseAllowedOrigins(
+    configService.get<string>("ALLOWED_ORIGINS"),
+  );
   app.enableCors({
     credentials: true,
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin || allowedOrigins.includes(origin))
+        return callback(null, true);
       callback(new Error('Origin is not allowed by CORS'));
     },
     allowedHeaders: [
