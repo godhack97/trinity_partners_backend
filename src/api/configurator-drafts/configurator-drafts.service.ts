@@ -8,6 +8,7 @@ import { NotificationService } from "@api/notification/notification.service";
 import { CreateConfiguratorDraftDto } from "./dto/request/create-configurator-draft.dto";
 import { UpdateConfiguratorDraftDto } from "./dto/request/update-configurator-draft.dto";
 import { ShareConfiguratorDraftDto } from "./dto/request/share-configurator-draft.dto";
+import { isBuiltInSuperAdminEmail } from "@app/security/built-in-super-admin";
 
 @Injectable()
 export class ConfiguratorDraftsService {
@@ -25,10 +26,7 @@ export class ConfiguratorDraftsService {
     const draft = await this.draftRepository.findById(id);
 
     if (!draft) {
-      throw new HttpException(
-        "Конфигурация не найдена",
-        HttpStatus.NOT_FOUND,
-      );
+      throw new HttpException("Конфигурация не найдена", HttpStatus.NOT_FOUND);
     }
 
     if (draft.creator_id !== auth_user.id) {
@@ -99,32 +97,48 @@ export class ConfiguratorDraftsService {
       );
     }
 
-    const senderCompany = await this.companyEmployeeRepository.findOne({
-      where: {
-        employee_id: auth_user.id,
-        status: CompanyEmployeeStatus.Accept,
-      },
-    });
-
-    const recipientCompany = await this.companyEmployeeRepository.findOne({
+    const recipientCompanies = await this.companyEmployeeRepository.find({
       where: {
         employee_id: dto.employee_id,
         status: CompanyEmployeeStatus.Accept,
       },
     });
 
-    if (!senderCompany || !recipientCompany) {
+    if (!recipientCompanies.length) {
       throw new HttpException(
         "Не удалось определить компанию пользователя",
         HttpStatus.FORBIDDEN,
       );
     }
 
-    if (senderCompany.company_id !== recipientCompany.company_id) {
-      throw new HttpException(
-        "Делиться конфигурацией можно только с сотрудником своей компании",
-        HttpStatus.FORBIDDEN,
+    if (!isBuiltInSuperAdminEmail(auth_user.email)) {
+      const senderCompanies = await this.companyEmployeeRepository.find({
+        where: {
+          employee_id: auth_user.id,
+          status: CompanyEmployeeStatus.Accept,
+        },
+      });
+
+      if (!senderCompanies.length) {
+        throw new HttpException(
+          "Не удалось определить компанию пользователя",
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const senderCompanyIds = new Set(
+        senderCompanies.map(({ company_id }) => company_id),
       );
+      const hasSharedCompany = recipientCompanies.some(({ company_id }) =>
+        senderCompanyIds.has(company_id),
+      );
+
+      if (!hasSharedCompany) {
+        throw new HttpException(
+          "Делиться конфигурацией можно только с сотрудником своей компании",
+          HttpStatus.FORBIDDEN,
+        );
+      }
     }
 
     const copy = await this.draftRepository.save({
@@ -142,6 +156,7 @@ export class ConfiguratorDraftsService {
       user_id: dto.employee_id,
       title: "Вам отправили конфигурацию",
       text: `Конфигурация «${original.title}» добавлена в ваши черновики.`,
+      webOnly: true,
       actions: [
         {
           label: "Открыть конфигурацию",
