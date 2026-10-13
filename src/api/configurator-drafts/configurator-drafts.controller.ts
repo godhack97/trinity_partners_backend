@@ -17,14 +17,13 @@ import { ShareConfiguratorDraftDto } from "./dto/request/share-configurator-draf
 import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { TransformResponse } from "@interceptors/transform-response.interceptor";
 import { ConfiguratorDraftResponseDto } from "./dto/response/configurator-draft-response.dto";
+import { ShareRecipientResponseDto } from "./dto/response/share-recipient-response.dto";
 
 @ApiTags("configurator-drafts")
 @ApiBearerAuth()
 @Controller("configurator-drafts")
 export class ConfiguratorDraftsController {
-  constructor(
-    private readonly draftsService: ConfiguratorDraftsService,
-  ) {}
+  constructor(private readonly draftsService: ConfiguratorDraftsService) {}
 
   @Get()
   @UseInterceptors(new TransformResponse(ConfiguratorDraftResponseDto))
@@ -37,6 +36,12 @@ export class ConfiguratorDraftsController {
   @ApiResponse({ type: Number })
   getCount(@AuthUser() auth_user: UserEntity) {
     return this.draftsService.getCount(auth_user);
+  }
+
+  @Get("share-recipients")
+  @ApiResponse({ type: ShareRecipientResponseDto, isArray: true })
+  getShareRecipients(@AuthUser() auth_user: UserEntity) {
+    return this.draftsService.getShareRecipients(auth_user);
   }
 
   @Get(":id")

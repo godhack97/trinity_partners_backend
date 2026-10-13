@@ -22,6 +22,29 @@ const createService = () => {
   };
   const companyEmployeeRepository = {
     find: jest.fn(),
+    findCompanyEmployeesByCompanyIds: jest.fn().mockResolvedValue([]),
+  };
+  const companyRepository = {
+    find: jest.fn().mockResolvedValue([]),
+  };
+  const technicalSpecialistQuery = {
+    distinct: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+  };
+  const userRepository = {
+    findOne: jest.fn().mockResolvedValue({
+      id: 200,
+      email: "recipient@example.test",
+      is_activated: true,
+      role: { name: "employee" },
+      user_roles: [],
+      user_info: {},
+    }),
+    find: jest.fn().mockResolvedValue([]),
+    createQueryBuilder: jest.fn().mockReturnValue(technicalSpecialistQuery),
   };
   const notificationService = {
     send: jest.fn().mockResolvedValue(undefined),
@@ -29,6 +52,8 @@ const createService = () => {
   const service = new ConfiguratorDraftsService(
     draftRepository as any,
     companyEmployeeRepository as any,
+    companyRepository as any,
+    userRepository as any,
     notificationService as any,
   );
 
@@ -36,6 +61,9 @@ const createService = () => {
     service,
     draftRepository,
     companyEmployeeRepository,
+    companyRepository,
+    userRepository,
+    technicalSpecialistQuery,
     notificationService,
   };
 };
@@ -101,10 +129,127 @@ describe("ConfiguratorDraftsService.share", () => {
       ),
     ).rejects.toMatchObject({
       status: HttpStatus.FORBIDDEN,
-      response:
-        "Делиться конфигурацией можно только с сотрудником своей компании",
+      response: "Получатель недоступен для отправки конфигурации",
     });
     expect(dependencies.draftRepository.save).not.toHaveBeenCalled();
     expect(dependencies.notificationService.send).not.toHaveBeenCalled();
+  });
+
+  it("allows an integrator employee to share with the assigned responsible manager", async () => {
+    const dependencies = createService();
+    dependencies.companyEmployeeRepository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ employee_id: 143, company_id: 10 }]);
+    dependencies.companyRepository.find.mockResolvedValue([
+      {
+        id: 10,
+        partnership_type: "integrator",
+        status: "accept",
+        responsible_manager_id: 200,
+      },
+    ]);
+
+    await expect(
+      dependencies.service.share(
+        10,
+        { id: 143, email: "integrator@example.test" } as any,
+        { employee_id: 200 },
+      ),
+    ).resolves.toMatchObject({ id: 11 });
+  });
+
+  it("allows an integrator employee to share with an active technical specialist", async () => {
+    const dependencies = createService();
+    dependencies.companyEmployeeRepository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ employee_id: 143, company_id: 10 }]);
+    dependencies.companyRepository.find.mockResolvedValue([
+      {
+        id: 10,
+        partnership_type: "integrator",
+        status: "accept",
+        responsible_manager_id: 300,
+      },
+    ]);
+    dependencies.userRepository.findOne.mockResolvedValue({
+      id: 200,
+      email: "tech@example.test",
+      is_activated: true,
+      role: { name: "technical_specialist" },
+      user_roles: [],
+      user_info: {},
+    });
+
+    await expect(
+      dependencies.service.share(
+        10,
+        { id: 143, email: "integrator@example.test" } as any,
+        { employee_id: 200 },
+      ),
+    ).resolves.toMatchObject({ id: 11 });
+  });
+});
+
+describe("ConfiguratorDraftsService.getShareRecipients", () => {
+  it("returns colleagues, the responsible manager and active vendor technical specialists", async () => {
+    const dependencies = createService();
+    dependencies.companyEmployeeRepository.find.mockResolvedValue([
+      { employee_id: 100, company_id: 10 },
+    ]);
+    dependencies.companyEmployeeRepository.findCompanyEmployeesByCompanyIds.mockResolvedValue(
+      [
+        {
+          employee_id: 100,
+          status: "accept",
+          employee: { id: 100, is_activated: true },
+        },
+        {
+          employee_id: 101,
+          status: "accept",
+          employee: {
+            id: 101,
+            email: "colleague@example.test",
+            is_activated: true,
+            user_info: { first_name: "Анна", last_name: "Коллега" },
+          },
+        },
+      ],
+    );
+    dependencies.companyRepository.find.mockResolvedValue([
+      { id: 10, responsible_manager_id: 200 },
+    ]);
+    dependencies.userRepository.find.mockResolvedValue([
+      {
+        id: 200,
+        email: "manager@example.test",
+        is_activated: true,
+        user_info: { first_name: "Борис", last_name: "Менеджер" },
+      },
+    ]);
+    dependencies.technicalSpecialistQuery.getMany.mockResolvedValue([
+      {
+        id: 300,
+        email: "tech@example.test",
+        is_activated: true,
+        user_info: { first_name: "Виктор", last_name: "Технарь" },
+      },
+    ]);
+
+    await expect(
+      dependencies.service.getShareRecipients({ id: 100 } as any),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 101,
+        recipient_type: "company_employee",
+      }),
+      expect.objectContaining({
+        id: 200,
+        recipient_type: "responsible_manager",
+      }),
+      expect.objectContaining({
+        id: 300,
+        recipient_type: "technical_specialist",
+      }),
+    ]);
   });
 });
