@@ -213,6 +213,11 @@ export class AdminConfiguratorServerService {
       pcie_lanes_total: data.pcie_lanes_total ?? 160,
       rear_pcie_ocp_limit: data.rear_pcie_ocp_limit ?? 96,
       pcie_slots: data.pcie_slots ?? 6,
+      pcie_layout_mode: data.pcie_layout_mode ?? "standard",
+      wide_pcie_slots:
+        data.pcie_layout_mode === "spaced"
+          ? data.wide_pcie_slots ?? 0
+          : null,
       ocp_slots: data.ocp_slots ?? 1,
       base_power_w: data.base_power_w ?? 360,
       direct_sata_limit: data.direct_sata_limit ?? 0,

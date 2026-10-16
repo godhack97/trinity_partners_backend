@@ -146,6 +146,9 @@ const payload = (): SaveServerWithProfileRequestDto => ({
     platform_code: "ER220-M8",
     family: "ER220",
     gpu_limit: 4,
+    pcie_layout_mode: "spaced",
+    pcie_slots: 12,
+    wide_pcie_slots: 8,
     ram_type: "DDR5",
     is_active: true,
     bays: [
@@ -177,6 +180,11 @@ describe("AdminConfiguratorServerService atomic server/profile save", () => {
       "/public/server/front.webp",
       "/public/server/rear.webp",
     ]);
+    expect(result.profile).toEqual(expect.objectContaining({
+      pcie_layout_mode: "spaced",
+      pcie_slots: 12,
+      wide_pcie_slots: 8,
+    }));
     expect(result.server.slots).toEqual([
       expect.objectContaining({
         slot_id: "slot-front",

@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -127,6 +128,20 @@ export class UpsertPlatformProfileRequestDto {
   @IsInt()
   @Min(0)
   pcie_slots?: number;
+
+  @ApiPropertyOptional({
+    default: "standard",
+    enum: ["standard", "spaced"],
+  })
+  @IsOptional()
+  @IsIn(["standard", "spaced"])
+  pcie_layout_mode?: "standard" | "spaced";
+
+  @ApiPropertyOptional({ nullable: true, minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  wide_pcie_slots?: number | null;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()

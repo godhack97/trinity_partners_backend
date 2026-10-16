@@ -34,6 +34,9 @@ describe("SaveServerWithProfileRequestDto", () => {
     profile: {
       platform_code: "ER220-M8",
       family: "ER220",
+      pcie_layout_mode: "spaced",
+      pcie_slots: 12,
+      wide_pcie_slots: 8,
       ram_type: "DDR5",
       is_active: true,
     },
@@ -44,6 +47,8 @@ describe("SaveServerWithProfileRequestDto", () => {
 
     expect(result).toBeInstanceOf(SaveServerWithProfileRequestDto);
     expect(result.profile.platform_code).toBe("ER220-M8");
+    expect(result.profile.pcie_layout_mode).toBe("spaced");
+    expect(result.profile.wide_pcie_slots).toBe(8);
     expect(result.slots?.[0].on_back_panel).toBe(false);
     expect(result.multislots?.[0].on_back_panel).toBe(true);
     expect(result.images).toEqual([
@@ -82,6 +87,15 @@ describe("SaveServerWithProfileRequestDto", () => {
   it("rejects an active profile without required identity fields", async () => {
     const payload = validPayload();
     payload.profile.family = "";
+
+    await expect(pipe.transform(payload, metadata)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it("rejects an unknown PCIe layout mode", async () => {
+    const payload: any = validPayload();
+    payload.profile.pcie_layout_mode = "tsgm-special-case";
 
     await expect(pipe.transform(payload, metadata)).rejects.toBeInstanceOf(
       BadRequestException,

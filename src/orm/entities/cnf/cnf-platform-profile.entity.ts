@@ -49,6 +49,12 @@ export class CnfPlatformProfileEntity extends BasisUUIDEntity {
   @Column({ type: "int", default: 6 })
   pcie_slots: number;
 
+  @Column({ default: "standard" })
+  pcie_layout_mode: string;
+
+  @Column({ type: "int", nullable: true })
+  wide_pcie_slots: number | null;
+
   @Column({ type: "int", default: 1 })
   ocp_slots: number;
 

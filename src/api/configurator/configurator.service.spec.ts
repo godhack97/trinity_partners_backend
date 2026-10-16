@@ -38,6 +38,8 @@ const basePlatformProfile = {
   pcie_lanes_total: 160,
   rear_pcie_ocp_limit: 96,
   pcie_slots: 6,
+  pcie_layout_mode: "standard",
+  wide_pcie_slots: null,
   ocp_slots: 1,
   base_power_w: 360,
   direct_sata_limit: 12,
@@ -75,6 +77,7 @@ const baseComponents = {
   psu: component("psu-1", "psu-type-id", "1200W PSU"),
   gpu: component("gpu-1", "gpu-type-id", "GPU"),
   gpu2: component("gpu-2", "gpu-type-id", "GPU B"),
+  nic: component("nic-1", "network-card-type-id", "PCIe NIC"),
   ocp: component("ocp-1", "ocp-type-id", "OCP NIC"),
   transceiver: component("transceiver-1", "transiver-type-id", "SFP+ 10G SR"),
   hba: component("hba-1", "hba-type-id", "HBA 16i"),
@@ -1232,6 +1235,163 @@ describe("ConfiguratorService.validateConfiguration", () => {
         }),
       ]),
     );
+  });
+
+  it("ограничивает число GPU отдельно от количества занятых PCIe-слотов", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        gpu_limit: 2,
+        pcie_lanes_total: 999,
+        rear_pcie_ocp_limit: 999,
+        pcie_slots: 8,
+      },
+    ]);
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.gpu.id,
+        component_type_key: "gpu",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfGpuProfileEntity, [
+      {
+        component_id: baseComponents.gpu.id,
+        pcie_lanes: 1,
+        rear_pcie_lanes: 1,
+        physical_slots: 2,
+        power_w: 10,
+      },
+    ]);
+    const { service } = makeService({
+      rows,
+      components: [...Object.values(baseComponents)],
+    });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+          { component_id: baseComponents.gpu.id, qty: 3 },
+        ],
+      }) as any,
+    );
+
+    expect(result.resources.pcie_slots).toEqual({ used: 6, limit: 8 });
+    expect(codes(result.errors)).toContain("GPU_COUNT_LIMIT_EXCEEDED");
+    expect(codes(result.errors)).not.toContain("PCIE_SLOTS_EXCEEDED");
+  });
+
+  it("для разнесённой компоновки отдельно считает разъёмы и широкие позиции", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "TSGM240-M",
+        family: "TSGM240-M",
+        gpu_limit: 8,
+        pcie_lanes_total: 999,
+        rear_pcie_ocp_limit: 999,
+        pcie_slots: 12,
+        pcie_layout_mode: "spaced",
+        wide_pcie_slots: 8,
+      },
+    ]);
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.gpu.id,
+        component_type_key: "gpu",
+        is_active: true,
+      },
+      {
+        component_id: baseComponents.nic.id,
+        component_type_key: "nic",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfGpuProfileEntity, [
+      {
+        component_id: baseComponents.gpu.id,
+        pcie_lanes: 1,
+        rear_pcie_lanes: 1,
+        physical_slots: 2,
+        power_w: 10,
+      },
+    ]);
+    rows.set(CnfNetworkProfileEntity, [
+      {
+        component_id: baseComponents.nic.id,
+        network_kind: "pcie",
+        pcie_lanes: 1,
+        rear_pcie_lanes: 1,
+        physical_slots: 1,
+        ocp_slots: 0,
+        power_w: 10,
+      },
+    ]);
+    const { service } = makeService({
+      server: { ...baseServer, name: "TSGM240-M" },
+      rows,
+      components: [...Object.values(baseComponents)],
+    });
+    const requiredItems = [
+      { component_id: baseComponents.cpu.id, qty: 1 },
+      { component_id: baseComponents.ram.id, qty: 4 },
+      { component_id: baseComponents.drive.id, qty: 1 },
+      { component_id: baseComponents.psu.id, qty: 2 },
+    ];
+
+    const valid = await service.validateConfiguration(
+      baseDto({
+        items: [
+          ...requiredItems,
+          { component_id: baseComponents.gpu.id, qty: 8 },
+          { component_id: baseComponents.nic.id, qty: 4 },
+        ],
+      }) as any,
+    );
+
+    expect(valid.resources.pcie_slots).toEqual({ used: 12, limit: 12 });
+    expect(valid.resources.wide_pcie_slots).toEqual({ used: 8, limit: 8 });
+    expect(codes(valid.errors)).not.toContain("PCIE_SLOTS_EXCEEDED");
+    expect(codes(valid.errors)).not.toContain("WIDE_PCIE_SLOTS_EXCEEDED");
+    expect(codes(valid.errors)).not.toContain("GPU_COUNT_LIMIT_EXCEEDED");
+
+    const tooManyWideDevices = await service.validateConfiguration(
+      baseDto({
+        items: [
+          ...requiredItems,
+          { component_id: baseComponents.gpu.id, qty: 9 },
+        ],
+      }) as any,
+    );
+
+    expect(tooManyWideDevices.resources.pcie_slots).toEqual({ used: 9, limit: 12 });
+    expect(tooManyWideDevices.resources.wide_pcie_slots).toEqual({ used: 9, limit: 8 });
+    expect(codes(tooManyWideDevices.errors)).toContain("WIDE_PCIE_SLOTS_EXCEEDED");
+    expect(codes(tooManyWideDevices.errors)).toContain("GPU_COUNT_LIMIT_EXCEEDED");
+    expect(codes(tooManyWideDevices.errors)).not.toContain("PCIE_SLOTS_EXCEEDED");
+
+    const tooManyDevices = await service.validateConfiguration(
+      baseDto({
+        items: [
+          ...requiredItems,
+          { component_id: baseComponents.gpu.id, qty: 8 },
+          { component_id: baseComponents.nic.id, qty: 5 },
+        ],
+      }) as any,
+    );
+
+    expect(tooManyDevices.resources.pcie_slots).toEqual({ used: 13, limit: 12 });
+    expect(tooManyDevices.resources.wide_pcie_slots).toEqual({ used: 8, limit: 8 });
+    expect(codes(tooManyDevices.errors)).toContain("PCIE_SLOTS_EXCEEDED");
+    expect(codes(tooManyDevices.errors)).not.toContain("WIDE_PCIE_SLOTS_EXCEEDED");
   });
 
   it("считает PCIe total и Rear PCIe/OCP по количеству CPU для ER220HDR-M7", async () => {

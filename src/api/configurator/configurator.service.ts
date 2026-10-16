@@ -242,6 +242,12 @@ export class ConfiguratorService {
         used: 0,
         limit: platformProfile?.pcie_slots ?? 6,
       },
+      wide_pcie_slots: this.usesSpacedPcieLayout(platformProfile)
+        ? {
+            used: 0,
+            limit: platformProfile?.wide_pcie_slots ?? 0,
+          }
+        : null,
       ocp_slots: {
         used: 0,
         limit: platformProfile?.ocp_slots ?? 1,
@@ -417,7 +423,12 @@ export class ConfiguratorService {
         resources.pcie_total.used += Number(effectiveResourceProfile.pcie_lanes || 0) * qty;
         resources.rear_pcie_ocp.used +=
           Number(effectiveResourceProfile.rear_pcie_lanes || 0) * qty;
-        resources.pcie_slots.used += Number(effectiveResourceProfile.physical_slots || 0) * qty;
+        this.addPcieSlotUsage(
+          resources,
+          platformProfile,
+          effectiveResourceProfile.physical_slots,
+          qty,
+        );
         resources.ocp_slots.used += Number(effectiveResourceProfile.ocp_slots || 0) * qty;
 
         if (effectiveResourceProfile.power_w == null && effectiveResourceProfile.uses_power) {
@@ -632,8 +643,21 @@ export class ConfiguratorService {
     if (resources.pcie_slots.used > resources.pcie_slots.limit) {
       errors.push({
         code: "PCIE_SLOTS_EXCEEDED",
-        message: "Превышено количество физических PCIe-слотов",
+        message: this.usesSpacedPcieLayout(platformProfile)
+          ? "Превышено количество PCIe-разъёмов"
+          : "Превышено количество физических PCIe-слотов",
         details: resources.pcie_slots,
+      });
+    }
+
+    if (
+      resources.wide_pcie_slots &&
+      resources.wide_pcie_slots.used > resources.wide_pcie_slots.limit
+    ) {
+      errors.push({
+        code: "WIDE_PCIE_SLOTS_EXCEEDED",
+        message: "Превышено количество позиций для широких PCIe-устройств",
+        details: resources.wide_pcie_slots,
       });
     }
 
@@ -1051,6 +1075,31 @@ export class ConfiguratorService {
     }
 
     return null;
+  }
+
+  private usesSpacedPcieLayout(platformProfile: any) {
+    return `${platformProfile?.pcie_layout_mode || "standard"}`.toLowerCase() === "spaced";
+  }
+
+  private addPcieSlotUsage(
+    resources: any,
+    platformProfile: any,
+    physicalSlotsValue: unknown,
+    qtyValue: unknown,
+  ) {
+    const physicalSlots = Number(physicalSlotsValue || 0);
+    const qty = Number(qtyValue || 0);
+    if (physicalSlots <= 0 || qty <= 0) return;
+
+    if (this.usesSpacedPcieLayout(platformProfile)) {
+      resources.pcie_slots.used += qty;
+      if (physicalSlots > 1 && resources.wide_pcie_slots) {
+        resources.wide_pcie_slots.used += qty;
+      }
+      return;
+    }
+
+    resources.pcie_slots.used += physicalSlots * qty;
   }
 
   private inferRearPcieLinesPerCpu({
@@ -1493,8 +1542,12 @@ export class ConfiguratorService {
         Number(resourceProfile?.pcie_lanes || 0) ||
         (driveType === "NVME" ? Number(driveProfile.pcie_lanes || 4) : 0);
       resources.pcie_total.used += pcieLanes * installedQty;
-      resources.pcie_slots.used +=
-        Number(resourceProfile?.physical_slots || 0) * installedQty;
+      this.addPcieSlotUsage(
+        resources,
+        platformProfile,
+        resourceProfile?.physical_slots,
+        installedQty,
+      );
       resources.ocp_slots.used +=
         Number(resourceProfile?.ocp_slots || 0) * installedQty;
 
@@ -2776,6 +2829,8 @@ export class ConfiguratorService {
                 pcie_lanes_total: server.platform_profile.pcie_lanes_total,
                 rear_pcie_ocp_limit: server.platform_profile.rear_pcie_ocp_limit,
                 pcie_slots: server.platform_profile.pcie_slots,
+                pcie_layout_mode: server.platform_profile.pcie_layout_mode,
+                wide_pcie_slots: server.platform_profile.wide_pcie_slots,
                 ocp_slots: server.platform_profile.ocp_slots,
                 base_power_w: server.platform_profile.base_power_w,
                 direct_sata_limit: server.platform_profile.direct_sata_limit,
