@@ -24,6 +24,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
   const companyEmployeeRepository = {
     findAllCompanyEmployeesWithUsersAndInfo: jest.fn().mockResolvedValue([]),
     findCompanyEmployeesByCompanyId: jest.fn().mockResolvedValue([]),
+    findCompanyEmployeesByCompanyIds: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockImplementation(async ({ where }: any) =>
       where.company_id === 10 &&
       where.employee_id === 20 &&
@@ -130,6 +131,58 @@ describe("CompanyService business roles", () => {
     await expect(service.getCompanyEmployees({} as any)).rejects.toBeInstanceOf(
       HttpException,
     );
+  });
+
+  it("разрешает ответственному менеджеру смотреть всех сотрудников закрепленного интегратора", async () => {
+    const employees = [
+      { employee_id: 20, status: CompanyEmployeeStatus.Accept },
+      { employee_id: 21, status: CompanyEmployeeStatus.TrinityPending },
+    ];
+    const { service, mocks } = makeService({
+      authTokenService: {
+        extractToken: jest.fn().mockReturnValue("token"),
+        getUserRole: jest.fn().mockResolvedValue({
+          role: RoleTypes.Employee,
+          roles: [RoleTypes.PartnerManager],
+          userId: 7,
+        }),
+      },
+      companyRepository: {
+        find: jest.fn().mockResolvedValue([{ id: 10 }]),
+      },
+      companyEmployeeRepository: {
+        findCompanyEmployeesByCompanyId: jest.fn().mockResolvedValue(employees),
+      },
+    });
+
+    await expect(
+      service.getCompanyEmployees({} as any, 10),
+    ).resolves.toEqual(employees);
+    expect(mocks.companyEmployeeRepository.findCompanyEmployeesByCompanyId)
+      .toHaveBeenCalledWith(10);
+  });
+
+  it("не показывает ответственному менеджеру сотрудников чужой компании", async () => {
+    const { service, mocks } = makeService({
+      authTokenService: {
+        extractToken: jest.fn().mockReturnValue("token"),
+        getUserRole: jest.fn().mockResolvedValue({
+          role: RoleTypes.Employee,
+          roles: [RoleTypes.PartnerManager],
+          userId: 7,
+        }),
+      },
+      companyRepository: {
+        find: jest.fn().mockResolvedValue([{ id: 10 }]),
+      },
+    });
+
+    await expect(
+      service.getCompanyEmployees({} as any, 11),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(
+      mocks.companyEmployeeRepository.findCompanyEmployeesByCompanyId,
+    ).not.toHaveBeenCalled();
   });
 
   it("назначает сотрудника администратором компании", async () => {
