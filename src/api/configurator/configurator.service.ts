@@ -274,6 +274,12 @@ export class ConfiguratorService {
         used: platformProfile?.base_power_w ?? 360,
         limit: null,
       },
+      power_w_n_plus_2: this.supportsNPlusTwoPower(platformProfile)
+        ? {
+            used: platformProfile?.base_power_w ?? 360,
+            limit: null,
+          }
+        : null,
     };
 
     if (requestedOptions.rear_to_pcie) {
@@ -600,6 +606,7 @@ export class ConfiguratorService {
 
     this.validatePsu({
       selectedPsu,
+      platformProfile,
       resources,
       errors,
       warnings,
@@ -1081,6 +1088,13 @@ export class ConfiguratorService {
     return `${platformProfile?.pcie_layout_mode || "standard"}`.toLowerCase() === "spaced";
   }
 
+  private supportsNPlusTwoPower(platformProfile: any) {
+    const code = `${platformProfile?.platform_code || ""}`.toUpperCase();
+    const family = `${platformProfile?.family || ""}`.toUpperCase();
+
+    return code.includes("TSGM240") || family.includes("TSGM240");
+  }
+
   private addPcieSlotUsage(
     resources: any,
     platformProfile: any,
@@ -1517,6 +1531,25 @@ export class ConfiguratorService {
       });
 
       drivePlacements.push(...placementResult.placements);
+
+      for (const unplacedDrive of placementResult.unplaced) {
+        const hasCompatibleBay = unplacedDrive.drive_type && unplacedDrive.form_factor
+          ? platformBays.some((bay) => this.bayAcceptsDrive(bay, unplacedDrive))
+          : true;
+
+        errors.push({
+          code: hasCompatibleBay
+            ? "DRIVE_BAY_LIMIT_EXCEEDED"
+            : "DRIVE_FORM_FACTOR_INVALID",
+          message: unplacedDrive.message || (hasCompatibleBay
+            ? "Недостаточно совместимых дисковых мест"
+            : "Форм-фактор диска не поддерживается корзинами выбранной платформы"),
+          details: unplacedDrive.details || {
+            ...unplacedDrive,
+            platform_code: platformProfile?.platform_code || null,
+          },
+        });
+      }
     }
 
     const installedDriveQtyByComponent = this.allocateInstalledDriveQuantities({
@@ -2064,19 +2097,37 @@ export class ConfiguratorService {
 
   private validatePsu({
     selectedPsu,
+    platformProfile,
     resources,
     errors,
     warnings,
   }: {
     selectedPsu: any[];
+    platformProfile: any;
     resources: any;
     errors: any[];
     warnings: any[];
   }) {
     const psuQtyTotal = selectedPsu.reduce((sum, item) => sum + item.qty, 0);
+    const configuredPsuCount = Number(platformProfile?.psu_count || 0);
+
+    if (resources.power_w_n_plus_2) {
+      resources.power_w_n_plus_2.used = resources.power_w.used;
+    }
+
+    if (configuredPsuCount > 0 && psuQtyTotal !== configuredPsuCount) {
+      errors.push({
+        code: "PSU_COUNT_MISMATCH",
+        message: `Для выбранной платформы требуется ${configuredPsuCount} БП`,
+        details: { selected: psuQtyTotal, required: configuredPsuCount },
+      });
+    }
 
     if (psuQtyTotal === 0) {
       resources.power_w.limit = null;
+      if (resources.power_w_n_plus_2) {
+        resources.power_w_n_plus_2.limit = null;
+      }
       return;
     }
 
@@ -2106,15 +2157,40 @@ export class ConfiguratorService {
       onePsuLimit = onePsuLimit === null ? power : Math.min(onePsuLimit, power);
     }
 
-    resources.power_w.limit = onePsuLimit;
+    const nPlusOneLimit = onePsuLimit === null
+      ? null
+      : onePsuLimit * Math.max(psuQtyTotal - 1, 1);
+    const nPlusTwoLimit = onePsuLimit === null
+      ? null
+      : onePsuLimit * Math.max(psuQtyTotal - 2, 0);
 
-    if (onePsuLimit !== null && resources.power_w.used > onePsuLimit) {
+    resources.power_w.limit = nPlusOneLimit;
+    if (resources.power_w_n_plus_2) {
+      resources.power_w_n_plus_2.limit = nPlusTwoLimit;
+    }
+
+    if (nPlusOneLimit !== null && resources.power_w.used > nPlusOneLimit) {
       errors.push({
         code: "POWER_EXCEEDED",
-        message: "Расчетное потребление превышает мощность одного PSU в режиме N+1",
+        message: "Расчетное потребление превышает доступную мощность в режиме N+1",
         details: {
           used: resources.power_w.used,
-          limit: onePsuLimit,
+          limit: nPlusOneLimit,
+        },
+      });
+    }
+
+    if (
+      resources.power_w_n_plus_2 &&
+      nPlusTwoLimit !== null &&
+      resources.power_w_n_plus_2.used > nPlusTwoLimit
+    ) {
+      warnings.push({
+        code: "POWER_N_PLUS_2_EXCEEDED",
+        message: "Расчетное потребление превышает доступную мощность в режиме N+2",
+        details: {
+          used: resources.power_w_n_plus_2.used,
+          limit: nPlusTwoLimit,
         },
       });
     }
@@ -2833,6 +2909,7 @@ export class ConfiguratorService {
                 wide_pcie_slots: server.platform_profile.wide_pcie_slots,
                 ocp_slots: server.platform_profile.ocp_slots,
                 base_power_w: server.platform_profile.base_power_w,
+                psu_count: server.platform_profile.psu_count,
                 direct_sata_limit: server.platform_profile.direct_sata_limit,
                 internal_m2_bays: server.platform_profile.internal_m2_bays,
                 is_active: server.platform_profile.is_active,

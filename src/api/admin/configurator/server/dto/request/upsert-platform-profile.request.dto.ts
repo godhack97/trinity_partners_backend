@@ -155,6 +155,12 @@ export class UpsertPlatformProfileRequestDto {
   @Min(0)
   base_power_w?: number;
 
+  @ApiPropertyOptional({ nullable: true, minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  psu_count?: number | null;
+
   @ApiPropertyOptional({ default: 0 })
   @IsOptional()
   @IsInt()

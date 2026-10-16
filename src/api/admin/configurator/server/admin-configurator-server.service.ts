@@ -220,6 +220,7 @@ export class AdminConfiguratorServerService {
           : null,
       ocp_slots: data.ocp_slots ?? 1,
       base_power_w: data.base_power_w ?? 360,
+      psu_count: data.psu_count ?? null,
       direct_sata_limit: data.direct_sata_limit ?? 0,
       internal_m2_bays: data.internal_m2_bays ?? 0,
       is_active: data.is_active ?? true,

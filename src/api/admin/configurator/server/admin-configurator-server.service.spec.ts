@@ -146,6 +146,7 @@ const payload = (): SaveServerWithProfileRequestDto => ({
     platform_code: "ER220-M8",
     family: "ER220",
     gpu_limit: 4,
+    psu_count: 4,
     pcie_layout_mode: "spaced",
     pcie_slots: 12,
     wide_pcie_slots: 8,
@@ -201,6 +202,7 @@ describe("AdminConfiguratorServerService atomic server/profile save", () => {
       expect.objectContaining({
         platform_code: "ER220-M8",
         gpu_limit: 4,
+        psu_count: 4,
         is_active: true,
       }),
     );

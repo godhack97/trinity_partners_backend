@@ -61,6 +61,9 @@ export class CnfPlatformProfileEntity extends BasisUUIDEntity {
   @Column({ type: "int", default: 360 })
   base_power_w: number;
 
+  @Column({ type: "int", nullable: true })
+  psu_count: number | null;
+
   @Column({ type: "int", default: 0 })
   direct_sata_limit: number;
 

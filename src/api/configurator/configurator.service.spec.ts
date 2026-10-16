@@ -1039,6 +1039,62 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(result.resources.power_w.limit).toBe(1200);
   });
 
+  it("для TSGM240-M требует 4 БП и считает мощность одновременно по N+1 и N+2", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "TSGM240-M",
+        family: "TSGM240-M",
+        psu_count: 4,
+        base_power_w: 2500,
+      },
+    ]);
+    const { service } = makeService({
+      server: { ...baseServer, name: "TSGM240-M" },
+      rows,
+    });
+
+    const validNPlusOne = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 4 },
+        ],
+      }) as any,
+    );
+
+    expect(validNPlusOne.resources.power_w).toEqual({ used: 2794, limit: 3600 });
+    expect(validNPlusOne.resources.power_w_n_plus_2).toEqual({
+      used: 2794,
+      limit: 2400,
+    });
+    expect(codes(validNPlusOne.errors)).not.toContain("POWER_EXCEEDED");
+    expect(codes(validNPlusOne.errors)).not.toContain("PSU_COUNT_MISMATCH");
+    expect(codes(validNPlusOne.warnings)).toContain("POWER_N_PLUS_2_EXCEEDED");
+
+    const wrongPsuCount = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 1 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(codes(wrongPsuCount.errors)).toContain("PSU_COUNT_MISMATCH");
+    expect(wrongPsuCount.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "PSU_COUNT_MISMATCH",
+        details: { selected: 2, required: 4 },
+      }),
+    ]));
+  });
+
   it("блокирует типы компонентов, запрещенные профилем платформы", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformForbiddenComponentTypeEntity, [
@@ -2476,6 +2532,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 23, limit: 24 });
     expect(result.resources.rear_bays).toEqual({ used: 4, limit: 4 });
+    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
   });
 
@@ -2513,7 +2570,44 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.front_bays).toEqual({ used: 2, limit: 2 });
+    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+  });
+
+  it("запрещает 3.5-диск в 2.5-корзине для любой платформы", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformProfileEntity, [
+      {
+        ...basePlatformProfile,
+        platform_code: "TSGM240-M",
+        family: "TSGM240-M",
+      },
+    ]);
+    rows.set(CnfPlatformBayEntity, [
+      {
+        ...baseBays[0],
+        form_factor: "2.5",
+        capacity: 8,
+        allowed_drive_types: ["SATA", "SAS", "NVME"],
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "SATA",
+        interface_type: "SATA",
+        form_factor: "3.5",
+        capacity_gb: 16000,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({ rows });
+
+    const result = await service.validateConfiguration(baseDto() as any);
+
+    expect(result.resources.front_bays).toEqual({ used: 0, limit: 8 });
+    expect(codes(result.errors)).toContain("DRIVE_FORM_FACTOR_INVALID");
   });
 
   it("запрещает 3.5-диски для ER225", async () => {
@@ -3071,7 +3165,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).toContain("PLUTON_STORAGE_FORBIDDEN");
   });
 
-  it("размещает в Pluton два SATA и два M.2, а остаток считает запасным", async () => {
+  it("блокирует лишний SATA в Pluton, но сохраняет legacy-поведение для M.2", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformProfileEntity, [
       {
@@ -3141,7 +3235,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
       }) as any,
     );
 
-    expect(codes(sataResult.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(sataResult.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(sataResult.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(m2Result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
     expect(codes(m2Result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
