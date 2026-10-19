@@ -56,8 +56,6 @@ type DealAccessScope =
   | {
       kind: "company";
       company: CompanyEntity;
-      visibleCreatorIds: Set<number>;
-      canViewAllCompanyCreatedDeals: boolean;
       actorUserId: number;
     };
 
@@ -885,7 +883,6 @@ export class DealService {
         RoleTypes.EmployeeAdmin,
         RoleTypes.Partner,
         RoleTypes.CompanyAdmin,
-        RoleTypes.SalesManager,
       ])
     ) {
       const company = await this.getUserCompany(auth_user);
@@ -893,13 +890,6 @@ export class DealService {
         return {
           kind: "company",
           company,
-          visibleCreatorIds: await this.getVisibleCompanyCreatorIds(
-            auth_user,
-            company,
-          ),
-          canViewAllCompanyCreatedDeals: !this.hasAnyRole(auth_user, [
-            RoleTypes.SalesManager,
-          ]),
           actorUserId: auth_user.id,
         };
       }
@@ -907,7 +897,12 @@ export class DealService {
       return { kind: "self", userId: auth_user.id };
     }
 
-    if (this.hasAnyRole(auth_user, [RoleTypes.Employee])) {
+    if (
+      this.hasAnyRole(auth_user, [
+        RoleTypes.Employee,
+        RoleTypes.SalesManager,
+      ])
+    ) {
       return { kind: "self", userId: auth_user.id };
     }
 
@@ -953,12 +948,7 @@ export class DealService {
         return this.isDealManagedByPartnerManager(deal, scope.manager);
       case "company":
         if (deal.creator_id === scope.actorUserId) return true;
-        return this.isDealVisibleForCompany(
-          deal,
-          scope.company,
-          scope.visibleCreatorIds,
-          scope.canViewAllCompanyCreatedDeals,
-        );
+        return this.isDealVisibleForCompany(deal, scope.company);
     }
   }
 
@@ -1134,32 +1124,6 @@ export class DealService {
       `${first || ""}`.trim().toLocaleLowerCase("ru-RU") ===
       `${second || ""}`.trim().toLocaleLowerCase("ru-RU")
     );
-  }
-
-  private async getCompanyDealCreatorIds(company: CompanyEntity) {
-    const ids = new Set<number>();
-    if (company.owner_id) ids.add(company.owner_id);
-
-    const employees =
-      await this.companyEmployeeRepository.findCompanyEmployeesByCompanyId(
-        company.id,
-      );
-    employees
-      .filter((employee) => employee.status === CompanyEmployeeStatus.Accept)
-      .forEach((employee) => ids.add(employee.employee_id));
-
-    return Array.from(ids);
-  }
-
-  private async getVisibleCompanyCreatorIds(
-    authUser: UserEntity,
-    company: CompanyEntity,
-  ) {
-    if (this.hasAnyRole(authUser, [RoleTypes.SalesManager])) {
-      return new Set([authUser.id]);
-    }
-
-    return new Set(await this.getCompanyDealCreatorIds(company));
   }
 
   async findOne(id: number, auth_user: UserEntity) {
@@ -1822,11 +1786,6 @@ export class DealService {
       changedFieldLabels.push("интегратор");
     }
 
-    if (updateDealDto.deal_sum !== undefined) {
-      dealPatch.deal_sum = updateDealDto.deal_sum;
-      changedFieldLabels.push("сумма сделки");
-    }
-
     if (updateDealDto.competition_link !== undefined) {
       dealPatch.competition_link = updateDealDto.competition_link;
       changedFieldLabels.push("ссылка на процедуру");
@@ -2262,10 +2221,10 @@ export class DealService {
     status: DealStatus,
     actor: UserEntity,
   ) {
-    const recipientIds = await this.getDealStatusNotificationRecipientIds(
-      deal,
-      { includeDistributor: status !== DealStatus.Registered },
-    );
+    const { recipientIds, emailRecipientIds } =
+      await this.getDealEventNotificationRecipients(deal, {
+        includeDistributor: status !== DealStatus.Registered,
+      });
     const statusText = DealStatusRu[status] || status;
     const actorName = this.getActorName(actor);
 
@@ -2278,6 +2237,7 @@ export class DealService {
             title: `Сделка №${deal.deal_num} перешла в статус "${statusText}"`,
             text: `Сделка №${deal.deal_num} перешла в статус "${statusText}". Изменил: ${actorName}.`,
             category: NotificationCategory.Deal,
+            webOnly: !emailRecipientIds.has(userId),
             actions: [
               {
                 label: "Перейти к сделке",
@@ -2615,7 +2575,8 @@ export class DealService {
   ) {
     if (deal.status === DealStatus.Draft) return;
 
-    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const { recipientIds, emailRecipientIds } =
+      await this.getDealEventNotificationRecipients(deal);
     const actorName = this.getActorName(actor);
 
     await Promise.all(
@@ -2627,6 +2588,7 @@ export class DealService {
             title: `В сделке №${deal.deal_num} добавлено вложение`,
             text: `В сделке №${deal.deal_num} добавлено вложение "${attachment.name}". Добавил: ${actorName}.`,
             category: NotificationCategory.Deal,
+            webOnly: !emailRecipientIds.has(userId),
             actions: [
               {
                 label: "Перейти к сделке",
@@ -2646,7 +2608,8 @@ export class DealService {
   ) {
     if (deal.status === DealStatus.Draft) return;
 
-    const recipientIds = await this.getDealStatusNotificationRecipientIds(deal);
+    const { recipientIds, emailRecipientIds } =
+      await this.getDealEventNotificationRecipients(deal);
 
     await Promise.all(
       recipientIds
@@ -2657,6 +2620,7 @@ export class DealService {
             title,
             text,
             category: NotificationCategory.Deal,
+            webOnly: !emailRecipientIds.has(userId),
             actions: [
               {
                 label: "Перейти к сделке",
@@ -2674,9 +2638,30 @@ export class DealService {
       : actor.email;
   }
 
-  private async getDealStatusNotificationRecipientIds(
+  private async getDealEventNotificationRecipients(
     deal: any,
     options: { includeDistributor?: boolean } = {},
+  ) {
+    const recipientIds = await this.getDealStatusNotificationRecipientIds(
+      deal,
+      options,
+    );
+    const emailRecipientIds = new Set(
+      await this.getDealStatusNotificationRecipientIds(deal, {
+        ...options,
+        includeTrinityAdmins: false,
+      }),
+    );
+
+    return { recipientIds, emailRecipientIds };
+  }
+
+  private async getDealStatusNotificationRecipientIds(
+    deal: any,
+    options: {
+      includeDistributor?: boolean;
+      includeTrinityAdmins?: boolean;
+    } = {},
   ) {
     const recipientIds = new Set<number>();
     const creator = await this.userRepository.findByIdWithUserInfo(
@@ -2693,10 +2678,12 @@ export class DealService {
 
     // SuperAdmin is the global fallback. Partner managers are deliberately not
     // fanned out: only the immutable deal snapshot may receive deal events.
-    const trinityAdminIds = await this.findTrinityDealAdminIds([
-      RoleTypes.SuperAdmin,
-    ]);
-    trinityAdminIds.forEach((userId) => recipientIds.add(userId));
+    if (options.includeTrinityAdmins !== false) {
+      const trinityAdminIds = await this.findTrinityDealAdminIds([
+        RoleTypes.SuperAdmin,
+      ]);
+      trinityAdminIds.forEach((userId) => recipientIds.add(userId));
+    }
 
     const distributorCompany = await this.findCanonicalDistributorCompany(deal);
     const creatorCompany = await this.getDealCreatorCompany(deal);
@@ -2924,8 +2911,6 @@ export class DealService {
   private isDealVisibleForCompany(
     deal: any,
     company?: CompanyEntity | null,
-    companyCreatorIds: Set<number> = new Set<number>(),
-    canViewAllCompanyCreatedDeals = true,
   ) {
     if (!company) return false;
 
@@ -2934,9 +2919,7 @@ export class DealService {
       deal.creator_company_id !== undefined
     ) {
       if (
-        deal.creator_company_id === company.id &&
-        (canViewAllCompanyCreatedDeals ||
-          companyCreatorIds.has(deal.creator_id))
+        deal.creator_company_id === company.id
       ) {
         return true;
       }

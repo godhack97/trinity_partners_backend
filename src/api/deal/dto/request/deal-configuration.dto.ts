@@ -42,6 +42,13 @@ export class DealConfigurationSupportDto {
   @IsString()
   id: string;
 
+  @ApiPropertyOptional({
+    description: "Configurator catalog component that provides this support option",
+  })
+  @IsOptional()
+  @IsString()
+  componentId?: string;
+
   @ApiProperty()
   @IsString()
   name: string;
@@ -58,6 +65,28 @@ export class DealConfigurationSupportDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    description: "Pricing formula captured from the configurator catalog",
+  })
+  @IsOptional()
+  @IsString()
+  formula?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  percent?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  warningText?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  warningColor?: string;
 }
 
 export class DealConfigurationDto {

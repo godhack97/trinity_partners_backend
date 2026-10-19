@@ -19,4 +19,16 @@ describe("UpdateDealDto", () => {
     expect(await validate(dto)).toHaveLength(0);
     expect(dto.customer?.inn).toBe("7707083893");
   });
+
+  it("rejects attempts to edit the calculated deal sum", async () => {
+    const dto = plainToInstance(UpdateDealDto, { deal_sum: 500_000 });
+
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0].property).toBe("deal_sum");
+  });
 });

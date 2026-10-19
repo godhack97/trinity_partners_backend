@@ -121,7 +121,7 @@ function makeService(options: {
 }
 
 describe("DealService row-level access scope", () => {
-  it("keeps SalesManager list, detail, counts and statistics in parity", async () => {
+  it("limits a company sales employee to deals they created", async () => {
     const actor = makeUser(4, [RoleTypes.SalesManager]);
     const company = {
       id: 10,
@@ -165,37 +165,74 @@ describe("DealService row-level access scope", () => {
         status: DealStatus.Registered,
       },
     ];
-    const { service } = makeService({
+    const { service, dealRepository } = makeService({
       deals,
       actorCompany: company,
       actorEmployeeIds: [actor.id],
       companyEmployeeIds: [actor.id, 2],
     });
 
-    await expect(service.findAll(actor)).resolves.toEqual([
-      deals[0],
-      deals[2],
-      deals[4],
-    ]);
+    await expect(service.findAll(actor)).resolves.toEqual([deals[0]]);
     await expect(service.findOne(1, actor)).resolves.toMatchObject({ id: 1 });
     await expect(service.findOne(2, actor)).rejects.toBeInstanceOf(
       HttpException,
     );
-    await expect(service.findOne(3, actor)).resolves.toMatchObject({ id: 3 });
-    await expect(service.getCount(actor)).resolves.toBe(3);
-    await expect(service.getAllCount(actor)).resolves.toBe(3);
-    await expect(service.getModerationCount(actor)).resolves.toBe(1);
+    await expect(service.findOne(3, actor)).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    await expect(service.findOne(5, actor)).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    await expect(service.getCount(actor)).resolves.toBe(1);
+    await expect(service.getAllCount(actor)).resolves.toBe(1);
+    await expect(service.getModerationCount(actor)).resolves.toBe(0);
     await expect(
       service.getCountByStatus(DealStatus.Moderation, actor),
-    ).resolves.toBe(1);
-    await expect(service.getRegisteredCount(actor)).resolves.toBe(1);
+    ).resolves.toBe(0);
+    await expect(service.getRegisteredCount(actor)).resolves.toBe(0);
     await expect(service.getDealStatistic(actor)).resolves.toEqual({
       ...zeroStatistics,
-      allCount: 3,
+      allCount: 1,
       draft: 1,
-      moderation: 1,
-      registered: 1,
     });
+    expect(dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
+      undefined,
+      [actor.id],
+    );
+  });
+
+  it("keeps company-wide access when an employee also has CompanyAdmin", async () => {
+    const actor = makeUser(4, [RoleTypes.SalesManager, RoleTypes.CompanyAdmin]);
+    const company = {
+      id: 11,
+      owner_id: 1,
+      name: "Интегратор",
+      inn: "7700000001",
+      partnership_type: PartnershipType.Integrator,
+      status: CompanyStatus.Accept,
+    };
+    const deals = [
+      {
+        id: 6,
+        creator_id: actor.id,
+        creator_company_id: company.id,
+        status: DealStatus.Draft,
+      },
+      {
+        id: 7,
+        creator_id: 2,
+        creator_company_id: company.id,
+        status: DealStatus.Draft,
+      },
+    ];
+    const { service } = makeService({
+      deals,
+      actorCompany: company,
+      actorEmployeeIds: [actor.id],
+    });
+
+    await expect(service.findAll(actor)).resolves.toEqual(deals);
+    await expect(service.findOne(7, actor)).resolves.toMatchObject({ id: 7 });
   });
 
   it("applies distributor approval gating identically everywhere", async () => {
@@ -357,9 +394,8 @@ describe("DealService row-level access scope", () => {
       creator_id: actor.id,
     });
     expect(dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
-      { companyId: company.id },
       undefined,
-      actor.id,
+      [actor.id],
     );
   });
 

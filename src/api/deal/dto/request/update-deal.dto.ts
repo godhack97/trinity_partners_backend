@@ -7,7 +7,7 @@ import { CreateDealDto } from "./create-deal.dto";
 export class UpdateDealCustomerDto extends PartialType(CreateCustomerDto) {}
 
 class UpdateDealFieldsDto extends PartialType(
-  OmitType(CreateDealDto, ["customer"] as const),
+  OmitType(CreateDealDto, ["customer", "deal_sum"] as const),
 ) {}
 
 export class UpdateDealDto extends UpdateDealFieldsDto {

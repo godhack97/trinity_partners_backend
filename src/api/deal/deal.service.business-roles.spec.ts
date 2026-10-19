@@ -419,9 +419,8 @@ describe("DealService business roles", () => {
     ).resolves.toEqual([]);
 
     expect(mocks.dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
-      { companyId: 10 },
       undefined,
-      4,
+      [4],
     );
   });
 
@@ -599,6 +598,37 @@ describe("DealService business roles", () => {
         status: DealStatus.Moderation,
       }),
     ).resolves.toEqual([191, 190]);
+  });
+
+  it("не отправляет email об изменении сделки глобальному администратору", async () => {
+    const { service, mocks } = makeService({
+      notificationService: {
+        send: jest.fn().mockResolvedValue(undefined),
+      },
+    });
+    jest
+      .spyOn(service as any, "getDealStatusNotificationRecipientIds")
+      .mockImplementation(async (_deal: any, options?: any) =>
+        options?.includeTrinityAdmins === false
+          ? [191, 77, 190]
+          : [191, 77, 190, 1],
+      );
+
+    await (service as any).notifyDealChanged(
+      { id: 210, deal_num: "191-2026/10/19-1", status: DealStatus.Registered },
+      "Сделка изменена",
+      "Изменены поля сделки",
+      { id: 999, email: "actor@example.com" },
+    );
+
+    for (const userId of [191, 77, 190]) {
+      expect(mocks.notificationService.send).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: userId, webOnly: false }),
+      );
+    }
+    expect(mocks.notificationService.send).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 1, webOnly: true }),
+    );
   });
 
   it("защищает cron-уведомления от повторной доставки", async () => {
