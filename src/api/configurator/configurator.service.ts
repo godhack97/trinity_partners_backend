@@ -586,7 +586,7 @@ export class ConfiguratorService {
       warnings,
     });
 
-    this.validateDrivesAndControllers({
+    const driveAllocation = this.validateDrivesAndControllers({
       selectedDrives,
       selectedControllers,
       platformProfile,
@@ -763,6 +763,7 @@ export class ConfiguratorService {
       },
       resources,
       price,
+      drive_allocation: driveAllocation,
       errors: this.withValidationLevel(errors, "error"),
       warnings: this.withValidationLevel(warnings, "warning"),
       auto_added_items: [],
@@ -1357,7 +1358,12 @@ export class ConfiguratorService {
     warnings: any[];
   }) {
     if (!selectedDrives.length && !selectedControllers.length) {
-      return;
+      return {
+        selected_total: 0,
+        installed_total: 0,
+        zip_total: 0,
+        items: [],
+      };
     }
 
     const directSataLimit = Number(platformProfile?.direct_sata_limit || 0);
@@ -1420,6 +1426,7 @@ export class ConfiguratorService {
     const drivePlacements = [];
     const drivesToPlace = [];
     const m2Drives = [];
+    const zipEligibleComponentIds = new Set<string>();
     const availableBays = this.cloneBays(platformBays);
 
     if (!availableBays.length && selectedDrives.length) {
@@ -1523,6 +1530,10 @@ export class ConfiguratorService {
       });
     }
 
+    for (const unplacedDrive of m2Placement.unplaced) {
+      zipEligibleComponentIds.add(unplacedDrive.component_id);
+    }
+
     if (availableBays.length && drivesToPlace.length) {
       const placementResult = this.placeSelectedDrivesIntoBays({
         drives: drivesToPlace,
@@ -1532,31 +1543,83 @@ export class ConfiguratorService {
 
       drivePlacements.push(...placementResult.placements);
 
+      for (const drive of drivesToPlace) {
+        const hasCompatibleBay = this.isHsrPlatform(platformProfile)
+          ? ["NVME", "SATA", "SAS"].includes(drive.drive_type)
+          : platformBays.some((bay) => this.bayAcceptsDrive(bay, drive));
+        if (hasCompatibleBay) {
+          zipEligibleComponentIds.add(drive.component_id);
+        }
+      }
+
       for (const unplacedDrive of placementResult.unplaced) {
         const hasCompatibleBay = unplacedDrive.drive_type && unplacedDrive.form_factor
           ? platformBays.some((bay) => this.bayAcceptsDrive(bay, unplacedDrive))
           : true;
 
-        errors.push({
-          code: hasCompatibleBay
-            ? "DRIVE_BAY_LIMIT_EXCEEDED"
-            : "DRIVE_FORM_FACTOR_INVALID",
-          message: unplacedDrive.message || (hasCompatibleBay
-            ? "Недостаточно совместимых дисковых мест"
-            : "Форм-фактор диска не поддерживается корзинами выбранной платформы"),
-          details: unplacedDrive.details || {
-            ...unplacedDrive,
-            platform_code: platformProfile?.platform_code || null,
-          },
-        });
+        if (!hasCompatibleBay) {
+          errors.push({
+            code: "DRIVE_FORM_FACTOR_INVALID",
+            message: "Форм-фактор диска не поддерживается корзинами выбранной платформы",
+            details: unplacedDrive.details || {
+              ...unplacedDrive,
+              platform_code: platformProfile?.platform_code || null,
+            },
+          });
+        }
       }
     }
 
     const installedDriveQtyByComponent = this.allocateInstalledDriveQuantities({
       selectedDrives,
       drivePlacements,
-      installedM2Qty: m2Placement.native_used + m2Placement.adapter_used,
+      installedM2QtyByComponent: m2Placement.installed_by_component,
     });
+    const driveAllocationItems = selectedDrives.map((selectedDrive) => {
+      const componentId = selectedDrive.component.id;
+      const selectedQty = Number(selectedDrive.qty || 0);
+      const installedQty = Math.min(
+        selectedQty,
+        installedDriveQtyByComponent.get(componentId) || 0,
+      );
+      const zipQty = zipEligibleComponentIds.has(componentId)
+        ? Math.max(0, selectedQty - installedQty)
+        : 0;
+
+      return {
+        component_id: componentId,
+        name: selectedDrive.component.name,
+        selected_qty: selectedQty,
+        installed_qty: installedQty,
+        zip_qty: zipQty,
+      };
+    });
+    const driveAllocation = {
+      selected_total: driveAllocationItems.reduce(
+        (sum, item) => sum + item.selected_qty,
+        0,
+      ),
+      installed_total: driveAllocationItems.reduce(
+        (sum, item) => sum + item.installed_qty,
+        0,
+      ),
+      zip_total: driveAllocationItems.reduce(
+        (sum, item) => sum + item.zip_qty,
+        0,
+      ),
+      items: driveAllocationItems,
+    };
+
+    if (driveAllocation.zip_total > 0) {
+      warnings.push({
+        code: "DRIVE_EXCESS_MOVED_TO_ZIP",
+        message: "Недостаточно совместимых дисковых мест, излишки отправлены в ЗИП",
+        details: {
+          zip_total: driveAllocation.zip_total,
+          items: driveAllocation.items.filter((item) => item.zip_qty > 0),
+        },
+      });
+    }
     sataQty = 0;
     sasQty = 0;
 
@@ -1618,6 +1681,8 @@ export class ConfiguratorService {
         resources.rear_pcie_ocp.used += placement.pcie_lanes * placement.qty;
       }
     }
+
+    return driveAllocation;
   }
 
   private normalizeDriveType(value: string) {
@@ -1690,15 +1755,21 @@ export class ConfiguratorService {
     );
     const unplaced = [];
     const gen3SataNativeForbidden = [];
+    const installedByComponent = new Map<string, number>();
 
     for (const drive of drives) {
       const m2Interface = `${drive.m2_interface || ""}`.toUpperCase();
       let remaining = Number(drive.qty || 0);
+      let installed = 0;
+      const hasCompatibleAdapter = adapterPools.some((pool) =>
+        this.m2PoolSupportsInterface(pool.drive_type, m2Interface),
+      );
 
       if (this.nativeM2SupportsInterface(platformProfile, m2Interface)) {
         const nativeQty = Math.min(nativeRemaining, remaining);
         nativeRemaining -= nativeQty;
         nativeUsed += nativeQty;
+        installed += nativeQty;
         remaining -= nativeQty;
       }
 
@@ -1714,8 +1785,11 @@ export class ConfiguratorService {
         const adapterQty = Math.min(pool.remaining, remaining);
         pool.remaining -= adapterQty;
         adapterUsed += adapterQty;
+        installed += adapterQty;
         remaining -= adapterQty;
       }
+
+      installedByComponent.set(drive.component_id, installed);
 
       if (remaining > 0) {
         const details = {
@@ -1727,7 +1801,11 @@ export class ConfiguratorService {
           adapter_m2_available: adapterLimit,
         };
 
-        if (m2Interface === "SATA" && this.isGen3M7Platform(platformProfile)) {
+        if (
+          m2Interface === "SATA" &&
+          this.isGen3M7Platform(platformProfile) &&
+          !hasCompatibleAdapter
+        ) {
           gen3SataNativeForbidden.push(details);
         } else {
           unplaced.push(details);
@@ -1739,6 +1817,7 @@ export class ConfiguratorService {
       native_used: nativeUsed,
       adapter_used: adapterUsed,
       adapter_limit: adapterLimit,
+      installed_by_component: installedByComponent,
       unplaced,
       gen3_sata_native_forbidden: gen3SataNativeForbidden,
     };
@@ -1747,18 +1826,26 @@ export class ConfiguratorService {
   private allocateInstalledDriveQuantities({
     selectedDrives,
     drivePlacements,
-    installedM2Qty,
+    installedM2QtyByComponent,
   }: {
     selectedDrives: any[];
     drivePlacements: any[];
-    installedM2Qty: number;
+    installedM2QtyByComponent: Map<string, number>;
   }) {
     const availableByType = new Map<string, number>();
     let sharedSataSasAvailable = 0;
+    const installedByComponent = new Map<string, number>();
 
     for (const placement of drivePlacements) {
       const driveType = this.normalizeDriveType(placement.drive_type);
       const qty = Number(placement.qty || 0);
+      if (placement.component_id) {
+        installedByComponent.set(
+          placement.component_id,
+          (installedByComponent.get(placement.component_id) || 0) + qty,
+        );
+        continue;
+      }
       if (driveType === "SATA_SAS") {
         sharedSataSasAvailable += qty;
       } else {
@@ -1768,9 +1855,6 @@ export class ConfiguratorService {
         );
       }
     }
-    availableByType.set("M2", Number(installedM2Qty || 0));
-
-    const installedByComponent = new Map<string, number>();
     const orderedDrives = [...selectedDrives].sort((a, b) => {
       const driveTypeDiff =
         this.driveTypePlacementRank(
@@ -1793,6 +1877,16 @@ export class ConfiguratorService {
       const driveType = this.normalizeDriveType(
         selectedDrive.driveProfile.drive_type,
       );
+      if (driveType === "M2") {
+        installedByComponent.set(
+          selectedDrive.component.id,
+          installedM2QtyByComponent.get(selectedDrive.component.id) || 0,
+        );
+        continue;
+      }
+      if (installedByComponent.has(selectedDrive.component.id)) {
+        continue;
+      }
       let remaining = Number(selectedDrive.qty || 0);
       const exactAvailable = availableByType.get(driveType) || 0;
       const exactInstalled = Math.min(remaining, exactAvailable);
@@ -2612,7 +2706,13 @@ export class ConfiguratorService {
   }
 
   private placeDriveIntoBays(
-    drive: { drive_type: string; form_factor: string; qty: number },
+    drive: {
+      component_id: string;
+      name: string;
+      drive_type: string;
+      form_factor: string;
+      qty: number;
+    },
     availableBays: any[],
   ) {
     let unplaced = drive.qty;
@@ -2638,6 +2738,8 @@ export class ConfiguratorService {
         unplaced -= qty;
 
         placements.push({
+          component_id: drive.component_id,
+          name: drive.name,
           placement: bay.placement,
           drive_type: drive.drive_type,
           form_factor: drive.form_factor,

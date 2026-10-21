@@ -850,7 +850,20 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(codes(result.errors)).not.toContain("SAS_SATA_CONTROLLER_REQUIRED");
-    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_EXCESS_MOVED_TO_ZIP");
+    expect(result.drive_allocation).toEqual({
+      selected_total: 13,
+      installed_total: 12,
+      zip_total: 1,
+      items: [
+        expect.objectContaining({
+          component_id: baseComponents.drive.id,
+          selected_qty: 13,
+          installed_qty: 12,
+          zip_qty: 1,
+        }),
+      ],
+    });
     expect(result.resources.sata_direct_ports).toEqual({ used: 12, limit: 12 });
     expect(result.resources.sas_sata_controller_ports).toEqual({ used: 0, limit: 0 });
     expect(result.resources.power_w.used).toBe(786);
@@ -2532,8 +2545,23 @@ describe("ConfiguratorService.validateConfiguration", () => {
 
     expect(result.resources.front_bays).toEqual({ used: 23, limit: 24 });
     expect(result.resources.rear_bays).toEqual({ used: 4, limit: 4 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_EXCESS_MOVED_TO_ZIP");
+    expect(result.drive_allocation).toEqual({
+      selected_total: 28,
+      installed_total: 27,
+      zip_total: 1,
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          component_id: baseComponents.drive.id,
+          selected_qty: 21,
+        }),
+        expect.objectContaining({
+          component_id: baseComponents.sataDrive.id,
+          selected_qty: 7,
+        }),
+      ]),
+    });
   });
 
   it("считает 2.5/3.5 bay как общий лимит, а не как две независимые корзины", async () => {
@@ -2570,8 +2598,108 @@ describe("ConfiguratorService.validateConfiguration", () => {
     );
 
     expect(result.resources.front_bays).toEqual({ used: 2, limit: 2 });
-    expect(codes(result.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_EXCESS_MOVED_TO_ZIP");
+    expect(result.drive_allocation).toEqual({
+      selected_total: 3,
+      installed_total: 2,
+      zip_total: 1,
+      items: [
+        expect.objectContaining({
+          component_id: baseComponents.drive.id,
+          selected_qty: 3,
+          installed_qty: 2,
+          zip_qty: 1,
+        }),
+      ],
+    });
+  });
+
+  it("делит общую корзину между двумя моделями дисков и отправляет общий излишек в ЗИП", async () => {
+    const rows = baseRows();
+    rows.set(CnfPlatformBayEntity, [
+      {
+        ...baseBays[0],
+        capacity: 8,
+      },
+    ]);
+    rows.set(CnfComponentCatalogProfileEntity, [
+      ...(rows.get(CnfComponentCatalogProfileEntity) || []),
+      {
+        component_id: baseComponents.sataDrive.id,
+        component_type_key: "drive",
+        is_active: true,
+      },
+    ]);
+    rows.set(CnfComponentResourceProfileEntity, [
+      ...(rows.get(CnfComponentResourceProfileEntity) || []),
+      {
+        component_id: baseComponents.sataDrive.id,
+        resource_kind: "drive",
+        pcie_lanes: 0,
+        rear_pcie_lanes: 0,
+        physical_slots: 0,
+        ocp_slots: 0,
+        power_w: 12,
+        uses_power: true,
+      },
+    ]);
+    rows.set(CnfDriveProfileEntity, [
+      {
+        component_id: baseComponents.drive.id,
+        drive_type: "SATA",
+        interface_type: "SATA",
+        form_factor: "2.5",
+        capacity_gb: 960,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+      {
+        component_id: baseComponents.sataDrive.id,
+        drive_type: "SATA",
+        interface_type: "SATA",
+        form_factor: "2.5",
+        capacity_gb: 1920,
+        pcie_lanes: 0,
+        power_w: 12,
+      },
+    ]);
+    const { service } = makeService({
+      components: [...Object.values(baseComponents)],
+      rows,
+    });
+
+    const result = await service.validateConfiguration(
+      baseDto({
+        items: [
+          { component_id: baseComponents.cpu.id, qty: 1 },
+          { component_id: baseComponents.ram.id, qty: 4 },
+          { component_id: baseComponents.drive.id, qty: 6 },
+          { component_id: baseComponents.sataDrive.id, qty: 6 },
+          { component_id: baseComponents.psu.id, qty: 2 },
+        ],
+      }) as any,
+    );
+
+    expect(result.resources.front_bays).toEqual({ used: 8, limit: 8 });
+    expect(result.drive_allocation.selected_total).toBe(12);
+    expect(result.drive_allocation.installed_total).toBe(8);
+    expect(result.drive_allocation.zip_total).toBe(4);
+    expect(
+      result.drive_allocation.items.reduce(
+        (sum, item) => sum + item.installed_qty,
+        0,
+      ),
+    ).toBe(8);
+    expect(codes(result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(result.warnings)).toContain("DRIVE_EXCESS_MOVED_TO_ZIP");
+    expect(
+      result.warnings.find(
+        (warning) => warning.code === "DRIVE_EXCESS_MOVED_TO_ZIP",
+      )?.message,
+    ).toBe(
+      "Недостаточно совместимых дисковых мест, излишки отправлены в ЗИП",
+    );
   });
 
   it("запрещает 3.5-диск в 2.5-корзине для любой платформы", async () => {
@@ -3165,7 +3293,7 @@ describe("ConfiguratorService.validateConfiguration", () => {
     expect(codes(result.errors)).toContain("PLUTON_STORAGE_FORBIDDEN");
   });
 
-  it("блокирует лишний SATA в Pluton, но сохраняет legacy-поведение для M.2", async () => {
+  it("отправляет лишние SATA и M.2 в ЗИП на Pluton", async () => {
     const rows = baseRows();
     rows.set(CnfPlatformProfileEntity, [
       {
@@ -3235,9 +3363,22 @@ describe("ConfiguratorService.validateConfiguration", () => {
       }) as any,
     );
 
-    expect(codes(sataResult.errors)).toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(sataResult.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(sataResult.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(sataResult.warnings)).toContain("DRIVE_EXCESS_MOVED_TO_ZIP");
+    expect(sataResult.drive_allocation.zip_total).toBe(1);
     expect(codes(m2Result.errors)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
-    expect(codes(m2Result.warnings)).not.toContain("DRIVE_BAY_LIMIT_EXCEEDED");
+    expect(codes(m2Result.warnings)).toContain("DRIVE_EXCESS_MOVED_TO_ZIP");
+    expect(m2Result.drive_allocation).toEqual({
+      selected_total: 3,
+      installed_total: 2,
+      zip_total: 1,
+      items: [
+        expect.objectContaining({
+          component_id: baseComponents.drive.id,
+          installed_qty: 2,
+          zip_qty: 1,
+        }),
+      ],
+    });
   });
 });
