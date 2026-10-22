@@ -16,6 +16,7 @@ import {
   UserRepository,
 } from "@orm/repositories";
 import { UserSettingRepository } from "@orm/repositories/user-setting.repository";
+import { getEffectiveUserRoleNames } from "@app/access/effective-user-roles";
 
 const USER_NOT_EXISTS = "Пользователь не найден";
 const EMAIl_EXISTS = (email) => `Такой email: ${email} уже существует`;
@@ -37,6 +38,11 @@ export class ProfileService {
       [RoleTypes.SuperAdmin]: this.updateEmployee.bind(this),
       [RoleTypes.EmployeeAdmin]: this.updateEmployee.bind(this),
       [RoleTypes.ContentManager]: this.updateEmployee.bind(this),
+      [RoleTypes.PartnerManager]: this.updateEmployee.bind(this),
+      [RoleTypes.CompanyAdmin]: this.updateEmployee.bind(this),
+      [RoleTypes.SalesManager]: this.updateEmployee.bind(this),
+      [RoleTypes.TechnicalSpecialist]: this.updateEmployee.bind(this),
+      [RoleTypes.Staff]: this.updateEmployee.bind(this),
     },
   };
 
@@ -48,15 +54,17 @@ export class ProfileService {
   async update(auth_user: Partial<UserEntity>, data: ProfileUpdateRequestDto) {
     const user = await this.userRepository.findOne({
       where: { id: auth_user.id },
-      relations: ["role", "user_info"],
+      relations: ["role", "user_info", "user_roles", "user_roles.role"],
     });
 
-    if (this.action.update[user.role.name]) {
-      return this.action.update[user.role.name](user, data);
+    const roleNames = getEffectiveUserRoleNames(user);
+    const updateRole = roleNames.find((roleName) => this.action.update[roleName]);
+    if (updateRole) {
+      return this.action.update[updateRole](user, data);
     }
 
     throw new InternalServerErrorException(
-      "Недостаточно прав для " + user.role.name,
+      "Недостаточно прав для " + roleNames.join(", "),
     );
   }
 

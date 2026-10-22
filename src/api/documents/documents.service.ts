@@ -21,6 +21,7 @@ import {
 } from './documents.dto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getEffectiveUserRoleNames } from '@app/access/effective-user-roles';
 
 const EMPLOYEE_ROLES = [
   RoleTypes.SuperAdmin,
@@ -102,7 +103,9 @@ export class DocumentsService {
     const all = await this.accessLevelRepo.find({ order: { id: 'ASC' }, relations: ['roles'] });
     if (!user) return all;
 
-    const isEmployee = EMPLOYEE_ROLES.includes(user.role?.name);
+    const isEmployee = getEffectiveUserRoleNames(user).some((roleName) =>
+      EMPLOYEE_ROLES.includes(roleName),
+    );
     if (isEmployee) return all;
 
     const userRoleIds = this.getUserRoleIds(user);
@@ -144,7 +147,9 @@ export class DocumentsService {
       .leftJoinAndSelect('al.roles', 'al_role')
       .leftJoinAndSelect('d.tags', 'tag');
 
-    const isEmployee = EMPLOYEE_ROLES.includes(user.role?.name);
+    const isEmployee = getEffectiveUserRoleNames(user).some((roleName) =>
+      EMPLOYEE_ROLES.includes(roleName),
+    );
 
     if (!isEmployee) {
       const userRoleIds = this.getUserRoleIds(user);

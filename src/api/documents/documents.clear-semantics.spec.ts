@@ -2,8 +2,30 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { DocumentsService } from "./documents.service";
 import { UpdateDocumentDto } from "./documents.dto";
+import { RoleTypes } from "@app/types/RoleTypes";
 
 describe("document update clear semantics", () => {
+  it("honors an unrestricted document role assigned as a secondary role", async () => {
+    const levels = [
+      { id: 1, roles: [{ id: 99, name: "restricted" }] },
+      { id: 2, roles: [] },
+    ];
+    const service = new DocumentsService(
+      {} as any,
+      {} as any,
+      {} as any,
+      { find: jest.fn().mockResolvedValue(levels) } as any,
+      {} as any,
+    );
+
+    await expect(
+      service.findAllAccessLevels({
+        role: { id: 9, name: RoleTypes.Staff },
+        roles: [{ id: 1, name: RoleTypes.SuperAdmin }],
+      } as any),
+    ).resolves.toEqual(levels);
+  });
+
   it("transforms multipart empty values to null relations and an empty tag array", async () => {
     const dto = plainToInstance(UpdateDocumentDto, {
       group_id: "",

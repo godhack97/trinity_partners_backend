@@ -70,4 +70,17 @@ describe("CheckUserOrCompanyStatusGuard", () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
+
+  test("honors employee when it is only a secondary role", async () => {
+    findByTokenWithCompany.mockResolvedValue(
+      userWithRoles("custom_role" as RoleTypes, [RoleTypes.Employee], {
+        company_employee: {
+          status: CompanyEmployeeStatus.Accept,
+          company: { status: CompanyStatus.Accept },
+        },
+      }),
+    );
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
 });

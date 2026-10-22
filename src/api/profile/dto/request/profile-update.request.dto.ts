@@ -13,6 +13,11 @@ const opts = {
       RoleTypes.SuperAdmin,
       RoleTypes.EmployeeAdmin,
       RoleTypes.ContentManager,
+      RoleTypes.PartnerManager,
+      RoleTypes.CompanyAdmin,
+      RoleTypes.SalesManager,
+      RoleTypes.TechnicalSpecialist,
+      RoleTypes.Staff,
     ],
   },
 };

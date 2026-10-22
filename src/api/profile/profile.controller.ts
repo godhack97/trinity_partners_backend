@@ -21,6 +21,7 @@ import { UserEntity } from "@orm/entities";
 import { plainToInstance } from "class-transformer";
 import { validateOrReject } from "class-validator";
 import { LogAction } from "src/logs/log-action.decorator";
+import { getEffectiveUserRoleNames } from "@app/access/effective-user-roles";
 
 @ApiTags("profile")
 @Controller("profile")
@@ -42,7 +43,7 @@ export class ProfileController {
     @Req() req: Request,
     @AuthUser() auth_user: Partial<UserEntity>,
   ) {
-    const groups = { groups: [auth_user.role.name] };
+    const groups = { groups: getEffectiveUserRoleNames(auth_user) };
     const data = plainToInstance(ProfileUpdateRequestDto, req.body, groups);
 
     try {

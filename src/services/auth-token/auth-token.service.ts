@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { UserRepository } from "@orm/repositories";
+import { getEffectiveUserRoleNames } from "@app/access/effective-user-roles";
 
 @Injectable()
 export class AuthTokenService {
@@ -25,7 +26,7 @@ export class AuthTokenService {
     }
     return {
       role: user.role.name,
-      roles: user.roles?.map((role) => role.name) || [user.role.name],
+      roles: getEffectiveUserRoleNames(user),
       userId: user.id,
       status: user?.company_employee?.status,
       companyId: user?.company_employee?.company_id,

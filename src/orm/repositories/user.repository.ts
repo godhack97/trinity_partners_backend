@@ -149,14 +149,26 @@ export class UserRepository {
   public async findByEmailWithCompanyEmployees(email: string) {
     return await this.repo.findOne({
       where: { email },
-      relations: ["company_employee", "user_info", 'manager'],
+      relations: [
+        "company_employee",
+        "user_info",
+        "manager",
+        "user_roles",
+        "user_roles.role",
+      ],
     });
   }
 
   public async findByIdWithCompanyEmployees(id: number) {
     return await this.repo.findOne({
       where: { id },
-      relations: ["company_employee", "user_info", 'manager'],
+      relations: [
+        "company_employee",
+        "user_info",
+        "manager",
+        "user_roles",
+        "user_roles.role",
+      ],
     });
   }
 

@@ -36,6 +36,7 @@ import {
   NotificationCategory,
 } from "@orm/entities";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
+import { hasAnyUserRole } from "@app/access/effective-user-roles";
 
 @Injectable()
 export class AuthService {
@@ -100,7 +101,7 @@ export class AuthService {
       await this.updateUserActivity(user.id, req);
     }
 
-    if (user.role.name === RoleTypes.Partner) {
+    if (hasAnyUserRole(user, [RoleTypes.Partner])) {
       user.owner_company = await user.lazy_owner_company;
     }
 
@@ -358,7 +359,7 @@ export class AuthService {
       await this.updateUserActivity(tokenEntity.user_id, req);
     }
 
-    if (user.role.name === RoleTypes.Partner) {
+    if (hasAnyUserRole(user, [RoleTypes.Partner])) {
       user.owner_company = await user.lazy_owner_company;
     }
 

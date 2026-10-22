@@ -29,6 +29,19 @@ import { AddEmployeeRequestDto } from "./dto/request/add-employee.request.dto";
 import { UserRoleEntity } from "@orm/entities/user-roles.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import {
+  getEffectiveUserRoleNames,
+  hasAnyUserRole,
+} from "@app/access/effective-user-roles";
+
+const COMPANY_EMPLOYEE_ROLES = [
+  RoleTypes.Employee,
+  RoleTypes.EmployeeAdmin,
+  RoleTypes.CompanyAdmin,
+  RoleTypes.SalesManager,
+  RoleTypes.TechnicalSpecialist,
+  RoleTypes.Staff,
+];
 
 @Injectable()
 export class CompanyService {
@@ -59,7 +72,7 @@ export class CompanyService {
       addEmployeeDto.email,
     );
 
-    if (user.role.name !== RoleTypes.Employee) {
+    if (!user || !hasAnyUserRole(user, COMPANY_EMPLOYEE_ROLES)) {
       throw new BadRequestException(
         "Этот пользователь не может быть добавлен!",
       );
@@ -70,6 +83,9 @@ export class CompanyService {
       await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
         auth_user.id,
       );
+    if (!authUserCompany) {
+      throw new ForbiddenException("Компания администратора не найдена");
+    }
     const employeeCompany =
       await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
         user.id,
@@ -137,7 +153,7 @@ export class CompanyService {
       );
     }
 
-    if (user.role.name !== RoleTypes.Employee) {
+    if (!hasAnyUserRole(user, COMPANY_EMPLOYEE_ROLES)) {
       throw new BadRequestException(
         "Этот пользователь не может быть приглашен как сотрудник",
       );
@@ -472,20 +488,7 @@ export class CompanyService {
       throw new HttpException("Пользователь не найден", HttpStatus.NOT_FOUND);
     }
 
-    if (
-      ![RoleTypes.Employee, RoleTypes.EmployeeAdmin].includes(
-        user.role.name as RoleTypes,
-      ) &&
-      !this.hasAnyRole(
-        user.roles?.map((item) => item.name) || [],
-        [
-          RoleTypes.CompanyAdmin,
-          RoleTypes.SalesManager,
-          RoleTypes.TechnicalSpecialist,
-          RoleTypes.Staff,
-        ],
-      )
-    ) {
+    if (!hasAnyUserRole(user, COMPANY_EMPLOYEE_ROLES)) {
       throw new HttpException(
         "Только сотрудникам можно менять статус",
         HttpStatus.FORBIDDEN,
@@ -520,7 +523,7 @@ export class CompanyService {
       .filter((employee) => employee.status === CompanyEmployeeStatus.Accept)
       .filter((employee) =>
         this.hasAnyRole(
-          employee.employee?.roles?.map((role) => role.name) || [],
+          getEffectiveUserRoleNames(employee.employee),
           [
             RoleTypes.CompanyAdmin,
             RoleTypes.Partner,
@@ -574,7 +577,7 @@ export class CompanyService {
     user: UserEntity,
     verifiedCompanyEmployee?: { company_id: number },
   ) {
-    const userRoles = user.roles?.map((role) => role.name) || [];
+    const userRoles = getEffectiveUserRoleNames(user);
 
     if (
       !this.hasAnyRole(userRoles, [

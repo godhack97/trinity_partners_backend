@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { CompanyEmployeeStatus, CompanyStatus } from "@orm/entities";
 import { UserRepository } from "@orm/repositories";
+import { getEffectiveUserRoleNames } from "@app/access/effective-user-roles";
 
 @Injectable()
 export class CheckUserOrCompanyStatusGuard implements CanActivate {
@@ -30,10 +31,7 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
       );
     }
 
-    const roleNames = [
-      user.role?.name,
-      ...(user.roles || []).map((role) => role.name),
-    ];
+    const roleNames = getEffectiveUserRoleNames(user);
 
     if (
       [
@@ -69,7 +67,7 @@ export class CheckUserOrCompanyStatusGuard implements CanActivate {
     }
 
     if (
-      user.role?.name === RoleTypes.Employee ||
+      roleNames.includes(RoleTypes.Employee) ||
       roleNames.includes(RoleTypes.SalesManager) ||
       roleNames.includes(RoleTypes.Staff)
     ) {

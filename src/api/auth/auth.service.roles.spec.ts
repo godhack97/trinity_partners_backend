@@ -77,6 +77,48 @@ describe("AuthService role response", () => {
     ]);
   });
 
+  it("loads the owner company when partner is a secondary role", async () => {
+    const credentials = await createCredentials("correct-password");
+    const company = { id: 12, name: "Партнёр" };
+    const user = Object.assign(new UserEntity(), {
+      id: 144,
+      email: "mixed-role-partner@example.test",
+      ...credentials,
+      failed_login_attempts: 0,
+      login_blocked_until: null,
+      role: { id: 4, name: RoleTypes.Employee },
+      user_roles: [
+        { role: { id: 5, name: RoleTypes.Partner } },
+        { role: { id: 1, name: RoleTypes.SuperAdmin } },
+      ],
+      company_employee: null,
+      lazy_owner_company: Promise.resolve(company),
+    });
+    const service = new AuthService(
+      {
+        findByEmailWithPermissions: jest.fn().mockResolvedValue(user),
+        update: jest.fn(),
+      } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {
+        findOneBy: jest.fn().mockResolvedValue(null),
+        create: jest.fn((value) => value),
+        save: jest.fn((value) => value),
+      } as any,
+    );
+
+    const response = await service.login(
+      { email: user.email, password: "correct-password" },
+      "mixed-role-test",
+    );
+
+    expect(response.user.owner_company).toBe(company);
+  });
+
   it("exposes secondary roles returned by the UserEntity getter", async () => {
     const user = Object.assign(new UserEntity(), {
       id: 17,

@@ -5,6 +5,7 @@ import { CompanyEmployeeStatus } from "@orm/entities";
 
 const makeService = (overrides: Record<string, any> = {}) => {
   const userRepository = {
+    findByEmailWithCompanyEmployees: jest.fn(),
     findByIdWithCompanyEmployees: jest.fn(),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
     ...overrides.userRepository,
@@ -19,6 +20,7 @@ const makeService = (overrides: Record<string, any> = {}) => {
     ...overrides.authTokenService,
   };
   const companyRepository = {
+    findOneBy: jest.fn().mockResolvedValue(null),
     ...overrides.companyRepository,
   };
   const companyEmployeeRepository = {
@@ -99,6 +101,101 @@ const employee = (roles: RoleTypes[] = [RoleTypes.SalesManager]) =>
   }) as any;
 
 describe("CompanyService business roles", () => {
+  it.each([
+    RoleTypes.SalesManager,
+    RoleTypes.TechnicalSpecialist,
+    RoleTypes.Staff,
+  ])("принимает сотрудника с основной бизнес-ролью %s", async (primaryRole) => {
+    const target = {
+      id: 20,
+      email: "employee@example.test",
+      role: { name: primaryRole },
+      roles: [{ name: primaryRole }],
+    };
+    const { service, mocks } = makeService({
+      userRepository: {
+        findByEmailWithCompanyEmployees: jest.fn().mockResolvedValue(target),
+      },
+      companyEmployeeRepository: {
+        findCompanyEmployeeByEmployeeId: jest.fn(async (id: number) => ({
+          id: id === 20 ? 30 : 31,
+          company_id: 10,
+          employee_id: id,
+          status: id === 20
+            ? CompanyEmployeeStatus.CompanyPending
+            : CompanyEmployeeStatus.Accept,
+        })),
+      },
+    });
+
+    await expect(
+      service.addEmployee({ id: 10 } as any, { email: target.email }),
+    ).resolves.toEqual({ success: true });
+    expect(mocks.companyEmployeeRepository.update).toHaveBeenCalledWith(30, {
+      status: CompanyEmployeeStatus.Accept,
+    });
+  });
+
+  it("учитывает дополнительную роль employee при принятии сотрудника", async () => {
+    const target = {
+      id: 20,
+      email: "employee@example.test",
+      role: { name: RoleTypes.SuperAdmin },
+      roles: [{ name: RoleTypes.Employee }],
+    };
+    const { service } = makeService({
+      userRepository: {
+        findByEmailWithCompanyEmployees: jest.fn().mockResolvedValue(target),
+      },
+      companyEmployeeRepository: {
+        findCompanyEmployeeByEmployeeId: jest.fn(async (id: number) => ({
+          id: id === 20 ? 30 : 31,
+          company_id: 10,
+          employee_id: id,
+          status: id === 20
+            ? CompanyEmployeeStatus.CompanyPending
+            : CompanyEmployeeStatus.Accept,
+        })),
+      },
+    });
+
+    await expect(
+      service.addEmployee({ id: 10 } as any, { email: target.email }),
+    ).resolves.toEqual({ success: true });
+  });
+
+  it("приглашает пользователя с основной бизнес-ролью", async () => {
+    const target = {
+      id: 20,
+      email: "employee@example.test",
+      role: { name: RoleTypes.SalesManager },
+      roles: [{ name: RoleTypes.SalesManager }],
+    };
+    const { service, mocks } = makeService({
+      userRepository: {
+        findByEmailWithCompanyEmployees: jest.fn().mockResolvedValue(target),
+      },
+      companyEmployeeRepository: {
+        findCompanyEmployeeByEmployeeId: jest.fn(async (id: number) =>
+          id === 10 ? { id: 31, company_id: 10, employee_id: 10 } : null,
+        ),
+        save: jest.fn().mockResolvedValue({ id: 32 }),
+      },
+    });
+
+    await expect(
+      service.inviteEmployee({ id: 10 } as any, { email: target.email }),
+    ).resolves.toEqual({
+      success: true,
+      status: CompanyEmployeeStatus.InviteTrinityPending,
+    });
+    expect(mocks.companyEmployeeRepository.save).toHaveBeenCalledWith({
+      company_id: 10,
+      employee_id: 20,
+      status: CompanyEmployeeStatus.InviteTrinityPending,
+    });
+  });
+
   it("разрешает администратору компании смотреть сотрудников своей компании", async () => {
     const { service, mocks } = makeService({
       companyEmployeeRepository: {
