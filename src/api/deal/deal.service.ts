@@ -1008,7 +1008,29 @@ export class DealService {
     manager: UserEntity,
   ) {
     if (deal.creator_id === manager.id) return true;
-    return deal.responsible_manager_id === manager.id;
+    if (deal.responsible_manager_id === manager.id) return true;
+
+    // A draft belongs only to its creator and explicitly assigned deal
+    // manager. Once submitted, the Trinity manager responsible for the
+    // selected distributor needs read access even when another manager owns
+    // the deal. Canonical company identity is required: legacy names are not
+    // authorization evidence.
+    if (deal.status === DealStatus.Draft) return false;
+
+    const loadedDistributorCompany =
+      deal.distributor_company?.id === deal.distributor_company_id
+        ? deal.distributor_company
+        : null;
+    const distributorCompany =
+      loadedDistributorCompany ||
+      (deal.distributor_company_id
+        ? await this.companyRepository.findById(deal.distributor_company_id)
+        : null);
+
+    return (
+      distributorCompany?.partnership_type === PartnershipType.Distributor &&
+      distributorCompany.responsible_manager_id === manager.id
+    );
   }
 
   private async findDistributorForCompany(company: CompanyEntity) {

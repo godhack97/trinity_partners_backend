@@ -31,16 +31,26 @@ function makeService(options: {
   actorEmployeeIds?: number[];
   companyEmployeeIds?: number[];
   creatorCompanies?: Map<number, any>;
+  knownCompanies?: any[];
 }) {
   const creatorCompanies = options.creatorCompanies || new Map<number, any>();
   const actorEmployeeIds = new Set(options.actorEmployeeIds || []);
   const dealRepository = {
     findDealsWithFilters: jest.fn(
-      async (entry?: { status?: DealStatus }, creatorIds?: number[]) =>
+      async (
+        entry?: { status?: DealStatus; companyId?: number },
+        creatorIds?: number[],
+        alwaysIncludeCreatorId?: number,
+      ) =>
         options.deals.filter(
           (deal) =>
             (!entry?.status || deal.status === entry.status) &&
-            (!creatorIds || creatorIds.includes(deal.creator_id)),
+            (!creatorIds || creatorIds.includes(deal.creator_id)) &&
+            (!entry?.companyId ||
+              deal.creator_company_id === entry.companyId ||
+              deal.integrator_company_id === entry.companyId ||
+              deal.distributor_company_id === entry.companyId ||
+              deal.creator_id === alwaysIncludeCreatorId),
         ),
     ),
     findById: jest.fn(async (id: number) =>
@@ -66,6 +76,7 @@ function makeService(options: {
     findOneBy: jest.fn(async ({ id }: { id: number }) => {
       const companies = [
         options.actorCompany,
+        ...(options.knownCompanies || []),
         ...Array.from(creatorCompanies.values()),
       ].filter(Boolean);
       return companies.find((company) => company.id === id) || null;
@@ -73,9 +84,25 @@ function makeService(options: {
     findById: jest.fn(async (id: number) => {
       const companies = [
         options.actorCompany,
+        ...(options.knownCompanies || []),
         ...Array.from(creatorCompanies.values()),
       ].filter(Boolean);
       return companies.find((company) => company.id === id) || null;
+    }),
+    findOne: jest.fn(async ({ where }: any) => {
+      const companies = [
+        options.actorCompany,
+        ...(options.knownCompanies || []),
+        ...Array.from(creatorCompanies.values()),
+      ].filter(Boolean);
+      return (
+        companies.find(
+          (company) =>
+            company.id === where.id &&
+            company.partnership_type === where.partnership_type &&
+            company.status === where.status,
+        ) || null
+      );
     }),
     findAcceptedDistributorByName: jest.fn().mockResolvedValue(null),
     findAcceptedIntegratorByInn: jest.fn().mockResolvedValue(null),
@@ -511,6 +538,132 @@ describe("DealService row-level access scope", () => {
     await expect(service.findOne(25, actor)).rejects.toBeInstanceOf(
       HttpException,
     );
+  });
+
+  it("shows submitted distributor deals to its responsible PartnerManager as read-only", async () => {
+    const actor = makeUser(7, [RoleTypes.PartnerManager]);
+    const managedDistributor = {
+      id: 40,
+      responsible_manager_id: actor.id,
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Accept,
+    };
+    const foreignDistributor = {
+      id: 41,
+      responsible_manager_id: 8,
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Accept,
+    };
+    const suspendedManagedDistributor = {
+      id: 42,
+      responsible_manager_id: actor.id,
+      partnership_type: PartnershipType.Distributor,
+      status: CompanyStatus.Suspended,
+    };
+    const deals = [
+      {
+        id: 26,
+        creator_id: 2,
+        status: DealStatus.Draft,
+        responsible_manager_id: 8,
+        distributor_company_id: managedDistributor.id,
+        distributor_company: managedDistributor,
+      },
+      {
+        id: 27,
+        creator_id: 2,
+        status: DealStatus.Moderation,
+        responsible_manager_id: 8,
+        distributor_company_id: managedDistributor.id,
+        distributor_company: managedDistributor,
+      },
+      {
+        id: 28,
+        creator_id: 3,
+        status: DealStatus.Registered,
+        responsible_manager_id: 8,
+        distributor_company_id: managedDistributor.id,
+        distributor_company: managedDistributor,
+      },
+      {
+        id: 29,
+        creator_id: 4,
+        status: DealStatus.Canceled,
+        responsible_manager_id: 8,
+        distributor_company_id: managedDistributor.id,
+        distributor_company: managedDistributor,
+      },
+      {
+        id: 30,
+        creator_id: 5,
+        status: DealStatus.Registered,
+        responsible_manager_id: 8,
+        distributor_company_id: foreignDistributor.id,
+        distributor_company: foreignDistributor,
+      },
+      {
+        id: 31,
+        creator_id: 6,
+        status: DealStatus.Registered,
+        responsible_manager_id: 8,
+        distributor: { name: "Legacy distributor" },
+      },
+      {
+        id: 32,
+        creator_id: 7,
+        status: DealStatus.Registered,
+        responsible_manager_id: 8,
+        distributor_company_id: suspendedManagedDistributor.id,
+      },
+    ];
+    const { service } = makeService({
+      deals,
+      knownCompanies: [
+        managedDistributor,
+        foreignDistributor,
+        suspendedManagedDistributor,
+      ],
+    });
+
+    const visibleDeals = await service.findAll(actor);
+    expect(visibleDeals.map((deal) => deal.id)).toEqual([27, 28, 29, 32]);
+    expect(visibleDeals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 27,
+          can_update_fields: false,
+          can_update_status: false,
+          can_update_configurations: false,
+          can_comment: false,
+          can_decide: false,
+        }),
+      ]),
+    );
+
+    await expect(service.findOne(26, actor)).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    await expect(service.findOne(27, actor)).resolves.toMatchObject({
+      id: 27,
+      can_update_fields: false,
+      can_update_status: false,
+    });
+    await expect(service.findOne(30, actor)).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    await expect(service.findOne(31, actor)).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    await expect(
+      service.findAll(actor, { companyId: managedDistributor.id } as any),
+    ).resolves.toHaveLength(3);
+    await expect(service.getDealStatistic(actor)).resolves.toEqual({
+      ...zeroStatistics,
+      allCount: 4,
+      canceled: 1,
+      registered: 2,
+      moderation: 1,
+    });
   });
 
   it("keeps technical specialists global and read-only", async () => {
