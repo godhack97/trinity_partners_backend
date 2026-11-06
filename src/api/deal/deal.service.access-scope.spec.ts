@@ -223,8 +223,9 @@ describe("DealService row-level access scope", () => {
       draft: 1,
     });
     expect(dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
+      { companyId: company.id },
       undefined,
-      [actor.id],
+      actor.id,
     );
   });
 
@@ -290,12 +291,14 @@ describe("DealService row-level access scope", () => {
         creator_id: 90,
         distributor_company_id: company.id,
         status: DealStatus.Registered,
+        distributor_sent_at: new Date("2026-11-01T10:00:00Z"),
       },
       {
         id: 14,
         creator_id: 91,
         distributor_company_id: company.id,
         status: DealStatus.Win,
+        distributor_sent_at: new Date("2026-11-01T10:00:00Z"),
       },
       {
         id: 15,
@@ -421,8 +424,9 @@ describe("DealService row-level access scope", () => {
       creator_id: actor.id,
     });
     expect(dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
+      { companyId: company.id },
       undefined,
-      [actor.id],
+      actor.id,
     );
   });
 
@@ -540,7 +544,7 @@ describe("DealService row-level access scope", () => {
     );
   });
 
-  it("shows submitted distributor deals to its responsible PartnerManager as read-only", async () => {
+  it("does not retain distributor-company access after a deal is assigned to another manager", async () => {
     const actor = makeUser(7, [RoleTypes.PartnerManager]);
     const managedDistributor = {
       id: 40,
@@ -626,16 +630,11 @@ describe("DealService row-level access scope", () => {
     });
 
     const visibleDeals = await service.findAll(actor);
-    expect(visibleDeals.map((deal) => deal.id)).toEqual([27, 28, 29, 32]);
+    expect(visibleDeals.map((deal) => deal.id)).toEqual([32]);
     expect(visibleDeals).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 27,
-          can_update_fields: false,
-          can_update_status: false,
-          can_update_configurations: false,
-          can_comment: false,
-          can_decide: false,
+          id: 32,
         }),
       ]),
     );
@@ -643,11 +642,9 @@ describe("DealService row-level access scope", () => {
     await expect(service.findOne(26, actor)).rejects.toBeInstanceOf(
       HttpException,
     );
-    await expect(service.findOne(27, actor)).resolves.toMatchObject({
-      id: 27,
-      can_update_fields: false,
-      can_update_status: false,
-    });
+    await expect(service.findOne(27, actor)).rejects.toBeInstanceOf(
+      HttpException,
+    );
     await expect(service.findOne(30, actor)).rejects.toBeInstanceOf(
       HttpException,
     );
@@ -656,13 +653,11 @@ describe("DealService row-level access scope", () => {
     );
     await expect(
       service.findAll(actor, { companyId: managedDistributor.id } as any),
-    ).resolves.toHaveLength(3);
+    ).resolves.toHaveLength(0);
     await expect(service.getDealStatistic(actor)).resolves.toEqual({
       ...zeroStatistics,
-      allCount: 4,
-      canceled: 1,
-      registered: 2,
-      moderation: 1,
+      allCount: 1,
+      registered: 1,
     });
   });
 

@@ -10,6 +10,7 @@ import {
   DealDeletionRequestRepository,
   CompanyEmployeeRepository,
   ConfiguratorDraftRepository,
+  DealCollaborationRepository,
 } from "@orm/repositories";
 import { RoleTypes } from "@app/types/RoleTypes";
 import {
@@ -22,6 +23,8 @@ import {
   UserEntity,
   Bitrix24SyncStatus,
   LegalPolicyType,
+  DealChannelType,
+  DealParticipantParty,
 } from "@orm/entities";
 import { CompanyEntity, PartnershipType } from "@orm/entities/company.entity";
 import { SearchDealDto } from "./dto/request/search-deal.dto";
@@ -47,6 +50,12 @@ import { UpdateDealDto } from "./dto/request/update-deal.dto";
 import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
 import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
 import { LegalConsentService } from "@api/legal-consent/legal-consent.service";
+import { TransferDealManagerDto } from "./dto/request/transfer-deal-manager.dto";
+import { AddDealParticipantDto } from "./dto/request/deal-participant.dto";
+import {
+  AddDealMessageDto,
+  MarkDealChannelReadDto,
+} from "./dto/request/deal-message.dto";
 
 type DealAccessScope =
   | { kind: "global" }
@@ -57,7 +66,15 @@ type DealAccessScope =
       kind: "company";
       company: CompanyEntity;
       actorUserId: number;
+      companyWide: boolean;
     };
+
+const nullDealCollaborationRepository = {
+  findActiveParticipant: async () => null,
+  addParticipant: async () => null,
+  ensureChannel: async () => null,
+  listActiveChannels: async () => [],
+} as unknown as DealCollaborationRepository;
 
 @Injectable()
 export class DealService {
@@ -77,6 +94,8 @@ export class DealService {
     private configService: ConfigService,
     private readonly notificationService: NotificationService,
     private readonly legalConsentService: LegalConsentService,
+    private readonly dealCollaborationRepository: DealCollaborationRepository =
+      nullDealCollaborationRepository,
   ) {}
 
   private get hostname(): string {
@@ -246,13 +265,6 @@ export class DealService {
       );
     }
 
-    if (!distributorCompany) {
-      throw new HttpException(
-        "Укажите действующую компанию-дистрибьютора",
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     if (!integratorCompany) {
       throw new HttpException(
         "Укажите действующую компанию-интегратора",
@@ -336,6 +348,14 @@ export class DealService {
       deal_num,
       distributor_id: distributor?.id || null,
       distributor_company_id: distributorCompany?.id || null,
+      distributor_sent_at:
+        authUserCompany?.partnership_type === PartnershipType.Distributor
+          ? new Date()
+          : null,
+      distributor_sent_by:
+        authUserCompany?.partnership_type === PartnershipType.Distributor
+          ? auth_user.id
+          : null,
       integrator_company_id: integratorCompany?.id || null,
       integrator_name: integratorCompany.name,
       integrator_inn: integratorCompany.inn,
@@ -366,6 +386,21 @@ export class DealService {
       savedDeal.id,
       auth_user.id,
     );
+
+    if (authUserCompany) {
+      await this.dealCollaborationRepository.addParticipant({
+        dealId: savedDeal.id,
+        userId: auth_user.id,
+        companyId: authUserCompany.id,
+        partyType:
+          authUserCompany.partnership_type === PartnershipType.Distributor
+            ? DealParticipantParty.Distributor
+            : DealParticipantParty.Partner,
+        addedBy: auth_user.id,
+        participantRole: "creator",
+      });
+    }
+    await this.ensureBaseDealChannels(savedDeal);
 
     return savedDeal;
   }
@@ -400,16 +435,18 @@ export class DealService {
         ? await this.companyRepository.findById(deal.integrator_company_id)
         : null);
 
-    if (!customer || !distributorCompany || !integratorCompany) {
+    if (!customer || !integratorCompany) {
       throw new HttpException(
-        "Перед отправкой сопоставьте обе стороны сделки с действующими компаниями портала",
+        "Перед отправкой сопоставьте интегратора с действующей компанией портала",
         HttpStatus.BAD_REQUEST,
       );
     }
-    this.assertAcceptedDistributorCompany(distributorCompany);
+    if (distributorCompany) {
+      this.assertAcceptedDistributorCompany(distributorCompany);
+    }
     this.assertAcceptedIntegratorCompany(integratorCompany);
 
-    const distributorParty = distributorCompany;
+    const distributorParty = distributorCompany || undefined;
     const integratorName = integratorCompany.name;
     const integratorInn = integratorCompany.inn;
 
@@ -440,6 +477,7 @@ export class DealService {
 
     Object.assign(deal, submitPatch);
     const authUserCompany = await this.getDealCreatorCompany(deal);
+    await this.ensureBaseDealChannels(deal);
 
     this.sendLeadToBitrix24(deal, customer, distributorParty, auth_user).catch(
       (error) => {
@@ -456,14 +494,16 @@ export class DealService {
       distributorParty,
       auth_user,
     );
-    await this.notifyCounterpartyAdminsAboutNewDeal(
-      deal,
-      authUserCompany,
-      distributorParty,
-      integratorCompany,
-      integratorName,
-      integratorInn,
-    );
+    if (distributorParty) {
+      await this.notifyCounterpartyAdminsAboutNewDeal(
+        deal,
+        authUserCompany,
+        distributorParty,
+        integratorCompany,
+        integratorName,
+        integratorInn,
+      );
+    }
     return this.findOne(dealId, auth_user);
   }
 
@@ -533,8 +573,8 @@ export class DealService {
           customerLastName: customer.last_name,
           customerEmail: customer.email,
           customerPhone: customer.phone,
-          distributorName: distributor.name,
-          distributorId: distributor.id,
+          distributorName: distributor?.name || "Не выбран",
+          distributorId: distributor?.id || null,
           creatorName:
             creatorWithInfo.user_info?.first_name &&
             creatorWithInfo.user_info?.last_name
@@ -674,7 +714,9 @@ export class DealService {
         claimedDeal.distributor?.name ||
         (claimedDeal.distributor_company_id
           ? `DistributorCompany_${claimedDeal.distributor_company_id}`
-          : `Distributor_${claimedDeal.distributor_id}`);
+          : claimedDeal.distributor_id
+            ? `Distributor_${claimedDeal.distributor_id}`
+            : "Не выбран");
 
       let dealCreator = creator || claimedDeal.partner;
       if (!dealCreator && claimedDeal.creator_id) {
@@ -891,19 +933,23 @@ export class DealService {
           kind: "company",
           company,
           actorUserId: auth_user.id,
+          companyWide: true,
         };
       }
 
       return { kind: "self", userId: auth_user.id };
     }
 
-    if (
-      this.hasAnyRole(auth_user, [
-        RoleTypes.Employee,
-        RoleTypes.SalesManager,
-      ])
-    ) {
-      return { kind: "self", userId: auth_user.id };
+    if (this.hasAnyRole(auth_user, [RoleTypes.Employee, RoleTypes.SalesManager])) {
+      const company = await this.getUserCompany(auth_user);
+      return company
+        ? {
+            kind: "company",
+            company,
+            actorUserId: auth_user.id,
+            companyWide: false,
+          }
+        : { kind: "self", userId: auth_user.id };
     }
 
     if (this.hasAnyRole(auth_user, [RoleTypes.Staff])) {
@@ -948,6 +994,15 @@ export class DealService {
         return this.isDealManagedByPartnerManager(deal, scope.manager);
       case "company":
         if (deal.creator_id === scope.actorUserId) return true;
+        if (
+          await this.dealCollaborationRepository.findActiveParticipant(
+            deal.id,
+            scope.actorUserId,
+          )
+        ) {
+          return this.isCompanySideEnabledForDeal(deal, scope.company);
+        }
+        if (!scope.companyWide) return false;
         return this.isDealVisibleForCompany(deal, scope.company);
     }
   }
@@ -1010,27 +1065,7 @@ export class DealService {
     if (deal.creator_id === manager.id) return true;
     if (deal.responsible_manager_id === manager.id) return true;
 
-    // A draft belongs only to its creator and explicitly assigned deal
-    // manager. Once submitted, the Trinity manager responsible for the
-    // selected distributor needs read access even when another manager owns
-    // the deal. Canonical company identity is required: legacy names are not
-    // authorization evidence.
-    if (deal.status === DealStatus.Draft) return false;
-
-    const loadedDistributorCompany =
-      deal.distributor_company?.id === deal.distributor_company_id
-        ? deal.distributor_company
-        : null;
-    const distributorCompany =
-      loadedDistributorCompany ||
-      (deal.distributor_company_id
-        ? await this.companyRepository.findById(deal.distributor_company_id)
-        : null);
-
-    return (
-      distributorCompany?.partnership_type === PartnershipType.Distributor &&
-      distributorCompany.responsible_manager_id === manager.id
-    );
+    return false;
   }
 
   private async findDistributorForCompany(company: CompanyEntity) {
@@ -1687,9 +1722,13 @@ export class DealService {
       updateDealDto.distributor_id !== undefined ||
       updateDealDto.distributor_company_id !== undefined
     ) {
-      if (!participantEditCapabilities.canUpdateDistributor) {
+      const canSelectDistributor =
+        this.isSuperAdmin(auth_user) ||
+        (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
+          deal.responsible_manager_id === auth_user.id);
+      if (!canSelectDistributor) {
         throw new HttpException(
-          "Изменять дистрибьютора может только интегратор или сотрудник Тринити",
+          "Выбирать дистрибьютора может только ответственный менеджер Тринити",
           HttpStatus.FORBIDDEN,
         );
       }
@@ -1747,6 +1786,12 @@ export class DealService {
 
       dealPatch.distributor_id = distributor?.id || null;
       dealPatch.distributor_company_id = distributorCompany?.id || null;
+      if (Number(deal.distributor_company_id) !== Number(distributorCompany.id)) {
+        dealPatch.distributor_sent_at = null;
+        dealPatch.distributor_sent_by = null;
+        dealPatch.distributor_revoked_at = null;
+        dealPatch.distributor_revoked_by = null;
+      }
       changedFieldLabels.push("дистрибьютор");
     }
 
@@ -1878,18 +1923,6 @@ export class DealService {
     const hasChanges =
       Object.keys(dealPatch).length || Object.keys(customerPatch).length;
 
-    const nextDistributorId = Object.prototype.hasOwnProperty.call(
-      dealPatch,
-      "distributor_id",
-    )
-      ? (dealPatch.distributor_id as number | null)
-      : deal.distributor_id;
-    const nextDistributorCompanyId = Object.prototype.hasOwnProperty.call(
-      dealPatch,
-      "distributor_company_id",
-    )
-      ? (dealPatch.distributor_company_id as number | null)
-      : deal.distributor_company_id;
     const nextIntegratorCompanyId = Object.prototype.hasOwnProperty.call(
       dealPatch,
       "integrator_company_id",
@@ -1909,18 +1942,21 @@ export class DealService {
       ? (dealPatch.integrator_inn as string | null)
       : deal.integrator_inn;
 
-    if (
-      (!nextDistributorCompanyId && !nextDistributorId) ||
-      (!nextIntegratorCompanyId && (!nextIntegratorName || !nextIntegratorInn))
-    ) {
+    if (!nextIntegratorCompanyId && (!nextIntegratorName || !nextIntegratorInn)) {
       throw new HttpException(
-        "В сделке должны быть указаны дистрибьютор и интегратор",
+        "В сделке должен быть указан интегратор",
         HttpStatus.BAD_REQUEST,
       );
     }
 
     if (hasChanges) {
-      dealPatch.status = this.getStatusAfterContentChange(deal.status);
+      const changesOnlyDistributor =
+        changedFieldLabels.length > 0 &&
+        changedFieldLabels.every((label) => label === "дистрибьютор") &&
+        Object.keys(customerPatch).length === 0;
+      if (!changesOnlyDistributor) {
+        dealPatch.status = this.getStatusAfterContentChange(deal.status);
+      }
 
       const updatedDeal = await this.dealRepository.updateDealAndCustomerSnapshot(
         deal,
@@ -1936,6 +1972,27 @@ export class DealService {
       }
 
       Object.assign(deal, dealPatch);
+
+      const nextDistributorCompanyIdAfterUpdate = deal.distributor_company_id;
+      if (
+        dealPatch.distributor_company_id !== undefined &&
+        nextDistributorCompanyIdAfterUpdate &&
+        Number(nextDistributorCompanyIdAfterUpdate) !==
+          Number(deal.distributor_company?.id)
+      ) {
+        const previousDistributorCompanyId = deal.distributor_company?.id;
+        if (previousDistributorCompanyId) {
+          await this.dealCollaborationRepository.archiveDistributorChannels(
+            dealId,
+            previousDistributorCompanyId,
+          );
+          await this.dealCollaborationRepository.archiveDistributorParticipants(
+            dealId,
+            previousDistributorCompanyId,
+            auth_user.id,
+          );
+        }
+      }
 
       if (deal.bitrix24_deal_id) {
         const distributorCompanyId = Object.prototype.hasOwnProperty.call(
@@ -2206,27 +2263,17 @@ export class DealService {
       );
     }
 
-    const currentComments = Array.isArray(deal.comments)
-      ? deal.comments
-      : [];
-    const comment = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      text,
-      author_id: auth_user.id,
-      author_name: this.getActorName(auth_user),
-      created_at: new Date().toISOString(),
-    };
-
-    const updatedDeal = await this.dealRepository.update(dealId, {
-      comments: [...currentComments, comment],
-    });
-
-    if (updatedDeal.affected === 0) {
+    await this.ensureBaseDealChannels(deal);
+    const generalChannel = (
+      await this.dealCollaborationRepository.listActiveChannels(dealId)
+    ).find((channel) => channel.channel_type === DealChannelType.General);
+    if (!generalChannel) {
       throw new HttpException(
-        "Не удалось добавить комментарий к сделке",
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        "Общий канал сделки не создан",
+        HttpStatus.CONFLICT,
       );
     }
+    await this.addDealMessage(dealId, generalChannel.id, auth_user, { text });
 
     await this.notifyDealChanged(
       deal,
@@ -2236,6 +2283,612 @@ export class DealService {
     );
 
     return this.findOne(dealId, auth_user);
+  }
+
+  async transferManager(
+    dealId: number,
+    auth_user: UserEntity,
+    dto: TransferDealManagerDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+    const canTransfer =
+      this.isSuperAdmin(auth_user) ||
+      (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
+        deal.responsible_manager_id === auth_user.id);
+    if (!canTransfer) {
+      throw new HttpException(
+        "Передать сделку может только текущий ответственный менеджер",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (deal.responsible_manager_id === dto.manager_id) return deal;
+
+    const newManager = await this.userRepository.findByIdWithPermissions(
+      dto.manager_id,
+    );
+    if (
+      !newManager?.is_activated ||
+      !this.hasAnyRole(newManager, [RoleTypes.PartnerManager])
+    ) {
+      throw new HttpException(
+        "Новый менеджер неактивен или не имеет права вести сделки",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const transferred = await this.dealCollaborationRepository.transferManager({
+      dealId,
+      expectedManagerId: deal.responsible_manager_id,
+      newManagerId: newManager.id,
+      transferredBy: auth_user.id,
+      reason: dto.reason?.trim() || null,
+    });
+    if (!transferred) {
+      throw new HttpException(
+        "Ответственный менеджер уже был изменен",
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    await this.notificationService.send({
+      user_id: newManager.id,
+      title: `Вам передана сделка №${deal.deal_num}`,
+      text: `Сделка №${deal.deal_num} передана вам пользователем ${this.getActorName(auth_user)}.`,
+      category: NotificationCategory.Deal,
+      actions: [{ label: "Перейти к сделке", url: `/deals.management/${dealId}` }],
+    });
+
+    return this.findOne(dealId, newManager);
+  }
+
+  async listVendorManagers(auth_user: UserEntity) {
+    if (
+      !this.isSuperAdmin(auth_user) &&
+      !this.hasAnyRole(auth_user, [RoleTypes.PartnerManager])
+    ) {
+      throw new HttpException(
+        "Список менеджеров доступен только сотрудникам Тринити",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    const managers = await this.userRepository
+      .createQueryBuilder("user")
+      .distinct(true)
+      .leftJoinAndSelect("user.user_info", "user_info")
+      .leftJoin("user.user_roles", "user_role")
+      .leftJoin("user_role.role", "secondary_role")
+      .leftJoin("user.role", "primary_role")
+      .where(
+        "(primary_role.name = :roleName OR secondary_role.name = :roleName)",
+        { roleName: RoleTypes.PartnerManager },
+      )
+      .andWhere("user.is_activated = :isActivated", { isActivated: true })
+      .andWhere("user.deleted_at IS NULL")
+      .orderBy("user.email", "ASC")
+      .getMany();
+    return managers.map((manager) => ({
+      id: manager.id,
+      email: manager.email,
+      user_info: manager.user_info
+        ? {
+            first_name: manager.user_info.first_name,
+            last_name: manager.user_info.last_name,
+          }
+        : null,
+    }));
+  }
+
+  async sendToDistributor(dealId: number, auth_user: UserEntity) {
+    const deal = await this.findOne(dealId, auth_user);
+    this.assertCanManageDistributorAccess(deal, auth_user);
+    if (!deal.distributor_company_id) {
+      throw new HttpException(
+        "Сначала выберите компанию-дистрибьютора",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (
+      ![DealStatus.Registered, DealStatus.Win, DealStatus.Lose].includes(
+        deal.status,
+      )
+    ) {
+      throw new HttpException(
+        "Отправить дистрибьютору можно только зарегистрированную сделку",
+        HttpStatus.CONFLICT,
+      );
+    }
+    const distributorCompany = await this.getAcceptedDistributorCompany(
+      deal.distributor_company_id,
+    );
+    if (deal.distributor_sent_at && !deal.distributor_revoked_at) return deal;
+
+    const updated = await this.dealRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        distributor_sent_at: new Date(),
+        distributor_sent_by: auth_user.id,
+        distributor_revoked_at: null,
+        distributor_revoked_by: null,
+      })
+      .where("id = :dealId", { dealId })
+      .andWhere("distributor_company_id = :companyId", {
+        companyId: distributorCompany.id,
+      })
+      .andWhere("(distributor_sent_at IS NULL OR distributor_revoked_at IS NOT NULL)")
+      .execute();
+    if (!updated.affected) {
+      const currentDeal = await this.dealRepository.findById(dealId);
+      if (
+        currentDeal?.distributor_company_id === distributorCompany.id &&
+        currentDeal.distributor_sent_at &&
+        !currentDeal.distributor_revoked_at
+      ) {
+        return this.findOne(dealId, auth_user);
+      }
+      throw new HttpException(
+        "Дистрибьютор сделки был изменен",
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    Object.assign(deal, {
+      distributor_sent_at: new Date(),
+      distributor_sent_by: auth_user.id,
+      distributor_revoked_at: null,
+      distributor_revoked_by: null,
+    });
+    await this.ensureBaseDealChannels(deal);
+
+    const recipientIds = await this.getCompanyAdminUserIds(distributorCompany.id);
+    await Promise.all(
+      recipientIds.map((userId) =>
+        this.notificationService.send({
+          user_id: userId,
+          title: `Вам отправлена сделка №${deal.deal_num}`,
+          text: `Менеджер Тринити открыл вашей компании доступ к сделке №${deal.deal_num}.`,
+          category: NotificationCategory.Deal,
+          actions: [
+            { label: "Перейти к сделке", url: `/deals.management/${dealId}` },
+          ],
+        }),
+      ),
+    );
+    return this.findOne(dealId, auth_user);
+  }
+
+  async revokeDistributor(dealId: number, auth_user: UserEntity) {
+    const deal = await this.findOne(dealId, auth_user);
+    this.assertCanManageDistributorAccess(deal, auth_user);
+    if (!deal.distributor_sent_at || deal.distributor_revoked_at) return deal;
+
+    await this.dealRepository.update(dealId, {
+      distributor_revoked_at: new Date(),
+      distributor_revoked_by: auth_user.id,
+    });
+    Object.assign(deal, {
+      distributor_revoked_at: new Date(),
+      distributor_revoked_by: auth_user.id,
+    });
+    return this.findOne(dealId, auth_user);
+  }
+
+  async listDealParticipants(dealId: number, auth_user: UserEntity) {
+    await this.findOne(dealId, auth_user);
+    return this.mapDealParticipants(
+      await this.dealCollaborationRepository.listParticipants(dealId),
+    );
+  }
+
+  async addDealParticipant(
+    dealId: number,
+    auth_user: UserEntity,
+    dto: AddDealParticipantDto,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+    const actorCompany = await this.getUserCompany(auth_user);
+    const partyType = this.assertCanManageOwnCompanyParticipants(
+      deal,
+      auth_user,
+      actorCompany,
+    );
+    const membership =
+      await this.companyEmployeeRepository.findCompanyEmployeeByEmployeeId(
+        dto.user_id,
+      );
+    const target = await this.userRepository.findByIdWithPermissions(dto.user_id);
+    if (
+      !target?.is_activated ||
+      !membership ||
+      membership.company_id !== actorCompany!.id ||
+      membership.status !== CompanyEmployeeStatus.Accept
+    ) {
+      throw new HttpException(
+        "Можно добавить только активного сотрудника своей компании",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    await this.dealCollaborationRepository.addParticipant({
+      dealId,
+      userId: target.id,
+      companyId: actorCompany!.id,
+      partyType,
+      addedBy: auth_user.id,
+      participantRole: dto.participant_role?.trim() || null,
+    });
+    await this.notificationService.send({
+      user_id: target.id,
+      title: `Вы добавлены в сделку №${deal.deal_num}`,
+      text: `Пользователь ${this.getActorName(auth_user)} добавил вас в сделку №${deal.deal_num}.`,
+      category: NotificationCategory.Deal,
+      actions: [{ label: "Перейти к сделке", url: `/deals.management/${dealId}` }],
+    });
+    return this.mapDealParticipants(
+      await this.dealCollaborationRepository.listParticipants(dealId),
+    );
+  }
+
+  async removeDealParticipant(
+    dealId: number,
+    userId: number,
+    auth_user: UserEntity,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+    const actorCompany = await this.getUserCompany(auth_user);
+    this.assertCanManageOwnCompanyParticipants(deal, auth_user, actorCompany);
+    const participant = await this.dealCollaborationRepository.findActiveParticipant(
+      dealId,
+      userId,
+    );
+    if (!participant || participant.company_id !== actorCompany!.id) {
+      throw new HttpException("Участник сделки не найден", HttpStatus.NOT_FOUND);
+    }
+    if (userId === deal.creator_id) {
+      throw new HttpException(
+        "Создателя сделки нельзя удалить из участников",
+        HttpStatus.CONFLICT,
+      );
+    }
+    await this.dealCollaborationRepository.removeParticipant(
+      dealId,
+      userId,
+      auth_user.id,
+    );
+    return this.mapDealParticipants(
+      await this.dealCollaborationRepository.listParticipants(dealId),
+    );
+  }
+
+  async listDealChannels(dealId: number, auth_user: UserEntity) {
+    const deal = await this.findOne(dealId, auth_user);
+    await this.ensureBaseDealChannels(deal);
+    const channels = await this.dealCollaborationRepository.listActiveChannels(
+      dealId,
+    );
+    const visible = [];
+    for (const channel of channels) {
+      if (await this.canAccessDealChannel(deal, channel, auth_user)) {
+        visible.push({
+          ...channel,
+          unread_count:
+            await this.dealCollaborationRepository.getUnreadCount(
+              channel.id,
+              auth_user.id,
+            ),
+        });
+      }
+    }
+    return visible;
+  }
+
+  async listDealMessages(
+    dealId: number,
+    channelId: number,
+    auth_user: UserEntity,
+  ) {
+    const { channel } = await this.assertChannelAccess(
+      dealId,
+      channelId,
+      auth_user,
+    );
+    return this.mapDealMessages(
+      await this.dealCollaborationRepository.listMessages(channel.id),
+    );
+  }
+
+  async addDealMessage(
+    dealId: number,
+    channelId: number,
+    auth_user: UserEntity,
+    dto: AddDealMessageDto,
+  ) {
+    const { deal, channel } = await this.assertChannelAccess(
+      dealId,
+      channelId,
+      auth_user,
+    );
+    const text = dto.text?.trim() || "";
+    if (!text && !dto.attachments?.length) {
+      throw new HttpException("Сообщение не может быть пустым", HttpStatus.BAD_REQUEST);
+    }
+    const actorCompany = await this.getUserCompany(auth_user);
+    const message = await this.dealCollaborationRepository.addMessage({
+      channelId,
+      authorId: auth_user.id,
+      authorCompanyId: actorCompany?.id || null,
+      text,
+      attachments: dto.attachments,
+    });
+    await this.dealCollaborationRepository.markRead(
+      channelId,
+      auth_user.id,
+      message.id,
+    );
+    await this.notifyChannelParticipants(deal, channel, auth_user);
+    return message;
+  }
+
+  async markDealChannelRead(
+    dealId: number,
+    channelId: number,
+    auth_user: UserEntity,
+    dto: MarkDealChannelReadDto,
+  ) {
+    await this.assertChannelAccess(dealId, channelId, auth_user);
+    let messageId = dto.message_id || null;
+    if (!messageId) {
+      const messages = await this.dealCollaborationRepository.listMessages(channelId);
+      messageId = messages.at(-1)?.id || null;
+    }
+    await this.dealCollaborationRepository.markRead(
+      channelId,
+      auth_user.id,
+      messageId,
+    );
+    return { success: true };
+  }
+
+  private async ensureBaseDealChannels(deal: any) {
+    const partnerCompanyId =
+      deal.integrator_company_id || deal.creator_company_id || null;
+    if (partnerCompanyId) {
+      await this.dealCollaborationRepository.ensureChannel(
+        deal.id,
+        DealChannelType.General,
+        partnerCompanyId,
+        null,
+      );
+      await this.dealCollaborationRepository.ensureChannel(
+        deal.id,
+        DealChannelType.VendorPartner,
+        partnerCompanyId,
+        null,
+      );
+    }
+    if (
+      partnerCompanyId &&
+      deal.distributor_company_id &&
+      deal.distributor_sent_at &&
+      !deal.distributor_revoked_at
+    ) {
+      await this.dealCollaborationRepository.ensureChannel(
+        deal.id,
+        DealChannelType.VendorDistributor,
+        deal.distributor_company_id,
+        null,
+      );
+      await this.dealCollaborationRepository.ensureChannel(
+        deal.id,
+        DealChannelType.PartnerDistributor,
+        partnerCompanyId,
+        deal.distributor_company_id,
+      );
+    }
+  }
+
+  private mapDealParticipants(participants: any[]) {
+    return participants.map((participant) => ({
+      id: participant.id,
+      user_id: participant.user_id,
+      company_id: participant.company_id,
+      party_type: participant.party_type,
+      participant_role: participant.participant_role,
+      created_at: participant.created_at,
+      user: participant.user
+        ? {
+            id: participant.user.id,
+            email: participant.user.email,
+            user_info: participant.user.user_info
+              ? {
+                  first_name: participant.user.user_info.first_name,
+                  last_name: participant.user.user_info.last_name,
+                }
+              : null,
+          }
+        : null,
+      company: participant.company
+        ? { id: participant.company.id, name: participant.company.name }
+        : null,
+    }));
+  }
+
+  private mapDealMessages(messages: any[]) {
+    return messages.map((message) => ({
+      id: message.id,
+      channel_id: message.channel_id,
+      author_id: message.author_id,
+      author_company_id: message.author_company_id,
+      text: message.text,
+      attachments: message.attachments,
+      created_at: message.created_at,
+      updated_at: message.updated_at,
+      author: message.author
+        ? {
+            id: message.author.id,
+            email: message.author.email,
+            user_info: message.author.user_info
+              ? {
+                  first_name: message.author.user_info.first_name,
+                  last_name: message.author.user_info.last_name,
+                }
+              : null,
+          }
+        : null,
+    }));
+  }
+
+  private assertCanManageDistributorAccess(deal: any, auth_user: UserEntity) {
+    if (
+      this.isSuperAdmin(auth_user) ||
+      (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
+        deal.responsible_manager_id === auth_user.id)
+    ) {
+      return;
+    }
+    throw new HttpException(
+      "Управлять доступом дистрибьютора может только ответственный менеджер Тринити",
+      HttpStatus.FORBIDDEN,
+    );
+  }
+
+  private assertCanManageOwnCompanyParticipants(
+    deal: any,
+    auth_user: UserEntity,
+    company?: CompanyEntity | null,
+  ) {
+    if (!company) {
+      throw new HttpException("Компания пользователя не определена", HttpStatus.FORBIDDEN);
+    }
+    const isPartner =
+      company.partnership_type === PartnershipType.Integrator &&
+      (deal.integrator_company_id === company.id ||
+        deal.creator_company_id === company.id);
+    const isDistributor =
+      company.partnership_type === PartnershipType.Distributor &&
+      deal.distributor_company_id === company.id &&
+      Boolean(deal.distributor_sent_at) &&
+      !deal.distributor_revoked_at;
+    if (!isPartner && !isDistributor) {
+      throw new HttpException(
+        "Управлять можно только участниками своей стороны сделки",
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    return isDistributor
+      ? DealParticipantParty.Distributor
+      : DealParticipantParty.Partner;
+  }
+
+  private async canAccessDealChannel(
+    deal: any,
+    channel: { channel_type: DealChannelType },
+    auth_user: UserEntity,
+  ) {
+    if (this.isSuperAdmin(auth_user)) return true;
+    const isVendorManager =
+      this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
+      deal.responsible_manager_id === auth_user.id;
+    if (isVendorManager) {
+      return channel.channel_type !== DealChannelType.PartnerDistributor;
+    }
+
+    const company = await this.getUserCompany(auth_user);
+    if (!company) return false;
+    const isPartner =
+      company.partnership_type === PartnershipType.Integrator &&
+      (deal.integrator_company_id === company.id ||
+        deal.creator_company_id === company.id);
+    const isDistributor =
+      company.partnership_type === PartnershipType.Distributor &&
+      deal.distributor_company_id === company.id &&
+      Boolean(deal.distributor_sent_at) &&
+      !deal.distributor_revoked_at;
+
+    switch (channel.channel_type) {
+      case DealChannelType.General:
+        return isPartner || isDistributor;
+      case DealChannelType.VendorPartner:
+        return isPartner;
+      case DealChannelType.VendorDistributor:
+        return isDistributor;
+      case DealChannelType.PartnerDistributor:
+        return isPartner || isDistributor;
+      default:
+        return false;
+    }
+  }
+
+  private async assertChannelAccess(
+    dealId: number,
+    channelId: number,
+    auth_user: UserEntity,
+  ) {
+    const deal = await this.findOne(dealId, auth_user);
+    const channel = await this.dealCollaborationRepository.findActiveChannel(
+      dealId,
+      channelId,
+    );
+    if (!channel) {
+      throw new HttpException("Канал сделки не найден", HttpStatus.NOT_FOUND);
+    }
+    if (!(await this.canAccessDealChannel(deal, channel, auth_user))) {
+      throw new HttpException("Нет доступа к каналу сделки", HttpStatus.FORBIDDEN);
+    }
+    return { deal, channel };
+  }
+
+  private async notifyChannelParticipants(
+    deal: any,
+    channel: { channel_type: DealChannelType },
+    actor: UserEntity,
+  ) {
+    const participants =
+      await this.dealCollaborationRepository.listParticipants(deal.id);
+    const recipientIds = new Set<number>();
+    const includesPartner = [
+      DealChannelType.General,
+      DealChannelType.VendorPartner,
+      DealChannelType.PartnerDistributor,
+    ].includes(channel.channel_type);
+    const includesDistributor = [
+      DealChannelType.General,
+      DealChannelType.VendorDistributor,
+      DealChannelType.PartnerDistributor,
+    ].includes(channel.channel_type);
+    const includesVendor = [
+      DealChannelType.General,
+      DealChannelType.VendorPartner,
+      DealChannelType.VendorDistributor,
+    ].includes(channel.channel_type);
+
+    participants.forEach((participant) => {
+      if (
+        (includesPartner && participant.party_type === DealParticipantParty.Partner) ||
+        (includesDistributor &&
+          participant.party_type === DealParticipantParty.Distributor)
+      ) {
+        recipientIds.add(participant.user_id);
+      }
+    });
+    if (includesVendor && deal.responsible_manager_id) {
+      recipientIds.add(deal.responsible_manager_id);
+    }
+    recipientIds.delete(actor.id);
+
+    await Promise.all(
+      Array.from(recipientIds).map((userId) =>
+        this.notificationService.send({
+          user_id: userId,
+          title: `Новое сообщение в сделке №${deal.deal_num}`,
+          text: `Пользователь ${this.getActorName(actor)} отправил сообщение в доступный вам канал.`,
+          category: NotificationCategory.Deal,
+          actions: [
+            { label: "Перейти к сделке", url: `/deals.management/${deal.id}` },
+          ],
+        }),
+      ),
+    );
   }
 
   private async notifyDealStatusChanged(
@@ -2779,7 +3432,10 @@ export class DealService {
     const participantEditCapabilities =
       this.getDealParticipantEditCapabilities(auth_user, authUserCompany);
     const canUpdateDistributor =
-      canUpdateFields && participantEditCapabilities.canUpdateDistributor;
+      canUpdateFields &&
+      (this.isSuperAdmin(auth_user) ||
+        (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
+          deal.responsible_manager_id === auth_user.id));
     const canUpdateIntegrator =
       canUpdateFields && participantEditCapabilities.canUpdateIntegrator;
     const canViewFinalDealSum = this.canViewFinalDealSum(
@@ -2804,6 +3460,18 @@ export class DealService {
       can_view_configuration: true,
       can_decide: canDecide,
       can_view_final_deal_sum: canViewFinalDealSum,
+      can_transfer_manager:
+        this.isSuperAdmin(auth_user) ||
+        (this.hasAnyRole(auth_user, [RoleTypes.PartnerManager]) &&
+          deal.responsible_manager_id === auth_user.id),
+      can_send_to_distributor:
+        canUpdateDistributor &&
+        Boolean(deal.distributor_company_id) &&
+        (!deal.distributor_sent_at || Boolean(deal.distributor_revoked_at)),
+      can_revoke_distributor:
+        canUpdateDistributor &&
+        Boolean(deal.distributor_sent_at) &&
+        !deal.distributor_revoked_at,
     };
 
     const result = Object.assign(
@@ -2959,13 +3627,30 @@ export class DealService {
 
       return (
         isParticipant &&
-        [DealStatus.Registered, DealStatus.Win, DealStatus.Lose].includes(
-          deal.status,
-        )
+        Boolean(deal.distributor_sent_at) &&
+        !deal.distributor_revoked_at
       );
     }
 
     return false;
+  }
+
+  private isCompanySideEnabledForDeal(
+    deal: any,
+    company?: CompanyEntity | null,
+  ) {
+    if (!company) return false;
+    if (company.partnership_type === PartnershipType.Distributor) {
+      return (
+        deal.distributor_company_id === company.id &&
+        Boolean(deal.distributor_sent_at) &&
+        !deal.distributor_revoked_at
+      );
+    }
+    return (
+      deal.creator_company_id === company.id ||
+      deal.integrator_company_id === company.id
+    );
   }
 
   private async findDistributorCompanyForDeal(deal: any) {

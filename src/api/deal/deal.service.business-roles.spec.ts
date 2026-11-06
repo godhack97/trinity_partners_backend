@@ -274,7 +274,7 @@ describe("DealService business roles", () => {
     });
   });
 
-  it("сотрудник вендора не получает право менять участников сделки", async () => {
+  it("ответственный менеджер вендора может назначить дистрибьютора", async () => {
     const vendorCompany = {
       id: 10,
       owner_id: 1,
@@ -304,19 +304,20 @@ describe("DealService business roles", () => {
       service.findOne(1, makeUser(7, [RoleTypes.PartnerManager])),
     ).resolves.toMatchObject({
       can_update_fields: true,
-      can_assign_participants: false,
+      can_assign_participants: true,
+      can_update_distributor: true,
     });
   });
 
-  it("интегратор может менять только дистрибьютора своей сделки", async () => {
+  it("интегратор не назначает дистрибьютора после регистрации сделки", async () => {
     const { service } = makeService();
 
     await expect(
       service.findOne(1, makeUser(2, [RoleTypes.CompanyAdmin])),
     ).resolves.toMatchObject({
       can_update_fields: true,
-      can_assign_participants: true,
-      can_update_distributor: true,
+      can_assign_participants: false,
+      can_update_distributor: false,
       can_update_integrator: false,
     });
   });
@@ -372,6 +373,7 @@ describe("DealService business roles", () => {
     const registeredDeal = {
       ...moderationDeal,
       status: DealStatus.Registered,
+      distributor_sent_at: new Date(),
     };
 
     expect(
@@ -419,8 +421,9 @@ describe("DealService business roles", () => {
     ).resolves.toEqual([]);
 
     expect(mocks.dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
+      { companyId: 10 },
       undefined,
-      [4],
+      4,
     );
   });
 
@@ -439,8 +442,9 @@ describe("DealService business roles", () => {
       [],
     );
     expect(mocks.dealRepository.findDealsWithFilters).toHaveBeenCalledWith(
+      { companyId: 10 },
       undefined,
-      [5],
+      5,
     );
   });
 

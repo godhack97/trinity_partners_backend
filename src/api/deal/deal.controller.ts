@@ -38,6 +38,12 @@ import { AddDealAttachmentDto } from "./dto/request/add-deal-attachment.dto";
 import { AddDealCommentDto } from "./dto/request/add-deal-comment.dto";
 import { Roles } from "@decorators/Roles";
 import { RoleTypes } from "@app/types/RoleTypes";
+import { TransferDealManagerDto } from "./dto/request/transfer-deal-manager.dto";
+import { AddDealParticipantDto } from "./dto/request/deal-participant.dto";
+import {
+  AddDealMessageDto,
+  MarkDealChannelReadDto,
+} from "./dto/request/deal-message.dto";
 
 const strictDealBodyValidation = new ValidationPipe({
   transform: true,
@@ -231,6 +237,124 @@ export class DealController {
       +requestId,
       auth_user,
       processDto,
+    );
+  }
+
+  @Get("vendor-managers")
+  @RequirePermissions("api.deals.read")
+  listVendorManagers(@AuthUser() auth_user: UserEntity) {
+    return this.dealService.listVendorManagers(auth_user);
+  }
+
+  @Put(":id/manager")
+  @RequirePermissions("api.deals.write")
+  @LogAction("deal_manager_transfer", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
+  transferManager(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body(strictDealBodyValidation) dto: TransferDealManagerDto,
+  ) {
+    return this.dealService.transferManager(+id, auth_user, dto);
+  }
+
+  @Post(":id/distributor/send")
+  @RequirePermissions("api.deals.write")
+  @LogAction("deal_distributor_send", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
+  sendToDistributor(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.sendToDistributor(+id, auth_user);
+  }
+
+  @Post(":id/distributor/revoke")
+  @RequirePermissions("api.deals.write")
+  @LogAction("deal_distributor_revoke", "deals")
+  @UseInterceptors(new TransformResponse(DealResponseDto))
+  revokeDistributor(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.revokeDistributor(+id, auth_user);
+  }
+
+  @Get(":id/participants")
+  @RequirePermissions("api.deals.read")
+  listParticipants(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.listDealParticipants(+id, auth_user);
+  }
+
+  @Post(":id/participants")
+  @RequirePermissions("api.deals.write")
+  @LogAction("deal_participant_add", "deal_participants")
+  addParticipant(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body(strictDealBodyValidation) dto: AddDealParticipantDto,
+  ) {
+    return this.dealService.addDealParticipant(+id, auth_user, dto);
+  }
+
+  @Delete(":id/participants/:userId")
+  @RequirePermissions("api.deals.write")
+  @LogAction("deal_participant_remove", "deal_participants")
+  removeParticipant(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.removeDealParticipant(+id, +userId, auth_user);
+  }
+
+  @Get(":id/channels")
+  @RequirePermissions("api.deals.read")
+  listChannels(
+    @Param("id") id: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.listDealChannels(+id, auth_user);
+  }
+
+  @Get(":id/channels/:channelId/messages")
+  @RequirePermissions("api.deals.read")
+  listMessages(
+    @Param("id") id: string,
+    @Param("channelId") channelId: string,
+    @AuthUser() auth_user: UserEntity,
+  ) {
+    return this.dealService.listDealMessages(+id, +channelId, auth_user);
+  }
+
+  @Post(":id/channels/:channelId/messages")
+  @RequirePermissions("api.deals.write")
+  @LogAction("deal_message_add", "deal_messages")
+  addMessage(
+    @Param("id") id: string,
+    @Param("channelId") channelId: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body(strictDealBodyValidation) dto: AddDealMessageDto,
+  ) {
+    return this.dealService.addDealMessage(+id, +channelId, auth_user, dto);
+  }
+
+  @Put(":id/channels/:channelId/read")
+  @RequirePermissions("api.deals.read")
+  markChannelRead(
+    @Param("id") id: string,
+    @Param("channelId") channelId: string,
+    @AuthUser() auth_user: UserEntity,
+    @Body(strictDealBodyValidation) dto: MarkDealChannelReadDto,
+  ) {
+    return this.dealService.markDealChannelRead(
+      +id,
+      +channelId,
+      auth_user,
+      dto,
     );
   }
 

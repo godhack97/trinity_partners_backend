@@ -89,6 +89,18 @@ export class DealResponseDto extends WithIdDto {
   @Expose()
   distributor_company_id?: number | null;
 
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  @Expose()
+  distributor_sent_at?: Date | string | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  @Expose()
+  distributor_sent_by?: number | null;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  @Expose()
+  distributor_revoked_at?: Date | string | null;
+
   @ApiProperty({ required: false })
   @Expose()
   integrator_company_id?: number;
@@ -347,4 +359,16 @@ export class DealResponseDto extends WithIdDto {
   })
   @Expose()
   can_view_final_deal_sum: boolean;
+
+  @ApiProperty()
+  @Expose()
+  can_transfer_manager: boolean;
+
+  @ApiProperty()
+  @Expose()
+  can_send_to_distributor: boolean;
+
+  @ApiProperty()
+  @Expose()
+  can_revoke_distributor: boolean;
 }

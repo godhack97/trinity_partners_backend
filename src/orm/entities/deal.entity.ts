@@ -110,6 +110,18 @@ export class DealEntity extends BasisEntity {
   @Column({ type: "int", unsigned: true, nullable: true })
   distributor_company_id?: number | null;
 
+  @Column({ type: "datetime", nullable: true })
+  distributor_sent_at?: Date | null;
+
+  @Column({ type: "int", unsigned: true, nullable: true })
+  distributor_sent_by?: number | null;
+
+  @Column({ type: "datetime", nullable: true })
+  distributor_revoked_at?: Date | null;
+
+  @Column({ type: "int", unsigned: true, nullable: true })
+  distributor_revoked_by?: number | null;
+
   @ManyToOne(() => CompanyEntity, (company: CompanyEntity) => company.id, {
     eager: true,
     nullable: true,

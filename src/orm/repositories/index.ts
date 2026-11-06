@@ -7,6 +7,7 @@ export * from "./user-setting.repository";
 export * from "./user-info.repository";
 export * from "./user.repository";
 export * from "./deal.repository";
+export * from "./deal-collaboration.repository";
 export * from "./customer.repository";
 export * from "./distributor.repository";
 export * from "./notification.repository";
